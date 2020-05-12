@@ -1,0 +1,31 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Sharepoint extension for KNIME Workbench
+Bundle-SymbolicName: org.knime.ext.sharepoint.filehandling; singleton:=true
+Bundle-Version: 4.2.0.qualifier
+Bundle-Vendor: 
+Require-Bundle: org.knime.workbench.repository;bundle-version="[4.2.0,5.0.0)",
+ org.knime.base;bundle-version="[4.2.0,5.0.0)",
+ org.knime.filehandling.core;bundle-version="[4.2.0,5.0.0)",
+ org.knime.base.filehandling;bundle-version="[4.2.0,5.0.0)"
+Bundle-ActivationPolicy: lazy
+Bundle-ClassPath: .,
+ lib/microsoft-graph-1.6.0.jar,
+ lib/msal4j-1.4.0.jar,
+ lib/oauth2-oidc-sdk-6.5.jar,
+ lib/jackson-core-2.10.1.jar,
+ lib/slf4j-api-1.8.0-beta4.jar,
+ lib/json-smart-2.3.jar,
+ lib/jackson-databind-2.10.1.jar,
+ lib/jackson-annotations-2.10.1.jar,
+ lib/javax.mail-1.6.1.jar,
+ lib/accessors-smart-1.2.jar,
+ lib/nimbus-jose-jwt-8.14.jar,
+ lib/microsoft-graph-core-1.0.0.jar,
+ lib/okhttp-3.12.1.jar,
+ lib/gson-2.8.2.jar,
+ lib/jsr311-api-1.1.1.jar,
+ lib/jersey-server-1.19.4.jar,
+ lib/jersey-core-1.19.4.jar,
+ lib/okio-1.15.0.jar
+

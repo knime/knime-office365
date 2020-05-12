@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry exported="true" kind="lib" path="lib/okio-1.15.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jersey-core-1.19.4.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jersey-server-1.19.4.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jsr311-api-1.1.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/gson-2.8.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/okhttp-3.12.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/microsoft-graph-core-1.0.0.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/nimbus-jose-jwt-8.14.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/accessors-smart-1.2.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/javax.mail-1.6.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jackson-annotations-2.10.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jackson-databind-2.10.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/json-smart-2.3.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/slf4j-api-1.8.0-beta4.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/jackson-core-2.10.1.jar"/>
+	<classpathentry exported="true" kind="lib" path="lib/oauth2-oidc-sdk-6.5.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+	<classpathentry kind="lib" path="lib/msal4j-1.4.0.jar"/>
+	<classpathentry kind="lib" path="lib/microsoft-graph-1.6.0.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
