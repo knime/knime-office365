@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -84,7 +85,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
     private final IGraphServiceClient m_client;
     private final String m_siteId;
-    private final Map<String, String> m_drives;
+    private final Map<String, Drive> m_drives;
 
     /**
      * @param fileSystemProvider
@@ -134,8 +135,35 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
     private void storeDrives(final List<Drive> drives) {
         for (Drive drive : drives) {
-            m_drives.put(drive.name, drive.id);
+            m_drives.put(drive.name, drive);
         }
+    }
+
+    /**
+     * @return the cached drives list for a current site.
+     */
+    public Collection<Drive> getDrives() {
+        return m_drives.values();
+    }
+
+    /**
+     * @param driveName
+     *            The drive name.
+     * @return The driveId for a given drive.
+     */
+    public String getDriveId(final String driveName) {
+        Drive drive = m_drives.get(driveName);
+        if (drive != null) {
+            return drive.id;
+        }
+        return null;
+    }
+
+    /**
+     * @return the client
+     */
+    public IGraphServiceClient getClient() {
+        return m_client;
     }
 
     /**

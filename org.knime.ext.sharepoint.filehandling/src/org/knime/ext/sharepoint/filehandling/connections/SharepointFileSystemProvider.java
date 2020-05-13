@@ -60,14 +60,20 @@ import java.nio.file.FileStore;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.FileTime;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.filehandling.core.connections.base.BaseFileSystemProvider;
 import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
+import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.models.extensions.DriveItem;
+import com.microsoft.graph.models.extensions.Folder;
+import com.microsoft.graph.models.extensions.IGraphServiceClient;
 
 /**
  * File system provider for {@link SharepointFileSystem}.
@@ -165,17 +171,31 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
     @Override
     protected Iterator<SharepointPath> createPathIterator(final SharepointPath dir, final Filter<? super Path> filter)
             throws IOException {
-        // TODO Auto-generated method stub
-        return null;
+        return SharepointPathIterator.create(dir, filter);
     }
 
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("resource")
     @Override
     protected void createDirectoryInternal(final SharepointPath dir, final FileAttribute<?>... attrs) throws IOException {
-        // TODO Auto-generated method stub
+        IGraphServiceClient client = dir.getFileSystem().getClient();
+        if (dir.getItemPath() != null) {
+            String parentId = dir.getParent().getDriveItem().id;
 
+            DriveItem item = new DriveItem();
+            item.name = dir.getFileName().toString();
+            item.folder = new Folder();
+
+            try {
+                client.drives(dir.getDriveId()).items(parentId).children().buildRequest().post(item);
+            } catch (ClientException e) {
+                throw GraphApiUtil.unwrapIOE(e);
+            }
+        } else {
+            throw new UnsupportedOperationException("Cannot create drive");
+        }
     }
 
     /**
@@ -183,8 +203,16 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      */
     @Override
     protected boolean exists(final SharepointPath path) throws IOException {
-        // TODO Auto-generated method stub
-        return false;
+        if (path.getDriveName() == null) {// Virtual root
+            return true;
+        }
+
+        if (path.getItemPath() == null) {
+            // Drive exists if present in drives cache
+            return path.getDriveId() != null;
+        }
+
+        return path.getDriveItem() != null;
     }
 
     /**
@@ -192,8 +220,23 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      */
     @Override
     protected BaseFileAttributes fetchAttributesInternal(final SharepointPath path, final Class<?> type) throws IOException {
-        // TODO Auto-generated method stub
-        return null;
+        boolean isRegularFile = false;
+        FileTime createdAt = FileTime.fromMillis(0);
+        FileTime modifiedAt = createdAt;
+        long size = 0;
+
+        if (path.getNameCount() > 0) {
+            DriveItem item = path.getDriveItem();
+            isRegularFile = item.folder == null;
+            createdAt = FileTime.from(item.createdDateTime.toInstant());
+            modifiedAt = FileTime.from(item.lastModifiedDateTime.toInstant());
+
+            if (item.size != null) {
+                size = item.size;
+            }
+        }
+
+        return new BaseFileAttributes(isRegularFile, path, modifiedAt, modifiedAt, createdAt, size, false, false, null);
     }
 
     /**
@@ -227,17 +270,16 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      */
     @Override
     public boolean isHidden(final Path path) throws IOException {
-        // TODO Auto-generated method stub
         return false;
     }
 
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("resource")
     @Override
     public FileStore getFileStore(final Path path) throws IOException {
-        // TODO Auto-generated method stub
-        return null;
+        return path.getFileSystem().getFileStores().iterator().next();
     }
 
 }

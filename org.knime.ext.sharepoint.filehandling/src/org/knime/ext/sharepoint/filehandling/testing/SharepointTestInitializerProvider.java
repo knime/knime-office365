@@ -46,62 +46,68 @@
  * History
  *   2020-05-03 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.connections;
+package org.knime.ext.sharepoint.filehandling.testing;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import org.knime.core.node.util.FileSystemBrowser;
-import org.knime.filehandling.core.connections.FSConnection;
-import org.knime.filehandling.core.connections.FSFileSystem;
-import org.knime.filehandling.core.filechooser.NioFileSystemBrowser;
+import org.knime.ext.sharepoint.filehandling.GraphApiConnector;
+import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
+import org.knime.filehandling.core.testing.FSTestInitializer;
+import org.knime.filehandling.core.testing.FSTestInitializerProvider;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
- * Sharepoint implementation of {@link FSConnection} interface.
- *
+ * Itinializer provider for Sharepoint.
+ * 
  * @author Alexander Bondaletov
  */
-public class SharepointConnection implements FSConnection {
-
-    private final SharepointFileSystem m_filesystem;
-    private final long m_cacheTTL = 60000;
+public class SharepointTestInitializerProvider implements FSTestInitializerProvider {
+    private static final String FS_NAME = "azure-sharepoint";
 
     /**
-     * @param authProvider
-     *            Authentication provider
-     * @param site
-     *            The site id or path in a form of
-     *            <code>{hostname}:/{server-relative-path}</code>
-     * @throws URISyntaxException
-     * @throws IOException
-     *
+     * {@inheritDoc}
      */
-    public SharepointConnection(final IAuthenticationProvider authProvider,
-            final String site)
-            throws URISyntaxException, IOException {
-        URI uri = new URI(SharepointFileSystemProvider.SCHEME, "sharepoint", null, null);
-        SharepointFileSystemProvider provider = new SharepointFileSystemProvider(authProvider, site, m_cacheTTL);
-        m_filesystem = provider.getOrCreateFileSystem(uri, Collections.emptyMap());
+    @Override
+    public FSTestInitializer setup(final Map<String, String> configuration) {
+        ExecutorService pool = Executors.newFixedThreadPool(1);
+        try {
+            setupProperties(configuration);
+            IAuthenticationProvider authProvider = GraphApiConnector.connect(pool);
+            SharepointConnection fsConnection = new SharepointConnection(authProvider,
+                    configuration.get("site"));
+            return new SharepointTestInitializer(fsConnection, configuration.get("drive"),
+                    configuration.get("testfolder"));
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } catch (URISyntaxException | ExecutionException | IOException ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            pool.shutdown();
+        }
+        return null;
+    }
+
+    private static void setupProperties(final Map<String, String> configuration) {
+        List<String> keys = Arrays.asList("username", "password", "tenant");
+        for (String key : keys) {
+            System.setProperty("sharepoint." + key, configuration.get(key));
+        }
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FSFileSystem<?> getFileSystem() {
-        return m_filesystem;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public FileSystemBrowser getFileSystemBrowser() {
-        return new NioFileSystemBrowser(this);
+    public String getFSType() {
+        return FS_NAME;
     }
 
 }

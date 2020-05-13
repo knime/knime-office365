@@ -48,9 +48,18 @@
  */
 package org.knime.ext.sharepoint.filehandling.connections;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 
+import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.filehandling.core.connections.base.UnixStylePath;
+
+import com.microsoft.graph.http.GraphServiceException;
+import com.microsoft.graph.models.extensions.DriveItem;
+import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.requests.extensions.IDriveItemRequestBuilder;
 
 /**
  * {@link Path} implementation for the {@link SharepointFileSystem}.
@@ -71,6 +80,21 @@ public class SharepointPath extends UnixStylePath {
         super(fileSystem, first, more);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public SharepointFileSystem getFileSystem() {
+        return (SharepointFileSystem) super.getFileSystem();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public SharepointPath getParent() {
+        return (SharepointPath) super.getParent();
+    }
 
     /**
      * @return The drive name. May be null.
@@ -83,5 +107,69 @@ public class SharepointPath extends UnixStylePath {
             return null;
         }
         return m_pathParts.get(0);
+    }
+
+    /**
+     * @return The driveId for a current path. May be null.
+     */
+    @SuppressWarnings("resource")
+    public String getDriveId() {
+        return getFileSystem().getDriveId(getDriveName());
+    }
+
+    /**
+     * @return the drive item path. May be null
+     */
+    public String getItemPath() {
+        if (!isAbsolute()) {
+            throw new IllegalStateException("Blob name cannot be determined for relative paths.");
+        }
+        if (m_pathParts.size() <= 1) {
+            return null;
+        } else {
+            return subpath(1, getNameCount()).toString();
+        }
+    }
+
+    /**
+     * Fetches {@link DriveItem} corresponding to the path. May be null if item
+     * doesn't exist.
+     *
+     * @return The {@link DriveItem}
+     * @throws IOException
+     */
+    @SuppressWarnings("resource")
+    public DriveItem getDriveItem() throws IOException {
+        IGraphServiceClient client = getFileSystem().getClient();
+        IDriveItemRequestBuilder req = client.drives(getDriveId()).root();
+
+        String itemPath = getItemPath();
+        if (itemPath != null) {
+            req = req.itemWithPath(toUrlString(itemPath));
+        }
+
+        try {
+            return req.buildRequest().get();
+        } catch (GraphServiceException e) {
+            if (e.getResponseCode() == 404) {
+                return null;
+            }
+            throw GraphApiUtil.unwrapIOE(e);
+        }
+    }
+
+    /**
+     * Converts provided string into url-encoded format expected by msgraph API
+     *
+     * @param str
+     *            String to convert.
+     * @return Converted string.
+     */
+    public static String toUrlString(final String str) {
+        try {
+            return new URI(null, str, null).toASCIIString();
+        } catch (URISyntaxException ex) {
+            throw new RuntimeException(ex);// Should not happen
+        }
     }
 }

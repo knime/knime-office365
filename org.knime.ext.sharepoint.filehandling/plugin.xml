@@ -8,4 +8,10 @@
             factory-class="org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionNodeFactory"
             id="org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionNodeFactory"/>
    </extension>
+   <extension
+         point="org.knime.filehandling.FSTestInitializerProvider">
+      <FSTestInitializerProvider
+            ProviderClass="org.knime.ext.sharepoint.filehandling.testing.SharepointTestInitializerProvider">
+      </FSTestInitializerProvider>
+   </extension>
 </plugin>
