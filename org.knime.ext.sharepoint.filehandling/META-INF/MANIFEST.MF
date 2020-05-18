@@ -27,5 +27,6 @@ Bundle-ClassPath: .,
  lib/jsr311-api-1.1.1.jar,
  lib/jersey-server-1.19.4.jar,
  lib/jersey-core-1.19.4.jar,
- lib/okio-1.15.0.jar
+ lib/okio-1.15.0.jar,
+ lib/guava-28.0-jre.jar
 

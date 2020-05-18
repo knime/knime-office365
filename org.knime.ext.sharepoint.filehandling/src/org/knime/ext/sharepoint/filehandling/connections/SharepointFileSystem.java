@@ -57,9 +57,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.filehandling.core.connections.DefaultFSLocationSpec;
 import org.knime.filehandling.core.connections.base.BaseFileSystem;
 import org.knime.filehandling.core.defaultnodesettings.FileSystemChoice.Choice;
 
@@ -103,7 +103,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      */
     public SharepointFileSystem(final SharepointFileSystemProvider fileSystemProvider, final URI uri,
             final long cacheTTL, final IAuthenticationProvider authProvider, final String site) throws IOException {
-        super(fileSystemProvider, uri, cacheTTL, PATH_SEPARATOR, Choice.CONNECTED_FS, Optional.of(site));
+        super(fileSystemProvider, uri, cacheTTL, PATH_SEPARATOR, createFSLocationSpec());
 
         DefaultLogger logger = new DefaultLogger();
         logger.setLoggingLevel(LoggerLevel.ERROR);
@@ -117,6 +117,10 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
         m_drives = new HashMap<>();
         fetchDrives();
+    }
+
+    private static DefaultFSLocationSpec createFSLocationSpec() {
+        return new DefaultFSLocationSpec(Choice.CONNECTED_FS, SharepointFileSystemProvider.SCHEME);
     }
 
     private void fetchDrives() throws IOException {

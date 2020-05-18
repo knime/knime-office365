@@ -139,9 +139,15 @@ public class SharepointPath extends UnixStylePath {
      * @throws IOException
      */
     @SuppressWarnings("resource")
-    public DriveItem getDriveItem() throws IOException {
+    public DriveItem fetchDriveItem() throws IOException {
         IGraphServiceClient client = getFileSystem().getClient();
-        IDriveItemRequestBuilder req = client.drives(getDriveId()).root();
+        String driveId = getDriveId();
+
+        if (driveId == null) {
+            return null;
+        }
+
+        IDriveItemRequestBuilder req = client.drives(driveId).root();
 
         String itemPath = getItemPath();
         if (itemPath != null) {
@@ -156,6 +162,31 @@ public class SharepointPath extends UnixStylePath {
             }
             throw GraphApiUtil.unwrapIOE(e);
         }
+    }
+
+    /**
+     * Returns {@link DriveItem} corresponding to the path. Makes an attempt to
+     * fetch it from the attribute cache first. Updates attributes cache if new
+     * drive item was fetched.
+     *
+     * @return Drive item or null if the file doesn't exist.
+     * @throws IOException
+     */
+    @SuppressWarnings("resource")
+    public DriveItem getDriveItem() throws IOException {
+        DriveItem item = getFileSystem().getCachedAttributes(this)
+                .filter(attrs -> attrs instanceof SharepointFileAttributes)
+                .map(attrs -> ((SharepointFileAttributes) attrs).getDriveItem())
+                .orElse(null);
+
+        if (item == null && getNameCount() > 0) {
+            item = fetchDriveItem();
+            if (item != null) {
+                getFileSystem().addToAttributeCache(this, new SharepointFileAttributes(this, item));
+            }
+        }
+
+        return item;
     }
 
     /**

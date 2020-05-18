@@ -52,15 +52,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.FileStore;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.FileTime;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -123,8 +126,7 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
     @Override
     protected SeekableByteChannel newByteChannelInternal(final SharepointPath path, final Set<? extends OpenOption> options,
             final FileAttribute<?>... attrs) throws IOException {
-        // TODO Auto-generated method stub
-        return null;
+        return new SharepointSeekableByteChannel(path, options);
     }
 
     /**
@@ -150,10 +152,21 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("resource")
     @Override
     protected InputStream newInputStreamInternal(final SharepointPath path, final OpenOption... options) throws IOException {
-        // TODO Auto-generated method stub
-        return null;
+        IGraphServiceClient client = path.getFileSystem().getClient();
+        DriveItem item = path.getDriveItem();
+
+        if (item == null) {
+            throw new NoSuchFileException(path.toString());
+        }
+
+        try {
+            return client.drives(path.getDriveId()).items(item.id).content().buildRequest().get();
+        } catch (ClientException ex) {
+            throw GraphApiUtil.unwrapIOE(ex);
+        }
     }
 
     /**
@@ -161,8 +174,8 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      */
     @Override
     protected OutputStream newOutputStreamInternal(final SharepointPath path, final OpenOption... options) throws IOException {
-        // TODO Auto-generated method stub
-        return null;
+        final Set<OpenOption> opts = new HashSet<>(Arrays.asList(options));
+        return Channels.newOutputStream(newByteChannel(path, opts));
     }
 
     /**
@@ -212,7 +225,7 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
             return path.getDriveId() != null;
         }
 
-        return path.getDriveItem() != null;
+        return path.fetchDriveItem() != null;
     }
 
     /**
@@ -220,23 +233,12 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      */
     @Override
     protected BaseFileAttributes fetchAttributesInternal(final SharepointPath path, final Class<?> type) throws IOException {
-        boolean isRegularFile = false;
-        FileTime createdAt = FileTime.fromMillis(0);
-        FileTime modifiedAt = createdAt;
-        long size = 0;
-
+        DriveItem item = null;
         if (path.getNameCount() > 0) {
-            DriveItem item = path.getDriveItem();
-            isRegularFile = item.folder == null;
-            createdAt = FileTime.from(item.createdDateTime.toInstant());
-            modifiedAt = FileTime.from(item.lastModifiedDateTime.toInstant());
-
-            if (item.size != null) {
-                size = item.size;
-            }
+            item = path.fetchDriveItem();
         }
+        return new SharepointFileAttributes(path, item);
 
-        return new BaseFileAttributes(isRegularFile, path, modifiedAt, modifiedAt, createdAt, size, false, false, null);
     }
 
     /**

@@ -52,12 +52,10 @@ import java.io.IOException;
 import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileTime;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.Drive;
@@ -184,11 +182,7 @@ public abstract class SharepointPathIterator implements Iterator<SharepointPath>
         private SharepointPath createPath(final Drive drive) {
             SharepointPath path = m_fs.getPath(m_fs.getSeparator(), drive.name);
 
-            FileTime createdAt = FileTime.from(drive.createdDateTime.toInstant());
-            FileTime modifiedAt = FileTime.from(drive.lastModifiedDateTime.toInstant());
-
-            BaseFileAttributes attrs = new BaseFileAttributes(false, path, modifiedAt, modifiedAt, createdAt, 0, false,
-                    false, null);
+            SharepointFileAttributes attrs = new SharepointFileAttributes(path, null);
             m_fs.addToAttributeCache(path, attrs);
 
             return path;
@@ -268,11 +262,7 @@ public abstract class SharepointPathIterator implements Iterator<SharepointPath>
         private SharepointPath createPath(final DriveItem item) {
             SharepointPath path = m_fs.getPath(m_path.toString(), item.name);
 
-            FileTime createdAt = FileTime.from(item.createdDateTime.toInstant());
-            FileTime modifiedAt = FileTime.from(item.lastModifiedDateTime.toInstant());
-
-            BaseFileAttributes attrs = new BaseFileAttributes(item.folder == null, path, modifiedAt, modifiedAt,
-                    createdAt, item.size, false, false, null);
+            SharepointFileAttributes attrs = new SharepointFileAttributes(path, item);
             m_fs.addToAttributeCache(path, attrs);
 
             return path;
