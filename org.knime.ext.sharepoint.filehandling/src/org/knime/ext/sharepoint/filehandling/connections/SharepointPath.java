@@ -174,10 +174,29 @@ public class SharepointPath extends UnixStylePath {
      */
     @SuppressWarnings("resource")
     public DriveItem getDriveItem() throws IOException {
-        DriveItem item = getFileSystem().getCachedAttributes(this)
-                .filter(attrs -> attrs instanceof SharepointFileAttributes)
-                .map(attrs -> ((SharepointFileAttributes) attrs).getDriveItem())
-                .orElse(null);
+        return getDriveItem(false);
+    }
+
+    /**
+     * Returns {@link DriveItem} corresponding to the path. Makes an attempt to
+     * fetch it from the attribute cache if the <code>force</code> flag is set to
+     * <code>false</code>. Updates attributes cache if new drive item was fetched.
+     *
+     * @param force
+     *            When set to <code>true</code> new drive item will be loaded
+     *            without trying to fetch it from the cache.
+     *
+     * @return Drive item or null if the file doesn't exist.
+     * @throws IOException
+     */
+    @SuppressWarnings("resource")
+    public DriveItem getDriveItem(final boolean force) throws IOException {
+        DriveItem item = null;
+
+        if (!force) {
+            item = getFileSystem().getCachedAttributes(this).filter(attrs -> attrs instanceof SharepointFileAttributes)
+                    .map(attrs -> ((SharepointFileAttributes) attrs).getDriveItem()).orElse(null);
+        }
 
         if (item == null && getNameCount() > 0) {
             item = fetchDriveItem();

@@ -49,6 +49,7 @@
 package org.knime.ext.sharepoint.filehandling.connections;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
@@ -57,6 +58,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.filehandling.core.connections.DefaultFSLocationSpec;
@@ -65,12 +67,19 @@ import org.knime.filehandling.core.defaultnodesettings.FileSystemChoice.Choice;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.core.IConnectionConfig;
+import com.microsoft.graph.http.CoreHttpProvider;
+import com.microsoft.graph.httpcore.HttpClients;
+import com.microsoft.graph.httpcore.ICoreAuthenticationProvider;
 import com.microsoft.graph.logger.DefaultLogger;
 import com.microsoft.graph.logger.LoggerLevel;
 import com.microsoft.graph.models.extensions.Drive;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.requests.extensions.GraphServiceClient;
 import com.microsoft.graph.requests.extensions.IDriveCollectionPage;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
 
 /**
  * Sharepoint implementation of the {@link FileSystem}.
@@ -110,6 +119,8 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
         try {
             m_client = GraphServiceClient.builder().authenticationProvider(authProvider).logger(logger).buildClient();
+            patchHttpProvider();
+
             m_siteId = m_client.sites().byId(site).buildRequest().get().id;
         } catch (ClientException ex) {
             throw GraphApiUtil.unwrapIOE(ex);
@@ -121,6 +132,41 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
     private static DefaultFSLocationSpec createFSLocationSpec() {
         return new DefaultFSLocationSpec(Choice.CONNECTED_FS, SharepointFileSystemProvider.SCHEME);
+    }
+
+    /**
+     * Workaround to address this bug
+     * (https://github.com/microsoftgraph/msgraph-sdk-java/issues/313). I haven't
+     * encountered this error during normal node usage, but it causes random unit
+     * tests to fail on a regular basis.
+     *
+     * To fix this we replace corehttpClient field of the {@link CoreHttpProvider}
+     * with a new one that has retryOnConnectionFailure option enabled.
+     */
+    private void patchHttpProvider() {
+        if (m_client.getHttpProvider() instanceof CoreHttpProvider) {
+            IConnectionConfig connectionConfig = m_client.getHttpProvider().getConnectionConfig();
+
+            OkHttpClient.Builder okBuilder = HttpClients.createDefault(new ICoreAuthenticationProvider() {
+                @Override
+                public Request authenticateRequest(final Request request) {
+                    return request;
+                }
+            }).newBuilder();
+            okBuilder.connectTimeout(connectionConfig.getConnectTimeout(), TimeUnit.MILLISECONDS);
+            okBuilder.readTimeout(connectionConfig.getReadTimeout(), TimeUnit.MILLISECONDS);
+            okBuilder.followRedirects(false);
+            okBuilder.retryOnConnectionFailure(true);// The only field that is different from the original
+            OkHttpClient corehttpClient = okBuilder.build();
+
+            try {
+                Field field = CoreHttpProvider.class.getDeclaredField("corehttpClient");
+                field.setAccessible(true);
+                field.set(m_client.getHttpProvider(), corehttpClient);
+            } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException ex) {
+
+            }
+        }
     }
 
     private void fetchDrives() throws IOException {

@@ -56,6 +56,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.DirectoryStream.Filter;
 import java.nio.file.FileStore;
 import java.nio.file.NoSuchFileException;
@@ -77,6 +78,7 @@ import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.DriveItem;
 import com.microsoft.graph.models.extensions.Folder;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.models.extensions.ItemReference;
 
 /**
  * File system provider for {@link SharepointFileSystem}.
@@ -132,21 +134,83 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("resource")
     @Override
     protected void moveInternal(final SharepointPath source, final SharepointPath target, final CopyOption... options)
             throws IOException {
-        // TODO Auto-generated method stub
+        IGraphServiceClient client = source.getFileSystem().getClient();
+        DriveItem targetItem = target.getDriveItem(true);
 
+        if (targetItem != null) {
+            if (targetItem.folder != null && targetItem.folder.childCount > 0) {
+                throw new DirectoryNotEmptyException(
+                        String.format("Target directory %s exists and is not empty", target.toString()));
+            }
+
+            delete(target);
+        }
+
+        DriveItem sourceItem = source.getDriveItem(true);
+        DriveItem targetParent = target.getParent().getDriveItem();
+
+        ItemReference parentRef = new ItemReference();
+        parentRef.id = targetParent.id;
+
+        targetItem = new DriveItem();
+        targetItem.parentReference = parentRef;
+        targetItem.name = target.getFileName().toString();
+
+        try {
+            DriveItem resultItem = client.drives(source.getDriveId()).items(sourceItem.id).buildRequest()
+                    .patch(targetItem);
+
+            if (sourceItem.folder == null || sourceItem.folder.childCount == 0) {
+                getFileSystemInternal().removeFromAttributeCache(source);
+            } else {
+                getFileSystemInternal().removeFromAttributeCacheDeep(source);
+            }
+
+            if (resultItem != null) {
+                getFileSystemInternal().addToAttributeCache(target, new SharepointFileAttributes(target, resultItem));
+            }
+        } catch (ClientException ex) {
+            throw GraphApiUtil.unwrapIOE(ex);
+        }
     }
 
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("resource")
     @Override
     protected void copyInternal(final SharepointPath source, final SharepointPath target, final CopyOption... options)
             throws IOException {
-        // TODO Auto-generated method stub
+        IGraphServiceClient client = source.getFileSystem().getClient();
+        DriveItem targetItem = target.getDriveItem(true);
 
+        if (targetItem != null) {
+            if (targetItem.folder != null && targetItem.folder.childCount > 0) {
+                throw new DirectoryNotEmptyException(
+                        String.format("Target directory %s exists and is not empty", target.toString()));
+            }
+
+            delete(target);
+        }
+
+        DriveItem sourceItem = source.getDriveItem();
+        DriveItem targetParent = target.getParent().getDriveItem();
+
+        ItemReference parentRef = new ItemReference();
+        parentRef.driveId = target.getDriveId();
+        parentRef.id = targetParent.id;
+        String name = target.getFileName().toString();
+
+        try {
+            client.drives(source.getDriveId()).items(sourceItem.id).copy(name, parentRef)
+                    .buildRequest().post();
+        } catch (ClientException ex) {
+            throw GraphApiUtil.unwrapIOE(ex);
+        }
     }
 
     /**
@@ -202,7 +266,12 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
             item.folder = new Folder();
 
             try {
-                client.drives(dir.getDriveId()).items(parentId).children().buildRequest().post(item);
+                DriveItem resultItem = client.drives(dir.getDriveId()).items(parentId).children().buildRequest()
+                        .post(item);
+
+                if (resultItem != null) {
+                    getFileSystemInternal().addToAttributeCache(dir, new SharepointFileAttributes(dir, resultItem));
+                }
             } catch (ClientException e) {
                 throw GraphApiUtil.unwrapIOE(e);
             }
@@ -253,10 +322,21 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("resource")
     @Override
     protected void deleteInternal(final SharepointPath path) throws IOException {
-        // TODO Auto-generated method stub
+        IGraphServiceClient client = path.getFileSystem().getClient();
+        DriveItem item = path.getDriveItem(true);
 
+        if (item.folder != null && item.folder.childCount > 0) {
+            throw new DirectoryNotEmptyException(path.toString());
+        }
+
+        try {
+            client.drives(path.getDriveId()).items(item.id).buildRequest().delete();
+        } catch (ClientException ex) {
+            GraphApiUtil.unwrapIOE(ex);
+        }
     }
 
     /**
