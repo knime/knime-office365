@@ -76,12 +76,12 @@ public abstract class LoadedItemsSelector extends JPanel {
 
     private final SettingsModelString m_idModel;
     private final SettingsModelString m_titleModel;
+    private final DefaultComboBoxModel<IdComboboxItem> m_comboModel;
+    private final JProgressBar m_progressBar;
+    private final JButton m_fetchBtn;
+    private final JButton m_cancelBtn;
 
     private SwingWorkerWithContext<List<IdComboboxItem>, Void> m_fetchWorker;
-    private DefaultComboBoxModel<IdComboboxItem> m_comboModel;
-    private JProgressBar m_progressBar;
-    private JButton m_fetchBtn;
-    private JButton m_cancelBtn;
     private boolean ignoreListeners = false;
 
     /**
