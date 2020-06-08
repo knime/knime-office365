@@ -94,7 +94,8 @@ public class GraphApiConnector {
     public static IAuthenticationProvider connect(final ExecutorService pool)
             throws InterruptedException, ExecutionException, MalformedURLException {
         String authority = AUTHORITY_PREFIX + System.getProperty(SHAREPOINT_TENANT_ID);
-        Set<String> scopeSet = new HashSet<>(Arrays.asList("Files.ReadWrite.All", "Sites.ReadWrite.All"));
+        Set<String> scopeSet = new HashSet<>(
+                Arrays.asList("Files.ReadWrite.All", "Sites.ReadWrite.All", "Directory.Read.All"));
 
         PublicClientApplication app = PublicClientApplication.builder(APP_ID).authority(authority).executorService(pool)
                 .build();

@@ -54,6 +54,7 @@ import java.net.URISyntaxException;
 import java.util.Collections;
 
 import org.knime.core.node.util.FileSystemBrowser;
+import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.FSFileSystem;
 import org.knime.filehandling.core.filechooser.NioFileSystemBrowser;
@@ -73,18 +74,17 @@ public class SharepointConnection implements FSConnection {
     /**
      * @param authProvider
      *            Authentication provider
-     * @param site
-     *            The site id or path in a form of
-     *            <code>{hostname}:/{server-relative-path}</code>
+     * @param settings
+     *            Connection settings.
      * @throws URISyntaxException
      * @throws IOException
      *
      */
     public SharepointConnection(final IAuthenticationProvider authProvider,
-            final String site)
+            final SharepointConnectionSettings settings)
             throws URISyntaxException, IOException {
         URI uri = new URI(SharepointFileSystemProvider.SCHEME, "sharepoint", null, null);
-        SharepointFileSystemProvider provider = new SharepointFileSystemProvider(authProvider, site, m_cacheTTL);
+        SharepointFileSystemProvider provider = new SharepointFileSystemProvider(authProvider, settings, m_cacheTTL);
         m_filesystem = provider.getOrCreateFileSystem(uri, Collections.emptyMap());
     }
 

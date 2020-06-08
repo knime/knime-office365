@@ -3,13 +3,58 @@
     <name>Sharepoint Connection (Labs)</name>
     
     <shortDescription>
-        Provides a file system connection to Sharepoint.
+        Connects to Sharepoint in order to read/write files in downstream nodes.
     </shortDescription>
     
     <fullDescription>
-        <intro>
-
+         <intro>
+            <p>This node connects to Sharepoint. The resulting output port allows downstream nodes to access
+            the Sharepoint data of a <i>site</i> as a file system, e.g. to read or write files and folders,
+            or to perform other file system operations (browse/list files, copy, move, ...).
+            </p>
+            
+            <p><b>Path syntax:</b> Paths for Sharepoint are specified with a UNIX-like syntax, /mydrive/myfolder/myfile. An absolute
+            for Sharepoint consists of:
+                <ol>
+                    <li>A leading slash ("/").</li>
+                    <li>Followed by the name of a drive (a.k.a. document library) ("mydrive" in the above example), followed by a slash.</li>
+                    <li>Followed by the path to the file ("myfolder/myfile" in the above example).</li>
+                </ol>
+            </p>
         </intro>
+            
+        <option name="Sharepoint site">
+         	There are two ways to specify Sharepoint site:
+           	<ul>
+          		<li>
+           			User can specify the path of the site or GUID site id
+           		</li>
+           		<li>
+           			Team site: user can specify name of the group
+           		</li>
+           	</ul>
+        </option>
+        <option name="Site path or id">
+           	GUID site id or site path with the following format 
+           	<pre>{hostname}:/{server-relative-path}</pre>
+        </option>
+        <option name="Select group name">
+        	Select the group name.
+        </option>
+        <option name="Connect to subsite">
+        	Connect to a subsite. Use the fetch button to list all available subsites for a specified site.
+        </option>
+	    <option name="Working directory">
+	        Specifies the <i>working directory</i> using the path syntax explained above. The working directory must be specified as an absolute path. A working directory allows downstream
+	        nodes to access files/folders using <i>relative</i> paths, i.e. paths that do not have a leading slash. If not specified, the default working directory
+	        is "/".
+	    </option>
+	    <option name="Connection timeout in seconds">
+	        Timeout in seconds to establish a connection or 0 for an infinite timeout. 
+	    </option>
+	    <option name="Read timeout in seconds">
+	        Timeout in seconds to read data from an established connection or 0 for an infinite timeout.
+	    </option>
         
 
     </fullDescription>

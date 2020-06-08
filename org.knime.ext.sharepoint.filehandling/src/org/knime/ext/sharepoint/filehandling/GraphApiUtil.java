@@ -50,12 +50,24 @@ package org.knime.ext.sharepoint.filehandling;
 
 import java.io.IOException;
 
+import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
+
+import com.google.gson.JsonObject;
+import com.microsoft.graph.models.extensions.DirectoryObject;
+
 /**
  * Utility class for Graph API.
  *
  * @author Alexander Bondaletov
  */
 public class GraphApiUtil {
+    /**
+     * oDataType corresponds to a Group
+     */
+    public static final String GROUP_DATA_TYPE = "#microsoft.graph.group";
+
+    private static final String PROP_DISPLAY_NAME = "displayName";
+    private static final String SEPARATOR_REPLACEMENT = "$_$";
 
     /**
      * Attempts to unwrap and throw underlying {@link IOException} if the cause of
@@ -73,4 +85,29 @@ public class GraphApiUtil {
         return ex;
     }
 
+    /**
+     * Gets the displayName from the raw JSON of the {@link DirectoryObject}.
+     *
+     * @param obj
+     *            Directory object.
+     * @return Display name or empty string if the property is missing.
+     */
+    public static String getDisplayName(final DirectoryObject obj) {
+        JsonObject json = obj.getRawObject();
+        if (json.has(PROP_DISPLAY_NAME)) {
+            return json.get(PROP_DISPLAY_NAME).getAsString();
+        }
+        return "";
+    }
+
+    /**
+     * Escapes the drive name by replacing '/' characters with '$_$' sequence.
+     *
+     * @param name
+     *            The drive name.
+     * @return Escaped drive name.
+     */
+    public static final String escapeDriveName(final String name) {
+        return name.replace(SharepointFileSystem.PATH_SEPARATOR, SEPARATOR_REPLACEMENT);
+    }
 }

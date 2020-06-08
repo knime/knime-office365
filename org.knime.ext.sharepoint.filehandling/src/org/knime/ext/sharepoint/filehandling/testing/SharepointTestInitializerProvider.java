@@ -57,16 +57,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.knime.core.node.util.CheckUtils;
 import org.knime.ext.sharepoint.filehandling.GraphApiConnector;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
+import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
+import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
+import org.knime.filehandling.core.connections.FSLocationSpec;
 import org.knime.filehandling.core.testing.FSTestInitializer;
 import org.knime.filehandling.core.testing.FSTestInitializerProvider;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
- * Itinializer provider for Sharepoint.
- * 
+ * Initializer provider for Sharepoint.
+ *
  * @author Alexander Bondaletov
  */
 public class SharepointTestInitializerProvider implements FSTestInitializerProvider {
@@ -77,12 +81,19 @@ public class SharepointTestInitializerProvider implements FSTestInitializerProvi
      */
     @Override
     public FSTestInitializer setup(final Map<String, String> configuration) {
+        validateConfiguration(configuration);
         ExecutorService pool = Executors.newFixedThreadPool(1);
         try {
             setupProperties(configuration);
             IAuthenticationProvider authProvider = GraphApiConnector.connect(pool);
-            SharepointConnection fsConnection = new SharepointConnection(authProvider,
-                    configuration.get("site"));
+
+            SharepointConnectionSettings settings = new SharepointConnectionSettings();
+            settings.getSiteSettings().getSiteModel().setStringValue(configuration.get("site"));
+            settings.getWorkingDirectoryModel()
+                    .setStringValue(SharepointFileSystem.PATH_SEPARATOR + configuration.get("drive")
+                            + SharepointFileSystem.PATH_SEPARATOR + configuration.get("testfolder"));
+
+            SharepointConnection fsConnection = new SharepointConnection(authProvider, settings);
             return new SharepointTestInitializer(fsConnection, configuration.get("drive"),
                     configuration.get("testfolder"));
         } catch (InterruptedException ex) {
@@ -93,6 +104,15 @@ public class SharepointTestInitializerProvider implements FSTestInitializerProvi
             pool.shutdown();
         }
         return null;
+    }
+
+    private static void validateConfiguration(final Map<String, String> configuration) {
+        CheckUtils.checkArgumentNotNull(configuration.get("site"), "site must be specified.");
+        CheckUtils.checkArgumentNotNull(configuration.get("drive"), "drive must be specified.");
+        CheckUtils.checkArgumentNotNull(configuration.get("testfolder"), "testfolder must be specified.");
+        CheckUtils.checkArgumentNotNull(configuration.get("username"), "username must be specified.");
+        CheckUtils.checkArgumentNotNull(configuration.get("password"), "password must be specified.");
+        CheckUtils.checkArgumentNotNull(configuration.get("tenant"), "tenant must be specified.");
     }
 
     private static void setupProperties(final Map<String, String> configuration) {
@@ -108,6 +128,15 @@ public class SharepointTestInitializerProvider implements FSTestInitializerProvi
     @Override
     public String getFSType() {
         return FS_NAME;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public FSLocationSpec createFSLocationSpec(final Map<String, String> configuration) {
+        validateConfiguration(configuration);
+        return SharepointFileSystem.createFSLocationSpec();
     }
 
 }

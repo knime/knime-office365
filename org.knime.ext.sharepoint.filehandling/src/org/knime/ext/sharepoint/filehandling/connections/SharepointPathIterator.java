@@ -180,7 +180,7 @@ public abstract class SharepointPathIterator implements Iterator<SharepointPath>
         }
 
         private SharepointPath createPath(final Drive drive) {
-            SharepointPath path = m_fs.getPath(m_fs.getSeparator(), drive.name);
+            SharepointPath path = m_fs.getPath(m_fs.getSeparator(), GraphApiUtil.escapeDriveName(drive.name));
 
             SharepointFileAttributes attrs = new SharepointFileAttributes(path, null);
             m_fs.addToAttributeCache(path, attrs);

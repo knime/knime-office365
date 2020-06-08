@@ -50,7 +50,6 @@ package org.knime.ext.sharepoint.filehandling.testing;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
@@ -58,6 +57,7 @@ import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointPath;
 import org.knime.filehandling.core.connections.FSConnection;
+import org.knime.filehandling.core.connections.FSPath;
 import org.knime.filehandling.core.testing.FSTestInitializer;
 
 import com.microsoft.graph.core.ClientException;
@@ -111,7 +111,7 @@ public class SharepointTestInitializer implements FSTestInitializer {
      * {@inheritDoc}
      */
     @Override
-    public Path getRoot() {
+    public FSPath getRoot() {
         return m_filesystem.getPath("/", m_drive, m_testFolder);
     }
 
@@ -119,7 +119,7 @@ public class SharepointTestInitializer implements FSTestInitializer {
      * {@inheritDoc}
      */
     @Override
-    public Path createFile(final String... pathComponents) throws IOException {
+    public FSPath createFile(final String... pathComponents) throws IOException {
         return createFileWithContent("", pathComponents);
     }
 
@@ -127,14 +127,14 @@ public class SharepointTestInitializer implements FSTestInitializer {
      * {@inheritDoc}
      */
     @Override
-    public Path createFileWithContent(final String content, final String... pathComponents) throws IOException {
+    public FSPath createFileWithContent(final String content, final String... pathComponents) throws IOException {
         SharepointPath absoulutePath = //
                 (SharepointPath) Arrays //
                         .stream(pathComponents) //
                         .reduce( //
                                 getRoot(), //
-                                (path, pathComponent) -> path.resolve(pathComponent), //
-                                (p1, p2) -> p1.resolve(p2) //
+                                (path, pathComponent) -> (FSPath) path.resolve(pathComponent), //
+                                (p1, p2) -> (FSPath) p1.resolve(p2) //
                         ); //
 
         Files.createDirectories(absoulutePath.getParent());

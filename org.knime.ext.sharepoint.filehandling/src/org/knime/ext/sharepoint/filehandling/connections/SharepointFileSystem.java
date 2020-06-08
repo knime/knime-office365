@@ -61,12 +61,15 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
 import org.knime.filehandling.core.connections.DefaultFSLocationSpec;
+import org.knime.filehandling.core.connections.FSLocationSpec;
 import org.knime.filehandling.core.connections.base.BaseFileSystem;
 import org.knime.filehandling.core.defaultnodesettings.FileSystemChoice.Choice;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.core.DefaultConnectionConfig;
 import com.microsoft.graph.core.IConnectionConfig;
 import com.microsoft.graph.http.CoreHttpProvider;
 import com.microsoft.graph.httpcore.HttpClients;
@@ -105,23 +108,28 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      *            The time to live for cached elements in milliseconds.
      * @param authProvider
      *            The authentication provider
-     * @param site
-     *            The site id or path in a form of
-     *            <code>{hostname}:/{server-relative-path}</code>
+     * @param settings
+     *            Connection settings.
      * @throws IOException
      */
     public SharepointFileSystem(final SharepointFileSystemProvider fileSystemProvider, final URI uri,
-            final long cacheTTL, final IAuthenticationProvider authProvider, final String site) throws IOException {
-        super(fileSystemProvider, uri, cacheTTL, PATH_SEPARATOR, createFSLocationSpec());
+            final long cacheTTL, final IAuthenticationProvider authProvider,
+            final SharepointConnectionSettings settings) throws IOException {
+        super(fileSystemProvider, uri, cacheTTL, settings.getWorkingDirectory(PATH_SEPARATOR), createFSLocationSpec());
 
         DefaultLogger logger = new DefaultLogger();
         logger.setLoggingLevel(LoggerLevel.ERROR);
 
         try {
             m_client = GraphServiceClient.builder().authenticationProvider(authProvider).logger(logger).buildClient();
+            IConnectionConfig connConfig = new DefaultConnectionConfig();
+            connConfig.setReadTimeout(settings.getReadTimeout() * 1000);
+            connConfig.setConnectTimeout(settings.getConnectionTimeout() * 1000);
+            m_client.getHttpProvider().setConnectionConfig(connConfig);
+
             patchHttpProvider();
 
-            m_siteId = m_client.sites().byId(site).buildRequest().get().id;
+            m_siteId = settings.getSiteId(m_client);
         } catch (ClientException ex) {
             throw GraphApiUtil.unwrapIOE(ex);
         }
@@ -130,7 +138,10 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
         fetchDrives();
     }
 
-    private static DefaultFSLocationSpec createFSLocationSpec() {
+    /**
+     * @return the {@link FSLocationSpec} for a Sharepoint file system.
+     */
+    public static DefaultFSLocationSpec createFSLocationSpec() {
         return new DefaultFSLocationSpec(Choice.CONNECTED_FS, SharepointFileSystemProvider.SCHEME);
     }
 
@@ -185,7 +196,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
     private void storeDrives(final List<Drive> drives) {
         for (Drive drive : drives) {
-            m_drives.put(drive.name, drive);
+            m_drives.put(GraphApiUtil.escapeDriveName(drive.name), drive);
         }
     }
 

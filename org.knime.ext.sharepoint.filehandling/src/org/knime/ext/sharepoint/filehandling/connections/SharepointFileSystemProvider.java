@@ -70,6 +70,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
 import org.knime.filehandling.core.connections.base.BaseFileSystemProvider;
 import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
 
@@ -93,24 +94,23 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
     public static final String SCHEME = "azure-sharepoint";
 
     private final IAuthenticationProvider m_authProvider;
-    private final String m_site;
+    private final SharepointConnectionSettings m_settings;
     private final long m_cacheTTL;
 
     /**
      *
      * @param authProvider
      *            The authentication provider
-     * @param site
-     *            The site id or path in a form of
-     *            <code>{hostname}:/{server-relative-path}</code>
+     * @param settings
+     *            Connection settings.
      * @param cacheTTL
      *            The time to live for cached elements in milliseconds.
      *
      */
-    public SharepointFileSystemProvider(final IAuthenticationProvider authProvider, final String site,
-            final long cacheTTL) {
+    public SharepointFileSystemProvider(final IAuthenticationProvider authProvider,
+            final SharepointConnectionSettings settings, final long cacheTTL) {
         m_authProvider = authProvider;
-        m_site = site;
+        m_settings = settings;
         m_cacheTTL = cacheTTL;
     }
 
@@ -119,7 +119,7 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      */
     @Override
     protected SharepointFileSystem createFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
-        return new SharepointFileSystem(this, uri, m_cacheTTL, m_authProvider, m_site);
+        return new SharepointFileSystem(this, uri, m_cacheTTL, m_authProvider, m_settings);
     }
 
     /**

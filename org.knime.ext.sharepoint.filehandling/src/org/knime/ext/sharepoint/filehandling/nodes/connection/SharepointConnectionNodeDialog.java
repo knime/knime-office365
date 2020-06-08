@@ -48,19 +48,107 @@
  */
 package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
-import org.knime.core.node.defaultnodesettings.DefaultNodeSettingsPane;
+import java.net.MalformedURLException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
+import org.knime.core.node.defaultnodesettings.DialogComponentString;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.sharepoint.filehandling.GraphApiConnector;
+
+import com.microsoft.graph.authentication.IAuthenticationProvider;
+import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.requests.extensions.GraphServiceClient;
 
 /**
  * Sharepoint Connection node dialog.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnectionNodeDialog extends DefaultNodeSettingsPane {
+public class SharepointConnectionNodeDialog extends NodeDialogPane {
+
+    private final SharepointConnectionSettings m_settings;
+    private SiteSettingsPanel m_sitePanel;
 
     /**
      * Creates new instance.
      */
     public SharepointConnectionNodeDialog() {
         super();
+        m_settings = new SharepointConnectionSettings();
+
+        m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
+
+        DialogComponentString workingDir = new DialogComponentString(m_settings.getWorkingDirectoryModel(),
+                "Working directory");
+
+        Box box = new Box(BoxLayout.PAGE_AXIS);
+        box.add(m_sitePanel);
+        box.add(createTimeoutsPanel());
+        box.add(workingDir.getComponentPanel());
+
+        addTab("Settings", box);
+    }
+
+    private JComponent createTimeoutsPanel() {
+        DialogComponentNumber connectionTimeout = new DialogComponentNumber(m_settings.getConnectionTimeoutModel(),
+                "Connection timeout in seconds", 1);
+        DialogComponentNumber readTimeout = new DialogComponentNumber(m_settings.getReadTimeoutModel(),
+                "Read timeout in seconds", 1);
+
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
+        panel.add(connectionTimeout.getComponentPanel());
+        panel.add(readTimeout.getComponentPanel());
+        panel.setBorder(BorderFactory.createTitledBorder("Connection settings"));
+        return panel;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
+        m_settings.saveSettingsTo(settings);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException {
+        try {
+            m_settings.loadSettingsFrom(settings);
+        } catch (InvalidSettingsException ex) {
+            // ignore
+        }
+
+        ExecutorService pool = Executors.newFixedThreadPool(1);
+        try {
+            IAuthenticationProvider authProvider = GraphApiConnector.connect(pool);
+            IGraphServiceClient client = GraphServiceClient.builder().authenticationProvider(authProvider)
+                    .buildClient();
+            m_sitePanel.settingsLoaded(client);
+        } catch (MalformedURLException | ExecutionException ex) {
+            throw new NotConfigurableException(ex.getMessage(), ex);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } finally {
+            pool.shutdown();
+        }
     }
 }

@@ -97,6 +97,15 @@ public class SharepointPath extends UnixStylePath {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings("resource")
+    @Override
+    public Path toAbsolutePath() {
+        return getFileSystem().getWorkingDirectory().resolve(this);
+    }
+
+    /**
      * @return The drive name. May be null.
      */
     public String getDriveName() {
@@ -172,7 +181,6 @@ public class SharepointPath extends UnixStylePath {
      * @return Drive item or null if the file doesn't exist.
      * @throws IOException
      */
-    @SuppressWarnings("resource")
     public DriveItem getDriveItem() throws IOException {
         return getDriveItem(false);
     }

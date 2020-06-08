@@ -65,6 +65,7 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.ext.sharepoint.filehandling.GraphApiConnector;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
+import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
 import org.knime.filehandling.core.connections.FSConnectionRegistry;
 import org.knime.filehandling.core.port.FileSystemPortObject;
 import org.knime.filehandling.core.port.FileSystemPortObjectSpec;
@@ -82,6 +83,8 @@ public class SharepointConnectionNodeModel extends NodeModel {
     private String m_fsId;
     private SharepointConnection m_fsConnection;
 
+    private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
+
     /**
      * Creates new instance.
      */
@@ -97,7 +100,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
         ExecutorService pool = Executors.newFixedThreadPool(1);
         try {
             IAuthenticationProvider authProvider = GraphApiConnector.connect(pool);
-            m_fsConnection = new SharepointConnection(authProvider, "root");
+            m_fsConnection = new SharepointConnection(authProvider, m_settings);
             FSConnectionRegistry.getInstance().register(m_fsId, m_fsConnection);
         } finally {
             pool.shutdown();
@@ -115,7 +118,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
     }
 
     private FileSystemPortObjectSpec createSpec() {
-        return new FileSystemPortObjectSpec(FILE_SYSTEM_NAME, m_fsId);
+        return new FileSystemPortObjectSpec(FILE_SYSTEM_NAME, m_fsId, SharepointFileSystem.createFSLocationSpec());
     }
 
 
@@ -144,8 +147,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
      */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
-        // TODO Auto-generated method stub
-
+        m_settings.saveSettingsTo(settings);
     }
 
     /**
@@ -153,8 +155,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
      */
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        // TODO Auto-generated method stub
-
+        m_settings.validateSettings(settings);
     }
 
     /**
@@ -162,8 +163,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
      */
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        // TODO Auto-generated method stub
-
+        m_settings.loadSettingsFrom(settings);
     }
 
     /**
