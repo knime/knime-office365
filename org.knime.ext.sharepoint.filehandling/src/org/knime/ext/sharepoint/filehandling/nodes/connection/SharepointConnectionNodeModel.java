@@ -166,14 +166,22 @@ public class SharepointConnectionNodeModel extends NodeModel {
         m_settings.loadSettingsFrom(settings);
     }
 
+    @Override
+    protected void onDispose() {
+        // close the file system also when the workflow is closed
+        reset();
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     protected void reset() {
-        FSConnectionRegistry.getInstance().deregister(m_fsId);
+        if (m_fsConnection != null) {
+            m_fsConnection.closeInBackground();
+            m_fsConnection = null;
+        }
         m_fsId = null;
-        m_fsConnection = null;
     }
 
 }
