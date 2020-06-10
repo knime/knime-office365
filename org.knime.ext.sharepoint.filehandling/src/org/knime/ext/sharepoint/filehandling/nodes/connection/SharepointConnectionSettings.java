@@ -234,7 +234,7 @@ public class SharepointConnectionSettings {
 
         private static final String ROOT_SITE = "root";
 
-        private final SettingsModelString m_site;
+        private final SettingsModelString m_webURL;
         private final SettingsModelString m_group;
         private final SettingsModelString m_groupName;
         private final SettingsModelString m_mode;
@@ -246,7 +246,7 @@ public class SharepointConnectionSettings {
          * Creates new instance
          */
         public SiteSettings() {
-            m_site = new SettingsModelString(KEY_SITE, "");
+            m_webURL = new SettingsModelString(KEY_SITE, "");
             m_group = new SettingsModelString(KEY_GROUP, "");
             m_groupName = new SettingsModelString(KEY_GROUP_NAME, "");
             m_mode = new SettingsModelString(KEY_MODE, SiteMode.ROOT.name());
@@ -268,7 +268,7 @@ public class SharepointConnectionSettings {
          *            Node settings.
          */
         public void saveSettingsTo(final NodeSettingsWO settings) {
-            m_site.saveSettingsTo(settings);
+            m_webURL.saveSettingsTo(settings);
             m_group.saveSettingsTo(settings);
             m_groupName.saveSettingsTo(settings);
             m_mode.saveSettingsTo(settings);
@@ -285,7 +285,7 @@ public class SharepointConnectionSettings {
          * @throws InvalidSettingsException
          */
         public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-            m_site.validateSettings(settings);
+            m_webURL.validateSettings(settings);
             m_group.validateSettings(settings);
             m_groupName.validateSettings(settings);
             m_subsite.validateSettings(settings);
@@ -305,12 +305,12 @@ public class SharepointConnectionSettings {
             if (mode == SiteMode.GROUP && m_group.getStringValue().isEmpty()) {
                 throw new InvalidSettingsException("Group is not selected.");
             }
-            if (mode == SiteMode.SITE) {
-                if (m_site.getStringValue().isEmpty()) {
+            if (mode == SiteMode.WEB_URL) {
+                if (m_webURL.getStringValue().isEmpty()) {
                     throw new InvalidSettingsException("Web URL is not specified.");
                 }
                 try {
-                    new URI(m_site.getStringValue());
+                    new URI(m_webURL.getStringValue());
                 } catch (URISyntaxException ex) {
                     throw new InvalidSettingsException(ex.getMessage());
                 }
@@ -325,7 +325,7 @@ public class SharepointConnectionSettings {
          * @throws InvalidSettingsException
          */
         public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-            m_site.loadSettingsFrom(settings);
+            m_webURL.loadSettingsFrom(settings);
             m_group.loadSettingsFrom(settings);
             m_groupName.loadSettingsFrom(settings);
             m_mode.loadSettingsFrom(settings);
@@ -335,10 +335,10 @@ public class SharepointConnectionSettings {
         }
 
         /**
-         * @return the site model
+         * @return the web URL model
          */
-        public SettingsModelString getSiteModel() {
-            return m_site;
+        public SettingsModelString getWebURLModel() {
+            return m_webURL;
         }
 
         /**
@@ -427,8 +427,8 @@ public class SharepointConnectionSettings {
             case ROOT:
                 req = client.sites(ROOT_SITE);
                 break;
-            case SITE:
-                req = client.sites(getPathFromURL(m_site.getStringValue()));
+            case WEB_URL:
+                req = client.sites(getPathFromURL(m_webURL.getStringValue()));
                 break;
             case GROUP:
                 req = client.groups(m_group.getStringValue()).sites(ROOT_SITE);
@@ -454,9 +454,9 @@ public class SharepointConnectionSettings {
         }
     }
 
-    enum SiteMode {
+    public enum SiteMode {
         ROOT("Root site"), //
-        SITE("Web URL"), //
+        WEB_URL("Web URL"), //
         GROUP("Group site");
 
         private String m_selectorLabel;

@@ -118,13 +118,13 @@ public class SiteSettingsPanel extends JPanel {
         m_groupSelector.onSettingsLoaded();
 
         SiteMode mode = m_settings.getMode();
-        m_siteInput.getComponentPanel().setVisible(mode == SiteMode.SITE);
+        m_siteInput.getComponentPanel().setVisible(mode == SiteMode.WEB_URL);
         m_groupSelector.setVisible(mode == SiteMode.GROUP);
     }
 
     private JPanel createSitePanel() {
         JRadioButton rbRoot = createModeRadiobutton(SiteMode.ROOT);
-        JRadioButton rbSite = createModeRadiobutton(SiteMode.SITE);
+        JRadioButton rbSite = createModeRadiobutton(SiteMode.WEB_URL);
         JRadioButton rbGroup = createModeRadiobutton(SiteMode.GROUP);
         ButtonGroup group = new ButtonGroup();
         group.add(rbRoot);
@@ -135,7 +135,7 @@ public class SiteSettingsPanel extends JPanel {
         buttonsPanel.add(rbSite);
         buttonsPanel.add(rbGroup);
 
-        m_siteInput = new DialogComponentString(m_settings.getSiteModel(), "URL:", false, 40);
+        m_siteInput = new DialogComponentString(m_settings.getWebURLModel(), "URL:", false, 40);
 
         m_groupSelector = new LoadedItemsSelector(m_settings.getGroupModel(), m_settings.getGroupNameModel(),
                 "Fetch Groups", "Group:") {
@@ -163,7 +163,7 @@ public class SiteSettingsPanel extends JPanel {
         rb.addActionListener(e -> {
             m_settings.getModeModel().setStringValue(mode.name());
 
-            m_siteInput.getComponentPanel().setVisible(mode == SiteMode.SITE);
+            m_siteInput.getComponentPanel().setVisible(mode == SiteMode.WEB_URL);
             m_groupSelector.setVisible(mode == SiteMode.GROUP);
             m_subsiteSelector.getComboModel().setSelectedItem(IdComboboxItem.DEFAULT);
         });
