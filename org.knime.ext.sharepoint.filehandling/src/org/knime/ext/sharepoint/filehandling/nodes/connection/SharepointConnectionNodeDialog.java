@@ -93,12 +93,13 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
 
         DialogComponentString workingDir = new DialogComponentString(m_settings.getWorkingDirectoryModel(),
-                "Working directory");
+                "Working directory", false, 40);
+        workingDir.getComponentPanel().setBorder(BorderFactory.createTitledBorder("File system settings"));
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
         box.add(m_sitePanel);
-        box.add(createTimeoutsPanel());
         box.add(workingDir.getComponentPanel());
+        box.add(createTimeoutsPanel());
 
         addTab("Settings", box);
     }

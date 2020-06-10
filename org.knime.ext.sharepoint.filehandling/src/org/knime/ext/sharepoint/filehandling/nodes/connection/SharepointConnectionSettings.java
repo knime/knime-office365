@@ -49,10 +49,13 @@
 package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
@@ -227,6 +230,7 @@ public class SharepointConnectionSettings {
         private static final String KEY_MODE = "mode";
         private static final String KEY_SUBSITE = "subsite";
         private static final String KEY_SUBSITE_NAME = "subsiteName";
+        private static final String KEY_CONNECT_TO_SUBSITE = "connectToSubsite";
 
         private static final String ROOT_SITE = "root";
 
@@ -236,6 +240,7 @@ public class SharepointConnectionSettings {
         private final SettingsModelString m_mode;
         private final SettingsModelString m_subsite;
         private final SettingsModelString m_subsiteName;
+        private final SettingsModelBoolean m_connectToSubsite;
 
         /**
          * Creates new instance
@@ -244,9 +249,16 @@ public class SharepointConnectionSettings {
             m_site = new SettingsModelString(KEY_SITE, "");
             m_group = new SettingsModelString(KEY_GROUP, "");
             m_groupName = new SettingsModelString(KEY_GROUP_NAME, "");
-            m_mode = new SettingsModelString(KEY_MODE, SiteMode.SITE.name());
+            m_mode = new SettingsModelString(KEY_MODE, SiteMode.ROOT.name());
             m_subsite = new SettingsModelString(KEY_SUBSITE, "");
             m_subsiteName = new SettingsModelString(KEY_SUBSITE_NAME, "");
+            m_connectToSubsite = new SettingsModelBoolean(KEY_CONNECT_TO_SUBSITE, false);
+
+            m_subsite.addChangeListener(e -> {
+                if (!m_subsite.getStringValue().isEmpty()) {
+                    m_connectToSubsite.setBooleanValue(true);
+                }
+            });
         }
 
         /**
@@ -262,6 +274,7 @@ public class SharepointConnectionSettings {
             m_mode.saveSettingsTo(settings);
             m_subsite.saveSettingsTo(settings);
             m_subsiteName.saveSettingsTo(settings);
+            m_connectToSubsite.saveSettingsTo(settings);
         }
 
         /**
@@ -278,6 +291,7 @@ public class SharepointConnectionSettings {
             m_subsite.validateSettings(settings);
             m_subsiteName.validateSettings(settings);
             m_mode.validateSettings(settings);
+            m_connectToSubsite.validateSettings(settings);
         }
 
         /**
@@ -285,10 +299,21 @@ public class SharepointConnectionSettings {
          *
          * @throws InvalidSettingsException
          */
+        @SuppressWarnings("unused")
         public void validate() throws InvalidSettingsException {
             SiteMode mode = getMode();
             if (mode == SiteMode.GROUP && m_group.getStringValue().isEmpty()) {
                 throw new InvalidSettingsException("Group is not selected.");
+            }
+            if (mode == SiteMode.SITE) {
+                if (m_site.getStringValue().isEmpty()) {
+                    throw new InvalidSettingsException("Web URL is not specified.");
+                }
+                try {
+                    new URI(m_site.getStringValue());
+                } catch (URISyntaxException ex) {
+                    throw new InvalidSettingsException(ex.getMessage());
+                }
             }
         }
 
@@ -306,6 +331,7 @@ public class SharepointConnectionSettings {
             m_mode.loadSettingsFrom(settings);
             m_subsite.loadSettingsFrom(settings);
             m_subsiteName.loadSettingsFrom(settings);
+            m_connectToSubsite.loadSettingsFrom(settings);
         }
 
         /**
@@ -343,7 +369,7 @@ public class SharepointConnectionSettings {
             try {
                 return SiteMode.valueOf(m_mode.getStringValue());
             } catch (IllegalArgumentException e) {
-                return SiteMode.SITE;
+                return SiteMode.ROOT;
             }
         }
 
@@ -362,6 +388,13 @@ public class SharepointConnectionSettings {
         }
 
         /**
+         * @return the connectToSubsite model
+         */
+        public SettingsModelBoolean getConnectToSubsiteModel() {
+            return m_connectToSubsite;
+        }
+
+        /**
          * Returns the selected site or subsite id.
          *
          * @param client
@@ -370,7 +403,7 @@ public class SharepointConnectionSettings {
          * @throws IOException
          */
         public String getTargetSiteId(final IGraphServiceClient client) throws IOException {
-            if (!m_subsite.getStringValue().isEmpty()) {
+            if (m_connectToSubsite.getBooleanValue() && !m_subsite.getStringValue().isEmpty()) {
                 return m_subsite.getStringValue();
             }
 
@@ -385,18 +418,21 @@ public class SharepointConnectionSettings {
          * @return The site id.
          * @throws IOException
          */
+        @SuppressWarnings("null")
         public String getParentSiteId(final IGraphServiceClient client) throws IOException {
             SiteMode m = getMode();
             ISiteRequestBuilder req = null;
 
-            if (m == SiteMode.SITE) {
-                String id = m_site.getStringValue();
-                if (id.isEmpty()) {
-                    id = ROOT_SITE;
-                }
-                req = client.sites(id);
-            } else {
+            switch (m) {
+            case ROOT:
+                req = client.sites(ROOT_SITE);
+                break;
+            case SITE:
+                req = client.sites(getPathFromURL(m_site.getStringValue()));
+                break;
+            case GROUP:
                 req = client.groups(m_group.getStringValue()).sites(ROOT_SITE);
+                break;
             }
 
             try {
@@ -405,11 +441,23 @@ public class SharepointConnectionSettings {
                 throw GraphApiUtil.unwrapIOE(e);
             }
         }
+
+        private static String getPathFromURL(final String url) {
+            URI uri = URI.create(url);
+            String result = uri.getHost();
+
+            if (uri.getPath() != null && !uri.getPath().isEmpty()) {
+                result += ":" + uri.getPath();
+            }
+
+            return result;
+        }
     }
 
     enum SiteMode {
-        SITE("By the site id"), //
-        GROUP("By the group name");
+        ROOT("Root site"), //
+        SITE("Web URL"), //
+        GROUP("Group site");
 
         private String m_selectorLabel;
 

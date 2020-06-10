@@ -62,6 +62,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.LoadedItemsSelector.IdComboboxItem;
@@ -101,6 +102,7 @@ public class SiteSettingsPanel extends JPanel {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         add(createSitePanel());
         add(createSubsitePanel());
+        setBorder(BorderFactory.createTitledBorder("Sharepoint site"));
     }
 
     /**
@@ -121,19 +123,22 @@ public class SiteSettingsPanel extends JPanel {
     }
 
     private JPanel createSitePanel() {
+        JRadioButton rbRoot = createModeRadiobutton(SiteMode.ROOT);
         JRadioButton rbSite = createModeRadiobutton(SiteMode.SITE);
         JRadioButton rbGroup = createModeRadiobutton(SiteMode.GROUP);
         ButtonGroup group = new ButtonGroup();
+        group.add(rbRoot);
         group.add(rbSite);
         group.add(rbGroup);
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonsPanel.add(rbRoot);
         buttonsPanel.add(rbSite);
         buttonsPanel.add(rbGroup);
 
-        m_siteInput = new DialogComponentString(m_settings.getSiteModel(), "Site path or id", false, 40);
+        m_siteInput = new DialogComponentString(m_settings.getSiteModel(), "URL:", false, 40);
 
         m_groupSelector = new LoadedItemsSelector(m_settings.getGroupModel(), m_settings.getGroupNameModel(),
-                "Fetch Groups") {
+                "Fetch Groups", "Group:") {
             private static final long serialVersionUID = 1L;
 
             @Override
@@ -141,7 +146,6 @@ public class SiteSettingsPanel extends JPanel {
                 return fetchGroups();
             }
         };
-        m_groupSelector.setBorder(BorderFactory.createTitledBorder("Select group"));
         m_groupSelector.setVisible(false);
 
         JPanel panel = new JPanel();
@@ -149,7 +153,6 @@ public class SiteSettingsPanel extends JPanel {
         panel.add(buttonsPanel);
         panel.add(m_siteInput.getComponentPanel());
         panel.add(m_groupSelector);
-        panel.setBorder(BorderFactory.createTitledBorder("Sharepoint site"));
         return panel;
     }
 
@@ -173,7 +176,7 @@ public class SiteSettingsPanel extends JPanel {
 
     private JPanel createSubsitePanel() {
         m_subsiteSelector = new LoadedItemsSelector(m_settings.getSubsiteModel(), m_settings.getSubsiteNameModel(),
-                "Fetch Subsites") {
+                "Fetch Subsites", "Subsite:") {
             private static final long serialVersionUID = 1L;
 
             @Override
@@ -182,8 +185,13 @@ public class SiteSettingsPanel extends JPanel {
 
             }
         };
-        m_subsiteSelector.setBorder(BorderFactory.createTitledBorder("Connect to subsite"));
-        return m_subsiteSelector;
+
+        DialogComponentBoolean checkbox = new DialogComponentBoolean(m_settings.getConnectToSubsiteModel(), "");
+
+        JPanel panel = new JPanel(new FlowLayout());
+        panel.add(checkbox.getComponentPanel());
+        panel.add(m_subsiteSelector);
+        return panel;
     }
 
     private List<IdComboboxItem> fetchGroups() throws InvalidSettingsException {

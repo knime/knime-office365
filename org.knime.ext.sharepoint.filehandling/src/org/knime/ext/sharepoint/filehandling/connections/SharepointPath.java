@@ -97,15 +97,6 @@ public class SharepointPath extends UnixStylePath {
     }
 
     /**
-     * {@inheritDoc}
-     */
-    @SuppressWarnings("resource")
-    @Override
-    public Path toAbsolutePath() {
-        return getFileSystem().getWorkingDirectory().resolve(this);
-    }
-
-    /**
      * @return The drive name. May be null.
      */
     public String getDriveName() {

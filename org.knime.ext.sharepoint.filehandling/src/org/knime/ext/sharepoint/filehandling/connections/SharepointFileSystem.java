@@ -232,8 +232,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      */
     @Override
     protected void prepareClose() {
-        // nothing to close
-
+        m_client.shutdown();
     }
 
     /**

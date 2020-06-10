@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <knimeNode icon="./default.png" type="Source" xmlns="http://knime.org/node/v2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
-    <name>Sharepoint Connection (Labs)</name>
+    <name>Sharepoint Online Connector (Labs)</name>
     
     <shortDescription>
         Connects to Sharepoint in order to read/write files in downstream nodes.
@@ -24,25 +24,27 @@
         </intro>
             
         <option name="Sharepoint site">
-         	There are two ways to specify Sharepoint site:
+         	There are three ways to specify Sharepoint site:
            	<ul>
+           		<li>
+           			Using a root site.
+           		</li>
           		<li>
-           			User can specify the path of the site or GUID site id
+           			User can specify the web URL of the site
            		</li>
            		<li>
            			Team site: user can specify name of the group
            		</li>
            	</ul>
         </option>
-        <option name="Site path or id">
-           	GUID site id or site path with the following format 
-           	<pre>{hostname}:/{server-relative-path}</pre>
+        <option name="URL">
+           	The web URL of the site.
         </option>
         <option name="Select group name">
         	Select the group name.
         </option>
-        <option name="Connect to subsite">
-        	Connect to a subsite. Use the fetch button to list all available subsites for a specified site.
+        <option name="Subsite">
+        	It is possible to connect to one of the subsites of a given site. Use the fetch button to list all available subsites.
         </option>
 	    <option name="Working directory">
 	        Specifies the <i>working directory</i> using the path syntax explained above. The working directory must be specified as an absolute path. A working directory allows downstream

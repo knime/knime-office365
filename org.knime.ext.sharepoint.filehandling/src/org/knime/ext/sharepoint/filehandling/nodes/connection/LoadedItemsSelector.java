@@ -48,6 +48,7 @@
  */
 package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -55,9 +56,9 @@ import java.util.concurrent.ExecutionException;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
 
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.util.SwingWorkerWithContext;
@@ -77,7 +78,6 @@ public abstract class LoadedItemsSelector extends JPanel {
     private final SettingsModelString m_idModel;
     private final SettingsModelString m_titleModel;
     private final DefaultComboBoxModel<IdComboboxItem> m_comboModel;
-    private final JProgressBar m_progressBar;
     private final JButton m_fetchBtn;
     private final JButton m_cancelBtn;
 
@@ -91,16 +91,19 @@ public abstract class LoadedItemsSelector extends JPanel {
      *            Settings model holding title value.
      * @param fetchBtnLabel
      *            The label for the fetch button.
+     * @param caption
+     *            The caption label
      *
      */
     public LoadedItemsSelector(final SettingsModelString idModel, final SettingsModelString titleModel,
-            final String fetchBtnLabel) {
+            final String fetchBtnLabel, final String caption) {
         m_idModel = idModel;
         m_titleModel = titleModel;
 
         m_comboModel = new DefaultComboBoxModel<>(new IdComboboxItem[] { IdComboboxItem.DEFAULT });
         JComboBox<IdComboboxItem> cbInput = new JComboBox<>(m_comboModel);
         cbInput.addActionListener(e -> onSelectionChanged());
+        cbInput.setPreferredSize(new Dimension(250, 20));
 
         m_fetchBtn = new JButton(fetchBtnLabel);
         m_fetchBtn.addActionListener(e -> onFetch());
@@ -112,15 +115,12 @@ public abstract class LoadedItemsSelector extends JPanel {
             }
         });
         m_cancelBtn.setVisible(false);
+        m_cancelBtn.setPreferredSize(m_fetchBtn.getPreferredSize());
 
-        m_progressBar = new JProgressBar();
-        m_progressBar.setIndeterminate(true);
-        m_progressBar.setVisible(false);
-
-        setLayout(new FlowLayout(FlowLayout.LEFT));
+        setLayout(new FlowLayout());
+        add(new JLabel(caption));
         add(cbInput);
         add(m_fetchBtn);
-        add(m_progressBar);
         add(m_cancelBtn);
     }
 
@@ -149,7 +149,6 @@ public abstract class LoadedItemsSelector extends JPanel {
             @Override
             protected void doneWithContext() {
                 m_cancelBtn.setVisible(false);
-                m_progressBar.setVisible(false);
                 m_fetchBtn.setVisible(true);
 
                 if (isCancelled()) {
@@ -167,7 +166,6 @@ public abstract class LoadedItemsSelector extends JPanel {
         };
 
         m_cancelBtn.setVisible(true);
-        m_progressBar.setVisible(true);
         m_fetchBtn.setVisible(false);
 
         m_fetchWorker.execute();
