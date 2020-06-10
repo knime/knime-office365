@@ -62,9 +62,9 @@ import org.knime.ext.sharepoint.filehandling.GraphApiConnector;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
+import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteMode;
 import org.knime.filehandling.core.connections.FSLocationSpec;
-import org.knime.filehandling.core.testing.FSTestInitializer;
-import org.knime.filehandling.core.testing.FSTestInitializerProvider;
+import org.knime.filehandling.core.testing.DefaultFSTestInitializerProvider;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 
@@ -73,70 +73,73 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
  *
  * @author Alexander Bondaletov
  */
-public class SharepointTestInitializerProvider implements FSTestInitializerProvider {
-    private static final String FS_NAME = "azure-sharepoint";
+public class SharepointTestInitializerProvider extends DefaultFSTestInitializerProvider {
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public FSTestInitializer setup(final Map<String, String> configuration) {
+    public SharepointTestInitializer setup(final Map<String, String> configuration) throws IOException {
+
         validateConfiguration(configuration);
-        ExecutorService pool = Executors.newFixedThreadPool(1);
+
+        final ExecutorService pool = Executors.newFixedThreadPool(1);
+        IAuthenticationProvider authProvider;
         try {
-            setupProperties(configuration);
-            IAuthenticationProvider authProvider = GraphApiConnector.connect(pool);
-
-            SharepointConnectionSettings settings = new SharepointConnectionSettings();
-            settings.getSiteSettings().getSiteModel().setStringValue(configuration.get("site"));
-            settings.getWorkingDirectoryModel()
-                    .setStringValue(SharepointFileSystem.PATH_SEPARATOR + configuration.get("drive")
-                            + SharepointFileSystem.PATH_SEPARATOR + configuration.get("testfolder"));
-
-            SharepointConnection fsConnection = new SharepointConnection(authProvider, settings);
-            return new SharepointTestInitializer(fsConnection, configuration.get("drive"),
-                    configuration.get("testfolder"));
+            setupAuthenticationProperties(configuration);
+            authProvider = GraphApiConnector.connect(pool);
+        } catch (IOException ex) {
+            throw ex;
         } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-        } catch (URISyntaxException | ExecutionException | IOException ex) {
-            throw new RuntimeException(ex);
+            throw new IOException(ex);
+        } catch (ExecutionException ex) {
+            final Throwable cause = ex.getCause();
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
+            } else {
+                throw new IOException(cause);
+            }
         } finally {
             pool.shutdown();
         }
-        return null;
+
+        final String workingDir = generateRandomizedWorkingDir(configuration.get("workingDirPrefix"),
+                SharepointFileSystem.PATH_SEPARATOR);
+
+        final SharepointConnectionSettings settings = new SharepointConnectionSettings();
+        settings.getSiteSettings().getModeModel().setStringValue(SiteMode.WEB_URL.toString());
+        settings.getSiteSettings().getWebURLModel().setStringValue(configuration.get("siteWebURL"));
+        settings.getWorkingDirectoryModel().setStringValue(workingDir);
+
+        final SharepointConnection fsConnection;
+        try {
+            fsConnection = new SharepointConnection(authProvider, settings);
+        } catch (URISyntaxException ex) {
+            throw new IOException(ex);
+        }
+        return new SharepointTestInitializer(fsConnection);
     }
 
     private static void validateConfiguration(final Map<String, String> configuration) {
-        CheckUtils.checkArgumentNotNull(configuration.get("site"), "site must be specified.");
-        CheckUtils.checkArgumentNotNull(configuration.get("drive"), "drive must be specified.");
-        CheckUtils.checkArgumentNotNull(configuration.get("testfolder"), "testfolder must be specified.");
+        CheckUtils.checkArgumentNotNull(configuration.get("siteWebURL"), "siteWebURL must be specified.");
+        CheckUtils.checkArgumentNotNull(configuration.get("workingDirPrefix"), "workingDirPrefix must be specified.");
         CheckUtils.checkArgumentNotNull(configuration.get("username"), "username must be specified.");
         CheckUtils.checkArgumentNotNull(configuration.get("password"), "password must be specified.");
         CheckUtils.checkArgumentNotNull(configuration.get("tenant"), "tenant must be specified.");
     }
 
-    private static void setupProperties(final Map<String, String> configuration) {
+    private static void setupAuthenticationProperties(final Map<String, String> configuration) {
         List<String> keys = Arrays.asList("username", "password", "tenant");
         for (String key : keys) {
             System.setProperty("sharepoint." + key, configuration.get(key));
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getFSType() {
-        return FS_NAME;
+        return SharepointFileSystem.FS_TYPE;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public FSLocationSpec createFSLocationSpec(final Map<String, String> configuration) {
         validateConfiguration(configuration);
         return SharepointFileSystem.createFSLocationSpec();
     }
-
 }

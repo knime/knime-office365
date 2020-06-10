@@ -88,11 +88,6 @@ import com.microsoft.graph.models.extensions.ItemReference;
  */
 public class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath, SharepointFileSystem> {
 
-    /**
-     * Sharepoint URI scheme.
-     */
-    public static final String SCHEME = "azure-sharepoint";
-
     private final IAuthenticationProvider m_authProvider;
     private final SharepointConnectionSettings m_settings;
     private final long m_cacheTTL;
@@ -344,7 +339,7 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      */
     @Override
     public String getScheme() {
-        return SCHEME;
+        return SharepointFileSystem.FS_TYPE;
     }
 
     /**

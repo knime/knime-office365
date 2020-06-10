@@ -90,6 +90,12 @@ import okhttp3.Request;
  * @author Alexander Bondaletov
  */
 public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
+
+    /**
+     * Sharepoint URI scheme.
+     */
+    public static final String FS_TYPE = "microsoft-sharepoint";
+
     /**
      * Character to use as path separator
      */
@@ -98,6 +104,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
     private final IGraphServiceClient m_client;
     private final String m_siteId;
     private final Map<String, Drive> m_drives;
+
 
     /**
      * @param fileSystemProvider
@@ -142,7 +149,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      * @return the {@link FSLocationSpec} for a Sharepoint file system.
      */
     public static DefaultFSLocationSpec createFSLocationSpec() {
-        return new DefaultFSLocationSpec(Choice.CONNECTED_FS, SharepointFileSystemProvider.SCHEME);
+        return new DefaultFSLocationSpec(Choice.CONNECTED_FS, SharepointFileSystem.FS_TYPE);
     }
 
     /**

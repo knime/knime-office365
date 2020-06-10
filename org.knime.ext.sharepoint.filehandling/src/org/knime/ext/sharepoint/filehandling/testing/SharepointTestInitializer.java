@@ -50,15 +50,14 @@ package org.knime.ext.sharepoint.filehandling.testing;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Arrays;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointPath;
 import org.knime.filehandling.core.connections.FSConnection;
-import org.knime.filehandling.core.connections.FSPath;
-import org.knime.filehandling.core.testing.FSTestInitializer;
+import org.knime.filehandling.core.connections.FSFiles;
+import org.knime.filehandling.core.testing.DefaultFSTestInitializer;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.DriveItem;
@@ -70,78 +69,36 @@ import com.microsoft.graph.requests.extensions.IDriveItemCollectionPage;
  *
  * @author Alexander Bondaletov
  */
-public class SharepointTestInitializer implements FSTestInitializer {
+public class SharepointTestInitializer extends DefaultFSTestInitializer<SharepointPath, SharepointFileSystem> {
 
-    private final SharepointConnection m_fsConnection;
-    private final String m_drive;
-
-    private final SharepointFileSystem m_filesystem;
     private final IGraphServiceClient m_client;
-    private final String m_testFolder;
+
+    private boolean m_workingDirExists = false;
 
     /**
      * Creates new instance
      *
      * @param fsConnection
      *            {@link FSConnection} object.
-     * @param drive
-     *            Target drive name.
-     * @param testFolder
-     *            Test directory path.
      */
-    public SharepointTestInitializer(final SharepointConnection fsConnection, final String drive,
-            final String testFolder) {
-        m_fsConnection = fsConnection;
-        m_drive = drive;
-        m_testFolder = testFolder;
-
-        m_filesystem = (SharepointFileSystem) fsConnection.getFileSystem();
-        m_client = m_filesystem.getClient();
+    public SharepointTestInitializer(final SharepointConnection fsConnection) {
+        super(fsConnection);
+        m_client = getFileSystem().getClient();
     }
 
-    /**
-     * {@inheritDoc}
-     */
+
+
     @Override
-    public FSConnection getFSConnection() {
-        return m_fsConnection;
-    }
+    public SharepointPath createFileWithContent(final String content, final String... pathComponents)
+            throws IOException {
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public FSPath getRoot() {
-        return m_filesystem.getPath("/", m_drive, m_testFolder);
-    }
+        final SharepointPath path = makePath(pathComponents);
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public FSPath createFile(final String... pathComponents) throws IOException {
-        return createFileWithContent("", pathComponents);
-    }
+        Files.createDirectories(path.getParent());
+        String parentId = path.getParent().getDriveItem().id;
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public FSPath createFileWithContent(final String content, final String... pathComponents) throws IOException {
-        SharepointPath absoulutePath = //
-                (SharepointPath) Arrays //
-                        .stream(pathComponents) //
-                        .reduce( //
-                                getRoot(), //
-                                (path, pathComponent) -> (FSPath) path.resolve(pathComponent), //
-                                (p1, p2) -> (FSPath) p1.resolve(p2) //
-                        ); //
-
-        Files.createDirectories(absoulutePath.getParent());
-        String parentId = absoulutePath.getParent().getDriveItem().id;
-
-        String driveId = absoulutePath.getDriveId();
-        String name = absoulutePath.getFileName().toString();
+        String driveId = path.getDriveId();
+        String name = path.getFileName().toString();
 
         try {
             m_client.drives(driveId).items(parentId).itemWithPath(SharepointPath.toUrlString(name)).content()
@@ -150,34 +107,60 @@ public class SharepointTestInitializer implements FSTestInitializer {
             throw GraphApiUtil.unwrapIOE(ex);
         }
 
-        return absoulutePath;
+        return path;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+
     @Override
-    public void afterTestCase() throws IOException {
-        SharepointPath root = (SharepointPath) getRoot();
+    protected void beforeTestCaseInternal() throws IOException {
+        final SharepointPath scratchDir = getTestCaseScratchDir();
+
+        if (!m_workingDirExists) {
+            Files.createDirectory(scratchDir.getParent());
+            m_workingDirExists = true;
+        }
+
+        Files.createDirectory(scratchDir);
+    }
+
+    @Override
+    protected void afterTestCaseInternal() throws IOException {
+        final SharepointPath scratchDir = getTestCaseScratchDir();
 
         try {
-            IDriveItemCollectionPage childred = m_client.drives(root.getDriveId()).root()
-                    .itemWithPath(SharepointPath.toUrlString(root.getItemPath())).children().buildRequest().get();
+            IDriveItemCollectionPage children = m_client.drives(scratchDir.getDriveId()).root()
+                    .itemWithPath(SharepointPath.toUrlString(scratchDir.getItemPath())).children().buildRequest().get();
 
-            for (DriveItem item : childred.getCurrentPage()) {
-                m_client.drives(root.getDriveId()).items(item.id).buildRequest().delete();
+            for (DriveItem item : children.getCurrentPage()) {
+                m_client.drives(scratchDir.getDriveId()).items(item.id).buildRequest().delete();
             }
 
-            while (childred.getNextPage() != null) {
-                childred = childred.getNextPage().buildRequest().get();
-                for (DriveItem item : childred.getCurrentPage()) {
-                    m_client.drives(root.getDriveId()).items(item.id).buildRequest().delete();
+            while (children.getNextPage() != null) {
+                children = children.getNextPage().buildRequest().get();
+                for (DriveItem item : children.getCurrentPage()) {
+                    m_client.drives(scratchDir.getDriveId()).items(item.id).buildRequest().delete();
                 }
             }
+
+            m_client.drives(scratchDir.getDriveId()).items(scratchDir.getDriveItem().id).buildRequest().delete();
         } catch (ClientException ex) {
             throw GraphApiUtil.unwrapIOE(ex);
         }
 
-        m_filesystem.clearAttributesCache();
+        getFileSystem().clearAttributesCache();
     }
+
+    @Override
+    public void afterClass() throws IOException {
+        final SharepointPath scratchDir = getTestCaseScratchDir();
+
+        if (m_workingDirExists) {
+            try {
+                FSFiles.deleteRecursively(scratchDir.getParent());
+            } finally {
+                m_workingDirExists = false;
+            }
+        }
+    }
+
 }

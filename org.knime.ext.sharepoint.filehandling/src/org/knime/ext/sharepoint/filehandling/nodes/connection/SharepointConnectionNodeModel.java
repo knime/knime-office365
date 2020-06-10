@@ -78,7 +78,8 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
  * @author Alexander Bondaletov
  */
 public class SharepointConnectionNodeModel extends NodeModel {
-    private static final String FILE_SYSTEM_NAME = "Sharepoint";
+
+    private static final String FILE_SYSTEM_NAME = "Sharepoint Online";
 
     private String m_fsId;
     private SharepointConnection m_fsConnection;
