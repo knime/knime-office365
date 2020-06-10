@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
-      id="org.knime.features.ext.sharepoint.filehandling"
-      label="KNIME Sharepoint Connection (new file handling)"
+      id="org.knime.features.ext.office365.filehandling"
+      label="KNIME Sharepoint Online Connector (new file handling)"
       version="4.2.0.qualifier"
       provider-name="KNIME AG, Zurich, Switzerland">
 

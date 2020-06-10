@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature id="org.knime.features.ext.office365.filehandling" version="0.0.0">
+       <category name="knime-office365" />
+   </feature>
+   
+   <feature id="org.knime.features.ext.office365.filehandling.source" version="0.0.0">
+       <category name="knime-office365" />
+   </feature>
+
+   <category-def name="knime-office365" label="Build artifacts from knime-office365">
+       <description>Build artifacts from knime-office365</description>
+   </category-def>
+</site>
