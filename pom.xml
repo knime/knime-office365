@@ -17,7 +17,6 @@
 	<packaging>pom</packaging>
 
 	<properties>
-	<knime.p2.repo>https://jenkins.devops.knime.com:8000/p2/knime</knime.p2.repo>
 		<revision>4.2.0</revision>
 		<changelist>-SNAPSHOT</changelist>
 		<feature-branch-extension.branchListProperty>git.branch</feature-branch-extension.branchListProperty>
