@@ -57,6 +57,8 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
@@ -129,13 +131,19 @@ public abstract class LoadedItemsSelector extends JPanel {
         m_cancelBtn.setVisible(false);
         m_cancelBtn.setPreferredSize(m_fetchBtn.getPreferredSize());
 
-        DialogComponentBoolean checkedInput = null;
+        final Component labelOrCheckbox;
         if (m_checkedModel != null) {
-            checkedInput = new DialogComponentBoolean(m_checkedModel, "");
+            final DialogComponentBoolean checkedInput = new DialogComponentBoolean(m_checkedModel, caption);
             m_checkedModel.addChangeListener(e -> {
                 setEnabled(m_checkedModel.getBooleanValue());
             });
             setEnabled(m_checkedModel.getBooleanValue());
+            labelOrCheckbox = checkedInput.getComponentPanel();
+        } else {
+            final Box paddedBox = new Box(BoxLayout.X_AXIS);
+            paddedBox.add(Box.createHorizontalStrut(5));
+            paddedBox.add(new JLabel(caption));
+            labelOrCheckbox = paddedBox;
         }
 
         GridBagConstraints c = new GridBagConstraints();
@@ -145,17 +153,11 @@ public abstract class LoadedItemsSelector extends JPanel {
         c.anchor = GridBagConstraints.LINE_START;
         c.fill = GridBagConstraints.NONE;
         c.weightx = 0;
-        c.insets = new Insets(0, 5, 0, 5);
+        c.insets = new Insets(0, 0, 0, 5);
 
-        if (checkedInput != null) {
-            add(checkedInput.getComponentPanel(), c);
-            c.gridx += 1;
-        }
-
-        JLabel captionLabel = new JLabel(caption);
-        add(captionLabel, c);
-
+        add(labelOrCheckbox, c);
         c.gridx += 1;
+
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 0.5;
         add(m_combobox, c);

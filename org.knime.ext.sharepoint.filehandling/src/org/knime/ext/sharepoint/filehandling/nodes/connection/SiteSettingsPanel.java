@@ -58,6 +58,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JLabel;
@@ -134,10 +135,11 @@ public class SiteSettingsPanel extends JPanel {
         group.add(rbRoot);
         group.add(rbSite);
         group.add(rbGroup);
-        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonsPanel.add(rbRoot);
         buttonsPanel.add(rbSite);
         buttonsPanel.add(rbGroup);
+        buttonsPanel.add(Box.createHorizontalGlue());
         return buttonsPanel;
     }
 

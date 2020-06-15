@@ -77,16 +77,14 @@ import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnectionPortObject
  */
 public class SharepointConnectionNodeDialog extends NodeDialogPane {
 
-    private final SharepointConnectionSettings m_settings;
-    private SiteSettingsPanel m_sitePanel;
+    private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
+
+    private final SiteSettingsPanel m_sitePanel;
 
     /**
      * Creates new instance.
      */
     public SharepointConnectionNodeDialog() {
-        super();
-        m_settings = new SharepointConnectionSettings();
-
         m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
 
         DialogComponentString workingDir = new DialogComponentString(m_settings.getWorkingDirectoryModel(),
