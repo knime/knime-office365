@@ -49,16 +49,17 @@
 package org.knime.ext.sharepoint.filehandling.testing;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.knime.core.node.util.CheckUtils;
-import org.knime.ext.sharepoint.filehandling.GraphApiConnector;
+import org.knime.ext.sharepoint.filehandling.auth.SilentRefreshAuthenticationProvider;
+import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnection;
+import org.knime.ext.sharepoint.filehandling.auth.providers.UsernamePasswordAuthProvider;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
@@ -79,12 +80,11 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
     public SharepointTestInitializer setup(final Map<String, String> configuration) throws IOException {
 
         validateConfiguration(configuration);
+        ExecutorService pool = Executors.newFixedThreadPool(1);
 
-        final ExecutorService pool = Executors.newFixedThreadPool(1);
-        IAuthenticationProvider authProvider;
+        final IAuthenticationProvider authProvider;
         try {
-            setupAuthenticationProperties(configuration);
-            authProvider = GraphApiConnector.connect(pool);
+            authProvider = authenticate(configuration);
         } catch (IOException ex) {
             throw ex;
         } catch (InterruptedException ex) {
@@ -122,14 +122,16 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         CheckUtils.checkArgumentNotNull(configuration.get("workingDirPrefix"), "workingDirPrefix must be specified.");
         CheckUtils.checkArgumentNotNull(configuration.get("username"), "username must be specified.");
         CheckUtils.checkArgumentNotNull(configuration.get("password"), "password must be specified.");
-        CheckUtils.checkArgumentNotNull(configuration.get("tenant"), "tenant must be specified.");
     }
 
-    private static void setupAuthenticationProperties(final Map<String, String> configuration) {
-        List<String> keys = Arrays.asList("username", "password", "tenant");
-        for (String key : keys) {
-            System.setProperty("sharepoint." + key, configuration.get(key));
-        }
+    private static IAuthenticationProvider authenticate(final Map<String, String> config)
+            throws MalformedURLException, InterruptedException, ExecutionException {
+        UsernamePasswordAuthProvider provider = new UsernamePasswordAuthProvider(new AzureConnection());
+        provider.getUsernameModel().setStringValue(config.get("username"));
+        provider.getPasswordModel().setStringValue(config.get("password"));
+        provider.login();
+        return new SilentRefreshAuthenticationProvider(provider.getConnection().getScopes(),
+                provider.getConnection().createClientApp(true));
     }
 
     @Override

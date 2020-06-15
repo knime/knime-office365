@@ -44,82 +44,85 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-02 (Alexander Bondaletov): created
+ *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling;
+package org.knime.ext.sharepoint.filehandling.auth;
 
 import java.net.MalformedURLException;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Date;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 
+import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.PublicClientApplication;
-import com.microsoft.aad.msal4j.UserNamePasswordParameters;
+import com.microsoft.aad.msal4j.SilentParameters;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.http.IHttpRequest;
+import com.microsoft.graph.requests.extensions.GraphServiceClient;
 
 /**
- * Temporary class to provide Graph API authentication for filehandling node.
- * Should be replace with proper implementation later.
+ * {@link IAuthenticationProvider} implementation used to authenticate
+ * {@link GraphServiceClient}.<br>
+ *
+ * Should be initialized with {@link PublicClientApplication} instance with
+ * token cache restored. Signs every {@link IHttpRequest} with a short-lived
+ * access token and automatically refreshes this token using information stored
+ * in the client's token cache.
  *
  * @author Alexander Bondaletov
  */
-public class GraphApiConnector {
-    private static final String APP_ID = "e915aace-9024-416c-b797-14601fc3b94c";
-    private static final String AUTHORITY_PREFIX = "https://login.microsoftonline.com/";
+public class SilentRefreshAuthenticationProvider implements IAuthenticationProvider {
+    private final Set<String> m_scopes;
+    private final PublicClientApplication m_client;
+
+    private String m_accessToken;
+    private Date m_expiresOn;
 
     /**
+     * Creates new instance.
+     *
+     * @param scopes
+     *            Requested scopes.
+     * @param client
+     *            The client instance. Should have it's token cache
+     *            initialized/restored.
      *
      */
-    public static final String SHAREPOINT_USERNAME = "sharepoint.username";
-    /**
-     *
-     */
-    public static final String SHAREPOINT_PASSWORD = "sharepoint.password";
-    /**
-     *
-     */
-    public static final String SHAREPOINT_TENANT_ID = "sharepoint.tenant";
-
-    /**
-     * @param pool
-     * @return The authentication provider.
-     * @throws InterruptedException
-     * @throws ExecutionException
-     * @throws MalformedURLException
-     */
-    public static IAuthenticationProvider connect(final ExecutorService pool)
-            throws InterruptedException, ExecutionException, MalformedURLException {
-        String authority = AUTHORITY_PREFIX + System.getProperty(SHAREPOINT_TENANT_ID);
-        Set<String> scopeSet = new HashSet<>(
-                Arrays.asList("Files.ReadWrite.All", "Sites.ReadWrite.All", "Directory.Read.All"));
-
-        PublicClientApplication app = PublicClientApplication.builder(APP_ID).authority(authority).executorService(pool)
-                .build();
-
-        IAuthenticationResult result = app.acquireToken(UserNamePasswordParameters.builder(scopeSet,
-                System.getProperty(SHAREPOINT_USERNAME), System.getProperty(SHAREPOINT_PASSWORD).toCharArray()).build())
-                .get();
-
-        String token = result.accessToken();
-
-        return new SimpleAuthProvider(token);
+    public SilentRefreshAuthenticationProvider(final Set<String> scopes, final PublicClientApplication client) {
+        m_scopes = scopes;
+        m_client = client;
+        m_expiresOn = new Date(0);
     }
 
-    private static class SimpleAuthProvider implements IAuthenticationProvider {
-
-        private String m_accessToken = null;
-
-        public SimpleAuthProvider(final String accessToken) {
-            this.m_accessToken = accessToken;
-        }
-
-        @Override
-        public void authenticateRequest(final IHttpRequest request) {
-            request.addHeader("Authorization", "Bearer " + m_accessToken);
-        }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void authenticateRequest(final IHttpRequest request) {
+        request.addHeader("Authorization", "Bearer " + getAccessToken());
     }
+
+    private String getAccessToken() {
+        if (m_accessToken == null || m_expiresOn.before(new Date())) {
+            try {
+                refreshToken();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (MalformedURLException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return m_accessToken;
+    }
+
+    private void refreshToken()
+            throws MalformedURLException, InterruptedException, ExecutionException {
+        IAccount account = m_client.getAccounts().get().iterator().next();
+        IAuthenticationResult result = m_client
+                .acquireTokenSilently(SilentParameters.builder(m_scopes, account).build()).get();
+        m_accessToken = result.accessToken();
+        m_expiresOn = result.expiresOnDate();
+    }
+
 }

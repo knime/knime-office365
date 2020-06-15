@@ -52,6 +52,7 @@ import static java.util.stream.Collectors.toList;
 
 import java.awt.FlowLayout;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,13 +66,16 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnection;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteMode;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteSettings;
 
+import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.models.extensions.Site;
+import com.microsoft.graph.requests.extensions.GraphServiceClient;
 import com.microsoft.graph.requests.extensions.IDirectoryObjectCollectionWithReferencesPage;
 import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
 
@@ -84,7 +88,7 @@ public class SiteSettingsPanel extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final SiteSettings m_settings;
-    private IGraphServiceClient m_client;
+    private AzureConnection m_connection;
 
     private DialogComponentString m_siteInput;
     private LoadedItemsSelector m_groupSelector;
@@ -107,12 +111,12 @@ public class SiteSettingsPanel extends JPanel {
 
     /**
      * Should be called by the parent dialog after settings are loaded.
-     *
-     * @param client
-     *            The client.
+     * 
+     * @param connection
+     *            The Azure connection object.
      */
-    public void settingsLoaded(final IGraphServiceClient client) {
-        m_client = client;
+    public void settingsLoaded(final AzureConnection connection) {
+        m_connection = connection;
 
         m_subsiteSelector.onSettingsLoaded();
         m_groupSelector.onSettingsLoaded();
@@ -195,37 +199,53 @@ public class SiteSettingsPanel extends JPanel {
     }
 
     private List<IdComboboxItem> fetchGroups() throws InvalidSettingsException {
-        if (m_client == null) {
+        IGraphServiceClient client = createClient();
+
+        try {
+            List<DirectoryObject> objects = new ArrayList<>();
+            IDirectoryObjectCollectionWithReferencesPage resp = client.me().transitiveMemberOf().buildRequest().get();
+            objects.addAll(resp.getCurrentPage());
+            while (resp.getNextPage() != null) {
+                resp = resp.getNextPage().buildRequest().get();
+                objects.addAll(resp.getCurrentPage());
+            }
+
+            return objects.stream().filter(o -> GraphApiUtil.GROUP_DATA_TYPE.equals(o.oDataType))
+                    .map(g -> new IdComboboxItem(g.id, GraphApiUtil.getDisplayName(g))).collect(toList());
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    private IGraphServiceClient createClient() throws InvalidSettingsException {
+        if (m_connection == null) {
             throw new InvalidSettingsException("Settings isn't loaded");
         }
 
-        List<DirectoryObject> objects = new ArrayList<>();
-        IDirectoryObjectCollectionWithReferencesPage resp = m_client.me().transitiveMemberOf().buildRequest().get();
-        objects.addAll(resp.getCurrentPage());
-        while (resp.getNextPage() != null) {
-            resp = resp.getNextPage().buildRequest().get();
-            objects.addAll(resp.getCurrentPage());
+        try {
+            return GraphServiceClient.builder().authenticationProvider(m_connection.createGraphAuthProvider())
+                    .buildClient();
+        } catch (ClientException | MalformedURLException ex) {
+            throw new InvalidSettingsException(ex);
         }
-
-        return objects.stream().filter(o -> GraphApiUtil.GROUP_DATA_TYPE.equals(o.oDataType))
-                .map(g -> new IdComboboxItem(g.id, GraphApiUtil.getDisplayName(g))).collect(toList());
     }
 
     private List<IdComboboxItem> fetchSubsites() throws InvalidSettingsException, IOException {
-        if (m_client == null) {
-            throw new InvalidSettingsException("Settings isn't loaded");
-        }
-
         m_settings.validate();
+        IGraphServiceClient client = createClient();
 
-        return listSubsites(m_settings.getParentSiteId(m_client)).stream().map(s -> new IdComboboxItem(s.id, s.name))
-                .collect(toList());
+        try {
+            return listSubsites(m_settings.getParentSiteId(client), client).stream()
+                    .map(s -> new IdComboboxItem(s.id, s.name)).collect(toList());
+        } finally {
+            client.shutdown();
+        }
     }
 
-    private List<Site> listSubsites(final String siteId) {
+    private List<Site> listSubsites(final String siteId, final IGraphServiceClient client) {
         List<Site> result = new ArrayList<>();
 
-        ISiteCollectionPage resp = m_client.sites(siteId).sites().buildRequest().get();
+        ISiteCollectionPage resp = client.sites(siteId).sites().buildRequest().get();
         result.addAll(resp.getCurrentPage());
 
         while (resp.getNextPage() != null) {
@@ -235,7 +255,7 @@ public class SiteSettingsPanel extends JPanel {
 
         List<String> ids = result.stream().map(s -> s.id).collect(toList());
         for (String id : ids) {
-            result.addAll(listSubsites(id));
+            result.addAll(listSubsites(id, client));
         }
 
         return result;

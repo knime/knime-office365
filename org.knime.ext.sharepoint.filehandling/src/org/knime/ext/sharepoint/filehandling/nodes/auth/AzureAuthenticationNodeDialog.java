@@ -44,14 +44,18 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-02 (Alexander Bondaletov): created
+ *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.nodes.connection;
+package org.knime.ext.sharepoint.filehandling.nodes.auth;
 
-import javax.swing.BorderFactory;
+import java.awt.CardLayout;
+import java.awt.FlowLayout;
+
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -59,55 +63,68 @@ import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
-import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnection;
-import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnectionPortObjectSpec;
+import org.knime.ext.sharepoint.filehandling.auth.providers.AuthProviderType;
+
 
 /**
- * Sharepoint Connection node dialog.
+ * Azure Authentication node dialog.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnectionNodeDialog extends NodeDialogPane {
+public class AzureAuthenticationNodeDialog extends NodeDialogPane {
 
-    private final SharepointConnectionSettings m_settings;
-    private SiteSettingsPanel m_sitePanel;
+    private final AzureAuthenticationSettings m_settings;
 
     /**
      * Creates new instance.
      */
-    public SharepointConnectionNodeDialog() {
+    public AzureAuthenticationNodeDialog() {
         super();
-        m_settings = new SharepointConnectionSettings();
-
-        m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
-
-        DialogComponentString workingDir = new DialogComponentString(m_settings.getWorkingDirectoryModel(),
-                "Working directory", false, 40);
-        workingDir.getComponentPanel().setBorder(BorderFactory.createTitledBorder("File system settings"));
+        m_settings = new AzureAuthenticationSettings();
+        AzureScopesEditComponent scopesEditor = new AzureScopesEditComponent(m_settings.getScopesModel());
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
-        box.add(m_sitePanel);
-        box.add(workingDir.getComponentPanel());
-        box.add(createTimeoutsPanel());
+        box.add(createProviderCombo());
+        box.add(createEditorPanel());
+        box.add(m_settings.getStorageLocation().createEditor());
+        box.add(scopesEditor);
 
         addTab("Settings", box);
     }
 
-    private JComponent createTimeoutsPanel() {
-        DialogComponentNumber connectionTimeout = new DialogComponentNumber(m_settings.getConnectionTimeoutModel(),
-                "Connection timeout in seconds", 1);
-        DialogComponentNumber readTimeout = new DialogComponentNumber(m_settings.getReadTimeoutModel(),
-                "Read timeout in seconds", 1);
+    private JComponent createProviderCombo() {
+        JComboBox<AuthProviderType> cb = new JComboBox<>(AuthProviderType.values());
 
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
-        panel.add(connectionTimeout.getComponentPanel());
-        panel.add(readTimeout.getComponentPanel());
-        panel.setBorder(BorderFactory.createTitledBorder("Connection settings"));
+        cb.addActionListener(e -> {
+            AuthProviderType provider = (AuthProviderType) cb.getSelectedItem();
+            m_settings.getProviderTypeModel().setStringValue(provider.name());
+        });
+
+        m_settings.getProviderTypeModel().addChangeListener(e -> {
+            cb.setSelectedItem(m_settings.getProviderType());
+        });
+
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.add(new JLabel("Authentication mode:"));
+        panel.add(cb);
+
         return panel;
+    }
+
+    private JPanel createEditorPanel() {
+        JPanel cards = new JPanel(new CardLayout());
+
+        for (AuthProviderType type : AuthProviderType.values()) {
+            JComponent editor = m_settings.getProvider(type).createEditor();
+            cards.add(editor, type.name());
+        }
+
+        m_settings.getProviderTypeModel().addChangeListener(e -> {
+            ((CardLayout) cards.getLayout()).show(cards, m_settings.getProviderType().name());
+        });
+
+        return cards;
     }
 
     /**
@@ -129,12 +146,5 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         } catch (InvalidSettingsException ex) {
             // ignore
         }
-
-        AzureConnection connection = ((AzureConnectionPortObjectSpec) specs[0]).getAzureConnection();
-        if (connection == null || !connection.isLoggedIn()) {
-            throw new NotConfigurableException("Authentication required");
-        }
-
-        m_sitePanel.settingsLoaded(connection);
     }
 }

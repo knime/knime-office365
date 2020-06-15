@@ -62,6 +62,9 @@
     </fullDescription>
     
     <ports>
+    	<inPort index="0" name="Azure Connection">
+    		Azure Connection
+    	</inPort>
    		<outPort index="0" name="Sharepoint File System Connection">
    			Sharepoint File System Connection
    		</outPort>
