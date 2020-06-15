@@ -48,10 +48,15 @@
  */
 package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
+import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -85,8 +90,9 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
 
         DialogComponentString workingDir = new DialogComponentString(m_settings.getWorkingDirectoryModel(),
-                "Working directory", false, 40);
+                "Working directory", false, 45);
         workingDir.getComponentPanel().setBorder(BorderFactory.createTitledBorder("File system settings"));
+        workingDir.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
         box.add(m_sitePanel);
@@ -97,15 +103,31 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
     }
 
     private JComponent createTimeoutsPanel() {
-        DialogComponentNumber connectionTimeout = new DialogComponentNumber(m_settings.getConnectionTimeoutModel(),
-                "Connection timeout in seconds", 1);
-        DialogComponentNumber readTimeout = new DialogComponentNumber(m_settings.getReadTimeoutModel(),
-                "Read timeout in seconds", 1);
+        DialogComponentNumber connectionTimeout = new DialogComponentNumber(m_settings.getConnectionTimeoutModel(), "",
+                1);
+        connectionTimeout.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
+        DialogComponentNumber readTimeout = new DialogComponentNumber(m_settings.getReadTimeoutModel(), "", 1);
+        readTimeout.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
 
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
-        panel.add(connectionTimeout.getComponentPanel());
-        panel.add(readTimeout.getComponentPanel());
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.LINE_START;
+        c.weightx = 0;
+        c.gridx = 0;
+        c.gridy = 0;
+        panel.add(new JLabel("Connection timeout in seconds"), c);
+
+        c.gridy = 1;
+        panel.add(new JLabel("Read timeout in seconds"), c);
+
+        c.weightx = 1;
+        c.gridx = 1;
+        c.gridy = 0;
+        panel.add(connectionTimeout.getComponentPanel(), c);
+
+        c.gridy = 1;
+        panel.add(readTimeout.getComponentPanel(), c);
+
         panel.setBorder(BorderFactory.createTitledBorder("Connection settings"));
         return panel;
     }

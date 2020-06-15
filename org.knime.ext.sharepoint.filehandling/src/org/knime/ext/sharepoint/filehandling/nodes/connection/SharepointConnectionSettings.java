@@ -253,12 +253,6 @@ public class SharepointConnectionSettings {
             m_subsite = new SettingsModelString(KEY_SUBSITE, "");
             m_subsiteName = new SettingsModelString(KEY_SUBSITE_NAME, "");
             m_connectToSubsite = new SettingsModelBoolean(KEY_CONNECT_TO_SUBSITE, false);
-
-            m_subsite.addChangeListener(e -> {
-                if (!m_subsite.getStringValue().isEmpty()) {
-                    m_connectToSubsite.setBooleanValue(true);
-                }
-            });
         }
 
         /**
@@ -299,8 +293,21 @@ public class SharepointConnectionSettings {
          *
          * @throws InvalidSettingsException
          */
-        @SuppressWarnings("unused")
         public void validate() throws InvalidSettingsException {
+            validateParentSiteSettings();
+            if (m_connectToSubsite.getBooleanValue() && m_subsite.getStringValue().isEmpty()) {
+                throw new InvalidSettingsException("Subsite is not selected.");
+            }
+        }
+
+        /**
+         * Validates parent site settings (site/group settings depending on the current
+         * mode)
+         *
+         * @throws InvalidSettingsException
+         */
+        @SuppressWarnings("unused")
+        public void validateParentSiteSettings() throws InvalidSettingsException {
             SiteMode mode = getMode();
             if (mode == SiteMode.GROUP && m_group.getStringValue().isEmpty()) {
                 throw new InvalidSettingsException("Group is not selected.");

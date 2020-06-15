@@ -48,18 +48,26 @@
  */
 package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
-import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
+import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
+import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.util.SwingWorkerWithContext;
 
@@ -77,11 +85,14 @@ public abstract class LoadedItemsSelector extends JPanel {
 
     private final SettingsModelString m_idModel;
     private final SettingsModelString m_titleModel;
+    private final SettingsModelBoolean m_checkedModel;
     private final DefaultComboBoxModel<IdComboboxItem> m_comboModel;
+    private final JComboBox<IdComboboxItem> m_combobox;
     private final JButton m_fetchBtn;
     private final JButton m_cancelBtn;
 
     private SwingWorkerWithContext<List<IdComboboxItem>, Void> m_fetchWorker;
+    private boolean m_enabled = true;
     private boolean ignoreListeners = false;
 
     /**
@@ -89,23 +100,24 @@ public abstract class LoadedItemsSelector extends JPanel {
      *            Settings model holding id value.
      * @param titleModel
      *            Settings model holding title value.
-     * @param fetchBtnLabel
-     *            The label for the fetch button.
      * @param caption
      *            The caption label
+     * @param checkedModel
+     *            Optional settings model holding "checked" value.
      *
      */
     public LoadedItemsSelector(final SettingsModelString idModel, final SettingsModelString titleModel,
-            final String fetchBtnLabel, final String caption) {
+            final String caption, final SettingsModelBoolean checkedModel) {
         m_idModel = idModel;
         m_titleModel = titleModel;
+        m_checkedModel = checkedModel;
 
-        m_comboModel = new DefaultComboBoxModel<>(new IdComboboxItem[] { IdComboboxItem.DEFAULT });
-        JComboBox<IdComboboxItem> cbInput = new JComboBox<>(m_comboModel);
-        cbInput.addActionListener(e -> onSelectionChanged());
-        cbInput.setPreferredSize(new Dimension(250, 20));
+        m_comboModel = new DefaultComboBoxModel<>(new IdComboboxItem[] {});
+        m_combobox = new JComboBox<>(m_comboModel);
+        m_combobox.addActionListener(e -> onSelectionChanged());
+        m_combobox.setRenderer(new IdComboboxCellRenderer());
 
-        m_fetchBtn = new JButton(fetchBtnLabel);
+        m_fetchBtn = new JButton("Refresh");
         m_fetchBtn.addActionListener(e -> onFetch());
 
         m_cancelBtn = new JButton("Cancel");
@@ -117,11 +129,46 @@ public abstract class LoadedItemsSelector extends JPanel {
         m_cancelBtn.setVisible(false);
         m_cancelBtn.setPreferredSize(m_fetchBtn.getPreferredSize());
 
-        setLayout(new FlowLayout());
-        add(new JLabel(caption));
-        add(cbInput);
-        add(m_fetchBtn);
-        add(m_cancelBtn);
+        DialogComponentBoolean checkedInput = null;
+        if (m_checkedModel != null) {
+            checkedInput = new DialogComponentBoolean(m_checkedModel, "");
+            m_checkedModel.addChangeListener(e -> {
+                setEnabled(m_checkedModel.getBooleanValue());
+            });
+            setEnabled(m_checkedModel.getBooleanValue());
+        }
+
+        GridBagConstraints c = new GridBagConstraints();
+        setLayout(new GridBagLayout());
+        c.gridx = 0;
+        c.gridy = 0;
+        c.anchor = GridBagConstraints.LINE_START;
+        c.fill = GridBagConstraints.NONE;
+        c.weightx = 0;
+        c.insets = new Insets(0, 5, 0, 5);
+
+        if (checkedInput != null) {
+            add(checkedInput.getComponentPanel(), c);
+            c.gridx += 1;
+        }
+
+        JLabel captionLabel = new JLabel(caption);
+        add(captionLabel, c);
+
+        c.gridx += 1;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.weightx = 0.5;
+        add(m_combobox, c);
+
+
+        c.fill = GridBagConstraints.NONE;
+        c.anchor = GridBagConstraints.LINE_END;
+        c.gridx += 1;
+        c.weightx = 0;
+        add(m_fetchBtn, c);
+
+        c.gridx += 1;
+        add(m_cancelBtn, c);
     }
 
     private void onSelectionChanged() {
@@ -129,13 +176,16 @@ public abstract class LoadedItemsSelector extends JPanel {
             return;
         }
 
+        String id = "";
+        String title = "";
         IdComboboxItem selected = (IdComboboxItem) m_comboModel.getSelectedItem();
-        if (selected == null) {
-            selected = IdComboboxItem.DEFAULT;
+        if (selected != null) {
+            id = selected.getId();
+            title = selected.getTitle();
         }
 
-        m_idModel.setStringValue(selected.getId());
-        m_titleModel.setStringValue(selected.getTitle());
+        m_idModel.setStringValue(id);
+        m_titleModel.setStringValue(title);
     }
 
     private void onFetch() {
@@ -148,6 +198,7 @@ public abstract class LoadedItemsSelector extends JPanel {
 
             @Override
             protected void doneWithContext() {
+                m_combobox.setEnabled(m_enabled);
                 m_cancelBtn.setVisible(false);
                 m_fetchBtn.setVisible(true);
 
@@ -160,11 +211,15 @@ public abstract class LoadedItemsSelector extends JPanel {
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 } catch (ExecutionException ex) {
+                    if (m_checkedModel != null) {
+                        m_checkedModel.setBooleanValue(false);
+                    }
                     showError(ex);
                 }
             }
         };
 
+        m_combobox.setEnabled(false);
         m_cancelBtn.setVisible(true);
         m_fetchBtn.setVisible(false);
 
@@ -174,16 +229,11 @@ public abstract class LoadedItemsSelector extends JPanel {
     private void onItemsLoaded(final List<IdComboboxItem> sites) {
         ignoreListeners = true;
         m_comboModel.removeAllElements();
-        m_comboModel.addElement(IdComboboxItem.DEFAULT);
         for (IdComboboxItem s : sites) {
             m_comboModel.addElement(s);
         }
 
-        IdComboboxItem selected = getComboItemFromSettings();
-        if (m_comboModel.getIndexOf(selected) < 0) {
-            selected = IdComboboxItem.DEFAULT;
-        }
-        m_comboModel.setSelectedItem(selected);
+        updateComboFromSettings(true);
         ignoreListeners = false;
 
         onSelectionChanged();
@@ -220,26 +270,61 @@ public abstract class LoadedItemsSelector extends JPanel {
      * Should be called by the parent dialog after settings are loaded.
      */
     public void onSettingsLoaded() {
-        IdComboboxItem selected = getComboItemFromSettings();
-        if (m_comboModel.getIndexOf(selected) < 0) {
-            m_comboModel.addElement(selected);
+        updateComboFromSettings(false);
+
+        if (m_checkedModel != null) {
+            // Setup this listener after settings are loaded so fetching won't fire on
+            // dialog opening
+            m_checkedModel.addChangeListener(e -> {
+                if (m_checkedModel.getBooleanValue()) {
+                    onFetch();
+                }
+            });
         }
-        m_comboModel.setSelectedItem(selected);
     }
 
-    private IdComboboxItem getComboItemFromSettings() {
+    private void updateComboFromSettings(final boolean afterFetch) {
         String id = m_idModel.getStringValue();
         if (id.isEmpty()) {
-            return IdComboboxItem.DEFAULT;
+            m_comboModel.setSelectedItem(null);
+            return;
         }
-        return new IdComboboxItem(id, m_titleModel.getStringValue());
+
+        IdComboboxItem item = new IdComboboxItem(id, m_titleModel.getStringValue());
+        if (m_comboModel.getIndexOf(item) < 0) {
+            m_comboModel.addElement(item);
+
+            if (afterFetch) {
+                item.setMissing(true);
+            }
+        }
+        m_comboModel.setSelectedItem(item);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setEnabled(final boolean enabled) {
+        m_enabled = enabled;
+        m_combobox.setEnabled(enabled);
+        m_fetchBtn.setEnabled(enabled);
+    }
+
+    /**
+     * Starts items fetching if no fetching was performed yet.
+     */
+    public void fetchOnce() {
+        if (m_fetchWorker == null) {
+            onFetch();
+        }
     }
 
     static class IdComboboxItem {
-        static final IdComboboxItem DEFAULT = new IdComboboxItem("", "None");
 
         private String m_id;
         private String m_title;
+        private boolean m_missing;
 
         /**
          * @param id
@@ -265,6 +350,21 @@ public abstract class LoadedItemsSelector extends JPanel {
          */
         public String getTitle() {
             return m_title;
+        }
+
+        /**
+         * @return the missing
+         */
+        public boolean isMissing() {
+            return m_missing;
+        }
+
+        /**
+         * @param missing
+         *            the missing to set
+         */
+        public void setMissing(final boolean missing) {
+            m_missing = missing;
         }
 
         /**
@@ -297,5 +397,32 @@ public abstract class LoadedItemsSelector extends JPanel {
         public int hashCode() {
             return m_id.hashCode();
         }
+    }
+
+    private class IdComboboxCellRenderer extends DefaultListCellRenderer {
+        private static final long serialVersionUID = 1L;
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Component getListCellRendererComponent(final JList<?> list, final Object value, final int index,
+                final boolean isSelected, final boolean cellHasFocus) {
+            if (m_fetchWorker != null && !m_fetchWorker.isDone()) {
+                return new JLabel("Loading...");
+            }
+
+            Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+            assert (c == this);
+
+            IdComboboxItem item = (IdComboboxItem) value;
+            if (item != null && item.isMissing()) {
+                setBorder(BorderFactory.createLineBorder(Color.red));
+            } else {
+                setBorder(null);
+            }
+            return c;
+        }
+
     }
 }

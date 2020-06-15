@@ -50,6 +50,7 @@ package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
 import static java.util.stream.Collectors.toList;
 
+import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -59,11 +60,11 @@ import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnection;
@@ -90,7 +91,7 @@ public class SiteSettingsPanel extends JPanel {
     private final SiteSettings m_settings;
     private AzureConnection m_connection;
 
-    private DialogComponentString m_siteInput;
+    private JPanel m_cards;
     private LoadedItemsSelector m_groupSelector;
     private LoadedItemsSelector m_subsiteSelector;
 
@@ -104,14 +105,15 @@ public class SiteSettingsPanel extends JPanel {
         m_settings = settings;
 
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
-        add(createSitePanel());
+        add(createRadioSelectorPanel());
+        add(createCardsPanel());
         add(createSubsitePanel());
         setBorder(BorderFactory.createTitledBorder("Sharepoint site"));
     }
 
     /**
      * Should be called by the parent dialog after settings are loaded.
-     * 
+     *
      * @param connection
      *            The Azure connection object.
      */
@@ -121,12 +123,10 @@ public class SiteSettingsPanel extends JPanel {
         m_subsiteSelector.onSettingsLoaded();
         m_groupSelector.onSettingsLoaded();
 
-        SiteMode mode = m_settings.getMode();
-        m_siteInput.getComponentPanel().setVisible(mode == SiteMode.WEB_URL);
-        m_groupSelector.setVisible(mode == SiteMode.GROUP);
+        showModePanel(m_settings.getMode());
     }
 
-    private JPanel createSitePanel() {
+    private JPanel createRadioSelectorPanel() {
         JRadioButton rbRoot = createModeRadiobutton(SiteMode.ROOT);
         JRadioButton rbSite = createModeRadiobutton(SiteMode.WEB_URL);
         JRadioButton rbGroup = createModeRadiobutton(SiteMode.GROUP);
@@ -138,26 +138,7 @@ public class SiteSettingsPanel extends JPanel {
         buttonsPanel.add(rbRoot);
         buttonsPanel.add(rbSite);
         buttonsPanel.add(rbGroup);
-
-        m_siteInput = new DialogComponentString(m_settings.getWebURLModel(), "URL:", false, 40);
-
-        m_groupSelector = new LoadedItemsSelector(m_settings.getGroupModel(), m_settings.getGroupNameModel(),
-                "Fetch Groups", "Group:") {
-            private static final long serialVersionUID = 1L;
-
-            @Override
-            protected List<IdComboboxItem> fetchItems() throws Exception {
-                return fetchGroups();
-            }
-        };
-        m_groupSelector.setVisible(false);
-
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
-        panel.add(buttonsPanel);
-        panel.add(m_siteInput.getComponentPanel());
-        panel.add(m_groupSelector);
-        return panel;
+        return buttonsPanel;
     }
 
     private JRadioButton createModeRadiobutton(final SiteMode mode) {
@@ -166,10 +147,13 @@ public class SiteSettingsPanel extends JPanel {
 
         rb.addActionListener(e -> {
             m_settings.getModeModel().setStringValue(mode.name());
+            m_settings.getConnectToSubsiteModel().setBooleanValue(false);
 
-            m_siteInput.getComponentPanel().setVisible(mode == SiteMode.WEB_URL);
-            m_groupSelector.setVisible(mode == SiteMode.GROUP);
-            m_subsiteSelector.getComboModel().setSelectedItem(IdComboboxItem.DEFAULT);
+            if (mode == SiteMode.GROUP) {
+                m_groupSelector.fetchOnce();
+            }
+
+            showModePanel(mode);
         });
 
         m_settings.getModeModel().addChangeListener(e -> {
@@ -178,9 +162,34 @@ public class SiteSettingsPanel extends JPanel {
         return rb;
     }
 
+    private void showModePanel(final SiteMode mode) {
+        ((CardLayout) m_cards.getLayout()).show(m_cards, mode.name());
+    }
+
+    private JPanel createCardsPanel() {
+        DialogComponentString siteInput = new DialogComponentString(m_settings.getWebURLModel(), "URL:", false, 50);
+        siteInput.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
+
+        m_groupSelector = new LoadedItemsSelector(m_settings.getGroupModel(), m_settings.getGroupNameModel(),
+                "Group:", null) {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            protected List<IdComboboxItem> fetchItems() throws Exception {
+                return fetchGroups();
+            }
+        };
+
+        m_cards = new JPanel(new CardLayout());
+        m_cards.add(new JLabel(), SiteMode.ROOT.name());
+        m_cards.add(siteInput.getComponentPanel(), SiteMode.WEB_URL.name());
+        m_cards.add(m_groupSelector, SiteMode.GROUP.name());
+        return m_cards;
+    }
+
     private JPanel createSubsitePanel() {
         m_subsiteSelector = new LoadedItemsSelector(m_settings.getSubsiteModel(), m_settings.getSubsiteNameModel(),
-                "Fetch Subsites", "Subsite:") {
+                "Subsite:", m_settings.getConnectToSubsiteModel()) {
             private static final long serialVersionUID = 1L;
 
             @Override
@@ -190,12 +199,7 @@ public class SiteSettingsPanel extends JPanel {
             }
         };
 
-        DialogComponentBoolean checkbox = new DialogComponentBoolean(m_settings.getConnectToSubsiteModel(), "");
-
-        JPanel panel = new JPanel(new FlowLayout());
-        panel.add(checkbox.getComponentPanel());
-        panel.add(m_subsiteSelector);
-        return panel;
+        return m_subsiteSelector;
     }
 
     private List<IdComboboxItem> fetchGroups() throws InvalidSettingsException {
@@ -231,33 +235,41 @@ public class SiteSettingsPanel extends JPanel {
     }
 
     private List<IdComboboxItem> fetchSubsites() throws InvalidSettingsException, IOException {
-        m_settings.validate();
+        m_settings.validateParentSiteSettings();
         IGraphServiceClient client = createClient();
 
         try {
-            return listSubsites(m_settings.getParentSiteId(client), client).stream()
-                    .map(s -> new IdComboboxItem(s.id, s.name)).collect(toList());
+            return listSubsites(m_settings.getParentSiteId(client), client, "");
         } finally {
             client.shutdown();
         }
     }
 
-    private List<Site> listSubsites(final String siteId, final IGraphServiceClient client) {
-        List<Site> result = new ArrayList<>();
+    private List<IdComboboxItem> listSubsites(final String siteId, final IGraphServiceClient client,
+            final String prefix) {
+        List<IdComboboxItem> result = new ArrayList<>();
 
         ISiteCollectionPage resp = client.sites(siteId).sites().buildRequest().get();
-        result.addAll(resp.getCurrentPage());
+        for (Site site : resp.getCurrentPage()) {
+            result.addAll(processSite(site, client, prefix));
+        }
 
         while (resp.getNextPage() != null) {
             resp = resp.getNextPage().buildRequest().get();
-            result.addAll(resp.getCurrentPage());
+            for (Site site : resp.getCurrentPage()) {
+                result.addAll(processSite(site, client, prefix));
+            }
         }
 
-        List<String> ids = result.stream().map(s -> s.id).collect(toList());
-        for (String id : ids) {
-            result.addAll(listSubsites(id, client));
-        }
+        return result;
+    }
 
+    private List<IdComboboxItem> processSite(final Site site, final IGraphServiceClient client, final String prefix) {
+        List<IdComboboxItem> result = new ArrayList<>();
+        String name = prefix + site.name;
+
+        result.add(new IdComboboxItem(site.id, name));
+        result.addAll(listSubsites(site.id, client, prefix + site.name + " > "));
         return result;
     }
 
