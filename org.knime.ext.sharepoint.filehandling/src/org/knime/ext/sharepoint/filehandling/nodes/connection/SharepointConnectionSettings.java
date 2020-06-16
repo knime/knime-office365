@@ -53,12 +53,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
@@ -69,7 +71,7 @@ import com.microsoft.graph.requests.extensions.ISiteRequestBuilder;
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnectionSettings {
+public class SharepointConnectionSettings implements Cloneable {
 
     private static final String KEY_WORKING_DIRECTORY = "workingDirectory";
     private static final String KEY_CONNECTION_TIMEOUT = "connectionTimeout";
@@ -89,7 +91,7 @@ public class SharepointConnectionSettings {
     public SharepointConnectionSettings() {
         m_siteSettings = new SiteSettings();
 
-        m_workingDirectory = new SettingsModelString(KEY_WORKING_DIRECTORY, "");
+        m_workingDirectory = new SettingsModelString(KEY_WORKING_DIRECTORY, SharepointFileSystem.PATH_SEPARATOR);
         m_connectionTimeout = new SettingsModelIntegerBounded(KEY_CONNECTION_TIMEOUT, DEFAULT_TIMEOUT, 0,
                 Integer.MAX_VALUE);
         m_readTimeout = new SettingsModelIntegerBounded(KEY_READ_TIMEOUT, DEFAULT_TIMEOUT, 0, Integer.MAX_VALUE);
@@ -132,6 +134,16 @@ public class SharepointConnectionSettings {
      */
     public void validate() throws InvalidSettingsException {
         m_siteSettings.validate();
+
+        if (m_workingDirectory.getStringValue().isEmpty()) {
+            throw new InvalidSettingsException("Working directory must be specified.");
+        }
+
+        if (!m_workingDirectory.getStringValue().startsWith(SharepointFileSystem.PATH_SEPARATOR)) {
+            throw new InvalidSettingsException(
+                    String.format("Working directory must be an absolute path that starts with '%s'.",
+                            SharepointFileSystem.PATH_SEPARATOR));
+        }
     }
 
     /**
@@ -216,6 +228,20 @@ public class SharepointConnectionSettings {
     public String getSiteId(final IGraphServiceClient client) throws IOException {
         return m_siteSettings.getTargetSiteId(client);
 
+    }
+
+    @Override
+    public SharepointConnectionSettings clone() {
+        NodeSettings transferSettings = new NodeSettings("ignored");
+        saveSettingsTo(transferSettings);
+
+        final SharepointConnectionSettings clone = new SharepointConnectionSettings();
+        try {
+            clone.loadSettingsFrom(transferSettings);
+        } catch (InvalidSettingsException ex) {
+            throw new IllegalStateException(ex);
+        }
+        return clone;
     }
 
     /**

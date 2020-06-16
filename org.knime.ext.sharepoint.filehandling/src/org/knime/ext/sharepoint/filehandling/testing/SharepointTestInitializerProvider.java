@@ -50,7 +50,6 @@ package org.knime.ext.sharepoint.filehandling.testing;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -108,12 +107,8 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         settings.getSiteSettings().getWebURLModel().setStringValue(configuration.get("siteWebURL"));
         settings.getWorkingDirectoryModel().setStringValue(workingDir);
 
-        final SharepointConnection fsConnection;
-        try {
-            fsConnection = new SharepointConnection(authProvider, settings);
-        } catch (URISyntaxException ex) {
-            throw new IOException(ex);
-        }
+        final SharepointConnection fsConnection = new SharepointConnection(authProvider, settings);
+
         return new SharepointTestInitializer(fsConnection);
     }
 

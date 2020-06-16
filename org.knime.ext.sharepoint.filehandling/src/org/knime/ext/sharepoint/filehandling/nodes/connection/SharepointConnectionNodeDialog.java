@@ -51,6 +51,7 @@ package org.knime.ext.sharepoint.filehandling.nodes.connection;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.io.IOException;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -65,10 +66,12 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
-import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnection;
 import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnectionPortObjectSpec;
+import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
+import org.knime.filehandling.core.connections.FSConnection;
+import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
 
 /**
  * Sharepoint Connection node dialog.
@@ -79,7 +82,11 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
 
+    private AzureConnection m_connection;
+
     private final SiteSettingsPanel m_sitePanel;
+
+    private final WorkingDirectoryChooser m_workingDirChooser;
 
     /**
      * Creates new instance.
@@ -87,17 +94,22 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
     public SharepointConnectionNodeDialog() {
         m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
 
-        DialogComponentString workingDir = new DialogComponentString(m_settings.getWorkingDirectoryModel(),
-                "Working directory", false, 45);
-        workingDir.getComponentPanel().setBorder(BorderFactory.createTitledBorder("File system settings"));
-        workingDir.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
+        m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir", this::createFSConnection);
+        m_workingDirChooser.setBorder(BorderFactory.createTitledBorder("File system settings"));
+
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
         box.add(m_sitePanel);
-        box.add(workingDir.getComponentPanel());
+        box.add(m_workingDirChooser);
         box.add(createTimeoutsPanel());
 
         addTab("Settings", box);
+    }
+
+
+    private FSConnection createFSConnection() throws IOException {
+        final SharepointConnectionSettings clonedSettings = m_settings.clone();
+        return new SharepointConnection(m_connection.createGraphAuthProvider(), clonedSettings);
     }
 
     private JComponent createTimeoutsPanel() {
@@ -113,10 +125,10 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         c.weightx = 0;
         c.gridx = 0;
         c.gridy = 0;
-        panel.add(new JLabel("Connection timeout in seconds"), c);
+        panel.add(new JLabel("Connection timeout (seconds): "), c);
 
         c.gridy = 1;
-        panel.add(new JLabel("Read timeout in seconds"), c);
+        panel.add(new JLabel("Read timeout (seconds): "), c);
 
         c.weightx = 1;
         c.gridx = 1;
@@ -130,12 +142,29 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         return panel;
     }
 
+    private void validateSettingsBeforeSave() throws InvalidSettingsException {
+        m_settings.validate();
+        m_workingDirChooser.addCurrentSelectionToHistory();
+    }
+
     /**
      * {@inheritDoc}
      */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
+        validateSettingsBeforeSave();
         m_settings.saveSettingsTo(settings);
+    }
+
+    private void settingsLoaded() {
+        m_workingDirChooser.setSelectedWorkingDirectory(m_settings.getWorkingDirectoryModel().getStringValue());
+        m_workingDirChooser.addListener((e) -> m_settings.getWorkingDirectoryModel()
+                .setStringValue(m_workingDirChooser.getSelectedWorkingDirectory()));
+    }
+
+    @Override
+    public void onClose() {
+        m_workingDirChooser.onClose();
     }
 
     /**
@@ -150,11 +179,12 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
             // ignore
         }
 
-        AzureConnection connection = ((AzureConnectionPortObjectSpec) specs[0]).getAzureConnection();
-        if (connection == null || !connection.isLoggedIn()) {
+        m_connection = ((AzureConnectionPortObjectSpec) specs[0]).getAzureConnection();
+        if (m_connection == null || !m_connection.isLoggedIn()) {
             throw new NotConfigurableException("Authentication required");
         }
 
-        m_sitePanel.settingsLoaded(connection);
+        m_sitePanel.settingsLoaded(m_connection);
+        settingsLoaded();
     }
 }

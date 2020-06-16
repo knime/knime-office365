@@ -82,8 +82,13 @@ public class SharepointConnection implements FSConnection {
      */
     public SharepointConnection(final IAuthenticationProvider authProvider,
             final SharepointConnectionSettings settings)
-            throws URISyntaxException, IOException {
-        URI uri = new URI(SharepointFileSystem.FS_TYPE, "sharepoint", null, null);
+            throws IOException {
+        URI uri = null;
+        try {
+            uri = new URI(SharepointFileSystem.FS_TYPE, "sharepoint", null, null);
+        } catch (URISyntaxException ex) {
+            // never happens
+        }
         SharepointFileSystemProvider provider = new SharepointFileSystemProvider(authProvider, settings, m_cacheTTL);
         m_filesystem = provider.getOrCreateFileSystem(uri, Collections.emptyMap());
     }
