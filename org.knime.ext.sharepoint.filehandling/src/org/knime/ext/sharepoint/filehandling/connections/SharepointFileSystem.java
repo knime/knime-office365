@@ -63,9 +63,9 @@ import java.util.concurrent.TimeUnit;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
 import org.knime.filehandling.core.connections.DefaultFSLocationSpec;
+import org.knime.filehandling.core.connections.FSCategory;
 import org.knime.filehandling.core.connections.FSLocationSpec;
 import org.knime.filehandling.core.connections.base.BaseFileSystem;
-import org.knime.filehandling.core.defaultnodesettings.FileSystemChoice.Choice;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
@@ -149,7 +149,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      * @return the {@link FSLocationSpec} for a Sharepoint file system.
      */
     public static DefaultFSLocationSpec createFSLocationSpec() {
-        return new DefaultFSLocationSpec(Choice.CONNECTED_FS, SharepointFileSystem.FS_TYPE);
+        return new DefaultFSLocationSpec(FSCategory.CONNECTED, SharepointFileSystem.FS_TYPE);
     }
 
     /**
