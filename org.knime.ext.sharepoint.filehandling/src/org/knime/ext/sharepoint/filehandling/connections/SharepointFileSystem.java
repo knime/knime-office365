@@ -119,10 +119,12 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      *            Connection settings.
      * @throws IOException
      */
-    public SharepointFileSystem(final SharepointFileSystemProvider fileSystemProvider, final URI uri,
+    public SharepointFileSystem(
+            final URI uri,
             final long cacheTTL, final IAuthenticationProvider authProvider,
             final SharepointConnectionSettings settings) throws IOException {
-        super(fileSystemProvider, uri, cacheTTL, settings.getWorkingDirectory(PATH_SEPARATOR), createFSLocationSpec());
+        super(new SharepointFileSystemProvider(), uri, cacheTTL, settings.getWorkingDirectory(PATH_SEPARATOR),
+                createFSLocationSpec());
 
         DefaultLogger logger = new DefaultLogger();
         logger.setLoggingLevel(LoggerLevel.ERROR);

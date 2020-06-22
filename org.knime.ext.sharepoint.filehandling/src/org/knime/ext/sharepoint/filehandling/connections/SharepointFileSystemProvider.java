@@ -51,7 +51,6 @@ package org.knime.ext.sharepoint.filehandling.connections;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessMode;
@@ -66,15 +65,12 @@ import java.nio.file.attribute.FileAttribute;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
 import org.knime.filehandling.core.connections.base.BaseFileSystemProvider;
 import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
 
-import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.DriveItem;
 import com.microsoft.graph.models.extensions.Folder;
@@ -87,35 +83,6 @@ import com.microsoft.graph.models.extensions.ItemReference;
  * @author Alexander Bondaletov
  */
 public class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath, SharepointFileSystem> {
-
-    private final IAuthenticationProvider m_authProvider;
-    private final SharepointConnectionSettings m_settings;
-    private final long m_cacheTTL;
-
-    /**
-     *
-     * @param authProvider
-     *            The authentication provider
-     * @param settings
-     *            Connection settings.
-     * @param cacheTTL
-     *            The time to live for cached elements in milliseconds.
-     *
-     */
-    public SharepointFileSystemProvider(final IAuthenticationProvider authProvider,
-            final SharepointConnectionSettings settings, final long cacheTTL) {
-        m_authProvider = authProvider;
-        m_settings = settings;
-        m_cacheTTL = cacheTTL;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected SharepointFileSystem createFileSystem(final URI uri, final Map<String, ?> env) throws IOException {
-        return new SharepointFileSystem(this, uri, m_cacheTTL, m_authProvider, m_settings);
-    }
 
     /**
      * {@inheritDoc}
