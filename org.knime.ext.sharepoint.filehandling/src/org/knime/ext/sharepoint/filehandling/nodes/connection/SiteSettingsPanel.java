@@ -149,7 +149,6 @@ public class SiteSettingsPanel extends JPanel {
 
         rb.addActionListener(e -> {
             m_settings.getModeModel().setStringValue(mode.name());
-            m_settings.getConnectToSubsiteModel().setBooleanValue(false);
 
             if (mode == SiteMode.GROUP) {
                 m_groupSelector.fetchOnce();

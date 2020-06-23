@@ -49,8 +49,8 @@
 package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
@@ -279,6 +279,16 @@ public class SharepointConnectionSettings implements Cloneable {
             m_subsite = new SettingsModelString(KEY_SUBSITE, "");
             m_subsiteName = new SettingsModelString(KEY_SUBSITE_NAME, "");
             m_connectToSubsite = new SettingsModelBoolean(KEY_CONNECT_TO_SUBSITE, false);
+
+            m_webURL.addChangeListener(e -> resetSubsite());
+            m_group.addChangeListener(e -> resetSubsite());
+            m_mode.addChangeListener(e -> resetSubsite());
+        }
+
+        private void resetSubsite() {
+            m_subsite.setStringValue("");
+            m_subsiteName.setStringValue("");
+            m_connectToSubsite.setBooleanValue(false);
         }
 
         /**
@@ -343,8 +353,8 @@ public class SharepointConnectionSettings implements Cloneable {
                     throw new InvalidSettingsException("Web URL is not specified.");
                 }
                 try {
-                    new URI(m_webURL.getStringValue());
-                } catch (URISyntaxException ex) {
+                    getPathFromURL(m_webURL.getStringValue());
+                } catch (MalformedURLException ex) {
                     throw new InvalidSettingsException(ex.getMessage());
                 }
             }
@@ -475,12 +485,12 @@ public class SharepointConnectionSettings implements Cloneable {
             }
         }
 
-        private static String getPathFromURL(final String url) {
-            URI uri = URI.create(url);
-            String result = uri.getHost();
+        private static String getPathFromURL(final String str) throws MalformedURLException {
+            URL url = new URL(str);
+            String result = url.getHost();
 
-            if (uri.getPath() != null && !uri.getPath().isEmpty()) {
-                result += ":" + uri.getPath();
+            if (url.getPath() != null && !url.getPath().isEmpty()) {
+                result += ":" + url.getPath();
             }
 
             return result;

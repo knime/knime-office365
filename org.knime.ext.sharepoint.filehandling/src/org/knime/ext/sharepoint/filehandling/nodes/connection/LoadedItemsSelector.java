@@ -48,7 +48,6 @@
  */
 package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -56,19 +55,18 @@ import java.awt.Insets;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
-import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.util.SwingWorkerWithContext;
@@ -133,12 +131,24 @@ public abstract class LoadedItemsSelector extends JPanel {
 
         final Component labelOrCheckbox;
         if (m_checkedModel != null) {
-            final DialogComponentBoolean checkedInput = new DialogComponentBoolean(m_checkedModel, caption);
-            m_checkedModel.addChangeListener(e -> {
-                setEnabled(m_checkedModel.getBooleanValue());
+            JCheckBox checkedInput = new JCheckBox(caption);
+            checkedInput.addActionListener(e -> {
+                boolean checked = checkedInput.isSelected();
+                m_checkedModel.setBooleanValue(checked);
+
+                if (checked) {
+                    onFetch();
+                }
             });
+            m_checkedModel.addChangeListener(e -> {
+                boolean checked = m_checkedModel.getBooleanValue();
+                checkedInput.setSelected(checked);
+                setEnabled(checked);
+            });
+
+            checkedInput.setSelected(m_checkedModel.getBooleanValue());
             setEnabled(m_checkedModel.getBooleanValue());
-            labelOrCheckbox = checkedInput.getComponentPanel();
+            labelOrCheckbox = checkedInput;
         } else {
             final Box paddedBox = new Box(BoxLayout.X_AXIS);
             paddedBox.add(Box.createHorizontalStrut(5));
@@ -273,16 +283,6 @@ public abstract class LoadedItemsSelector extends JPanel {
      */
     public void onSettingsLoaded() {
         updateComboFromSettings(false);
-
-        if (m_checkedModel != null) {
-            // Setup this listener after settings are loaded so fetching won't fire on
-            // dialog opening
-            m_checkedModel.addChangeListener(e -> {
-                if (m_checkedModel.getBooleanValue()) {
-                    onFetch();
-                }
-            });
-        }
     }
 
     private void updateComboFromSettings(final boolean afterFetch) {
@@ -294,10 +294,10 @@ public abstract class LoadedItemsSelector extends JPanel {
 
         IdComboboxItem item = new IdComboboxItem(id, m_titleModel.getStringValue());
         if (m_comboModel.getIndexOf(item) < 0) {
-            m_comboModel.addElement(item);
-
-            if (afterFetch) {
-                item.setMissing(true);
+            if (!afterFetch) {
+                m_comboModel.addElement(item);
+            } else {
+                item = null;
             }
         }
         m_comboModel.setSelectedItem(item);
@@ -309,6 +309,9 @@ public abstract class LoadedItemsSelector extends JPanel {
     @Override
     public void setEnabled(final boolean enabled) {
         m_enabled = enabled;
+        if (!enabled) {
+            m_combobox.setSelectedIndex(-1);
+        }
         m_combobox.setEnabled(enabled);
         m_fetchBtn.setEnabled(enabled);
     }
@@ -326,7 +329,6 @@ public abstract class LoadedItemsSelector extends JPanel {
 
         private String m_id;
         private String m_title;
-        private boolean m_missing;
 
         /**
          * @param id
@@ -352,21 +354,6 @@ public abstract class LoadedItemsSelector extends JPanel {
          */
         public String getTitle() {
             return m_title;
-        }
-
-        /**
-         * @return the missing
-         */
-        public boolean isMissing() {
-            return m_missing;
-        }
-
-        /**
-         * @param missing
-         *            the missing to set
-         */
-        public void setMissing(final boolean missing) {
-            m_missing = missing;
         }
 
         /**
@@ -414,16 +401,7 @@ public abstract class LoadedItemsSelector extends JPanel {
                 return new JLabel("Loading...");
             }
 
-            Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            assert (c == this);
-
-            IdComboboxItem item = (IdComboboxItem) value;
-            if (item != null && item.isMissing()) {
-                setBorder(BorderFactory.createLineBorder(Color.red));
-            } else {
-                setBorder(null);
-            }
-            return c;
+            return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
         }
 
     }
