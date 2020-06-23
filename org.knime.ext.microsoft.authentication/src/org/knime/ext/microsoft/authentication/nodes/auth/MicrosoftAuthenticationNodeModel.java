@@ -44,9 +44,9 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-02 (Alexander Bondaletov): created
+ *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.nodes.connection;
+package org.knime.ext.microsoft.authentication.nodes.auth;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,31 +64,26 @@ import org.knime.core.node.port.PortType;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObject;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObjectSpec;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
-import org.knime.filehandling.core.connections.FSConnectionRegistry;
-import org.knime.filehandling.core.port.FileSystemPortObject;
-import org.knime.filehandling.core.port.FileSystemPortObjectSpec;
+
+import com.microsoft.graph.requests.extensions.GraphServiceClient;
 
 /**
- * Sharepoint Connection node.
+ * Microsoft authentication node. Performs authentication using one of the different
+ * methods and provides {@link MicrosoftConnectionPortObject}. This object contains
+ * information necessary to to authenticate {@link GraphServiceClient} instance
+ * used in other nodes.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnectionNodeModel extends NodeModel {
+public class MicrosoftAuthenticationNodeModel extends NodeModel {
 
-    private static final String FILE_SYSTEM_NAME = "Sharepoint Online";
-
-    private String m_fsId;
-    private SharepointConnection m_fsConnection;
-
-    private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
+    private final MicrosoftAuthenticationSettings m_settings = new MicrosoftAuthenticationSettings();
 
     /**
      * Creates new instance.
      */
-    protected SharepointConnectionNodeModel() {
-        super(new PortType[] { MicrosoftConnectionPortObject.TYPE }, new PortType[] { FileSystemPortObject.TYPE });
+    protected MicrosoftAuthenticationNodeModel() {
+        super(new PortType[] {}, new PortType[] { MicrosoftConnectionPortObject.TYPE });
     }
 
     /**
@@ -96,10 +91,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
      */
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        MicrosoftConnection connection = ((MicrosoftConnectionPortObject) inObjects[0]).getMicrosoftConnection();
-        m_fsConnection = new SharepointConnection(connection.createGraphAuthProvider(), m_settings);
-        FSConnectionRegistry.getInstance().register(m_fsId, m_fsConnection);
-        return new PortObject[] { new FileSystemPortObject(createSpec()) };
+        return new PortObject[] { new MicrosoftConnectionPortObject(createSpec()) };
     }
 
     /**
@@ -107,18 +99,16 @@ public class SharepointConnectionNodeModel extends NodeModel {
      */
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        MicrosoftConnection connection = ((MicrosoftConnectionPortObjectSpec) inSpecs[0]).getMicrosoftConnection();
-        if (connection == null || !connection.isLoggedIn()) {
-            throw new InvalidSettingsException("Not authenticated");
-        }
-        m_fsId = FSConnectionRegistry.getInstance().getKey();
         return new PortObjectSpec[] { createSpec() };
     }
 
-    private FileSystemPortObjectSpec createSpec() {
-        return new FileSystemPortObjectSpec(FILE_SYSTEM_NAME, m_fsId, SharepointFileSystem.createFSLocationSpec());
+    private MicrosoftConnectionPortObjectSpec createSpec() throws InvalidSettingsException {
+        MicrosoftConnection connection = m_settings.getConnection();
+        if (!connection.isLoggedIn()) {
+            throw new InvalidSettingsException("Not authenticated");
+        }
+        return new MicrosoftConnectionPortObjectSpec(connection);
     }
-
 
     /**
      * {@inheritDoc}
@@ -126,8 +116,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
-        setWarningMessage("Sharepoint connection no longer available. Please re-execute the node.");
-
+        // no internals
     }
 
     /**
@@ -136,8 +125,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
     @Override
     protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
-        // nothing to save
-
+        // no internals
     }
 
     /**
@@ -164,22 +152,12 @@ public class SharepointConnectionNodeModel extends NodeModel {
         m_settings.loadSettingsFrom(settings);
     }
 
-    @Override
-    protected void onDispose() {
-        // close the file system also when the workflow is closed
-        reset();
-    }
-
     /**
      * {@inheritDoc}
      */
     @Override
     protected void reset() {
-        if (m_fsConnection != null) {
-            m_fsConnection.closeInBackground();
-            m_fsConnection = null;
-        }
-        m_fsId = null;
+        // not used
     }
 
 }

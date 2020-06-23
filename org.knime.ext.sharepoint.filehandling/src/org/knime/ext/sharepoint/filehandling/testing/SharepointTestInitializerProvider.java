@@ -56,9 +56,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.knime.core.node.util.CheckUtils;
-import org.knime.ext.sharepoint.filehandling.auth.SilentRefreshAuthenticationProvider;
-import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnection;
-import org.knime.ext.sharepoint.filehandling.auth.providers.UsernamePasswordAuthProvider;
+import org.knime.ext.microsoft.authentication.SilentRefreshAuthenticationProvider;
+import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
@@ -121,7 +121,7 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
 
     private static IAuthenticationProvider authenticate(final Map<String, String> config)
             throws MalformedURLException, InterruptedException, ExecutionException {
-        UsernamePasswordAuthProvider provider = new UsernamePasswordAuthProvider(new AzureConnection());
+        UsernamePasswordAuthProvider provider = new UsernamePasswordAuthProvider(new MicrosoftConnection());
         provider.getUsernameModel().setStringValue(config.get("username"));
         provider.getPasswordModel().setStringValue(config.get("password"));
         provider.login();

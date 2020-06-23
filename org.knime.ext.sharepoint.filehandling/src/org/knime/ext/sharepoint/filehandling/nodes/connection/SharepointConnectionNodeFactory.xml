@@ -27,7 +27,7 @@
             There are three ways to specify Sharepoint site:
             <ul>
                 <li>
-           			<i>Root site:</i>Connect to the root site of the domain of the current user (see "Azure Connection" input port).
+           			<i>Root site:</i>Connect to the root site of the domain of the current user (see "Microsoft Connection" input port).
            		</li>
           		<li>
            			<i>Web URL:</i>Specify the web URL of a Sharepoint site, for example <i>https://mycompany.sharepoint.com</i>.
@@ -57,8 +57,8 @@
     </fullDescription>
 
     <ports>
-    	<inPort index="0" name="Azure Connection">
-    		Azure Connection that provides user authentication.
+    	<inPort index="0" name="Microsoft Connection">
+    		Microsoft Connection that provides user authentication.
     	</inPort>
    		<outPort index="0" name="Sharepoint File System Connection">
    			Sharepoint File System Connection.

@@ -7,26 +7,11 @@
             category-path="/labs/file-handling-prototype"
             factory-class="org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionNodeFactory"
             id="org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionNodeFactory"/>
-      <node
-            category-path="/labs/file-handling-prototype"
-            factory-class="org.knime.ext.sharepoint.filehandling.nodes.auth.AzureAuthenticationNodeFactory">
-      </node>
    </extension>
    <extension
          point="org.knime.filehandling.FSTestInitializerProvider">
       <FSTestInitializerProvider
             ProviderClass="org.knime.ext.sharepoint.filehandling.testing.SharepointTestInitializerProvider">
       </FSTestInitializerProvider>
-   </extension>
-   <extension
-         point="org.knime.core.PortType">
-      <portType
-            hidden="false"
-            name="Azure Connection"
-            objectClass="org.knime.ext.sharepoint.filehandling.auth.data.AzureConnectionPortObject"
-            objectSerializer="org.knime.ext.sharepoint.filehandling.auth.data.AzureConnectionPortObject$Serializer"
-            specClass="org.knime.ext.sharepoint.filehandling.auth.data.AzureConnectionPortObjectSpec"
-            specSerializer="org.knime.ext.sharepoint.filehandling.auth.data.AzureConnectionPortObjectSpec$Serializer">
-      </portType>
    </extension>
 </plugin>

@@ -67,8 +67,8 @@ import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
+import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnection;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteMode;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteSettings;
@@ -90,7 +90,7 @@ public class SiteSettingsPanel extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final SiteSettings m_settings;
-    private AzureConnection m_connection;
+    private MicrosoftConnection m_connection;
 
     private JPanel m_cards;
     private LoadedItemsSelector m_groupSelector;
@@ -116,9 +116,9 @@ public class SiteSettingsPanel extends JPanel {
      * Should be called by the parent dialog after settings are loaded.
      *
      * @param connection
-     *            The Azure connection object.
+     *            The Microsoft connection object.
      */
-    public void settingsLoaded(final AzureConnection connection) {
+    public void settingsLoaded(final MicrosoftConnection connection) {
         m_connection = connection;
 
         m_subsiteSelector.onSettingsLoaded();

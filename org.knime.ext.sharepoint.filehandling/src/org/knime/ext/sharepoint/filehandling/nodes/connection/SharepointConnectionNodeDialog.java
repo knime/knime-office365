@@ -67,8 +67,8 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnection;
-import org.knime.ext.sharepoint.filehandling.auth.data.AzureConnectionPortObjectSpec;
+import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObjectSpec;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
@@ -82,7 +82,7 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
 
-    private AzureConnection m_connection;
+    private MicrosoftConnection m_connection;
 
     private final SiteSettingsPanel m_sitePanel;
 
@@ -179,7 +179,7 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
             // ignore
         }
 
-        m_connection = ((AzureConnectionPortObjectSpec) specs[0]).getAzureConnection();
+        m_connection = ((MicrosoftConnectionPortObjectSpec) specs[0]).getMicrosoftConnection();
         if (m_connection == null || !m_connection.isLoggedIn()) {
             throw new NotConfigurableException("Authentication required");
         }
