@@ -236,7 +236,7 @@ public class ConfigurableLocationStorage {
         c.gridy += 1;
         panel.add(rbSettings, c);
         panel.setBorder(
-                BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Authentication key location"));
+                BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Access token storage"));
 
         return panel;
     }
@@ -262,9 +262,9 @@ public class ConfigurableLocationStorage {
     }
 
     enum StorageLocation {
-        MEMORY("Memory (authentication key kept in memory)"), //
-        FILE("Custom (authentication saved in separate file)"), //
-        SETTINGS("Node (authentication key saved as part of node instance)");
+        MEMORY("Memory (stores token in-memory)"), //
+        FILE("File (stores token in separate file)"), //
+        SETTINGS("Node (stores token in node settings)");
 
         private String m_title;
 

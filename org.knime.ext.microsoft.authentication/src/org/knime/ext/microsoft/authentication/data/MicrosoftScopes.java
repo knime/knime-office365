@@ -66,7 +66,7 @@ public enum MicrosoftScopes {
     /**
      * Directory.Read.All scope.
      */
-    DIRECTORY_READ("User Groups (Read)", "Directory.Read.All");
+    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>", "Directory.Read.All");
 
     private String m_scope;
     private String m_title;

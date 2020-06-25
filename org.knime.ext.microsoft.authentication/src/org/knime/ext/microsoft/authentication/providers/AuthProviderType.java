@@ -66,7 +66,7 @@ public enum AuthProviderType {
     /**
      * Username and password authentication provider.
      */
-    USERNAME_PASSWORD("Authenticate using login and password", UsernamePasswordAuthProvider::new);
+    USERNAME_PASSWORD("Username/password authentication", UsernamePasswordAuthProvider::new);
 
     private String m_title;
     private Supplier<MicrosoftAuthProvider> m_createProvider;

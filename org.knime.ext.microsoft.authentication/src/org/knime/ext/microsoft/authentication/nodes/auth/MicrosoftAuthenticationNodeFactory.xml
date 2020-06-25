@@ -1,22 +1,95 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<knimeNode icon="./msauth16x16.png" type="Source" xmlns="http://knime.org/node/v2.10" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
-    <name>Microsoft Authentication (Labs)</name>
-    
-    <shortDescription>
-        Authenticates for Microsoft services.
-    </shortDescription>
-    
-    <fullDescription>
-         <intro>
-            The node authenticates for Microsoft services.
-        </intro>
-        
+<knimeNode icon="./msauth16x16.png" type="Source"
+	xmlns="http://knime.org/node/v2.10"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+	<name>Microsoft Authentication (Labs)</name>
 
-    </fullDescription>
-    
-    <ports>
-   		<outPort index="0" name="Microsoft Connection">
-   			Microsoft Connection
-   		</outPort>
-    </ports>    
+	<shortDescription>
+        Provides authentication to access against Microsoft Office 365 and Azure cloud services.
+    </shortDescription>
+
+	<fullDescription>
+		<intro>
+			<p>
+				This node provides authentication to access Microsoft Office 365
+				cloud services.
+			</p>
+			
+			<p>
+				The node supports two authentication modes:
+				<ul>
+					<li>
+						<i>Interactive authentication</i>: Allows to perform an interactive login in the node dialog. The login
+						results in a token being stored in a configurable location. During the interactive login you may be asked
+						to consent to the requested level of access for KNIME Analytics Platform. The resulting token will
+						be valid for a certain amount of time. 
+					</li>
+					<li>
+						<i>Username/password authentication</i>: Performs a login to obtain a fresh token every time the node executes.
+						This mode is non-interactive and does not allow you to confirm the requested level of access. Hence. this mode
+						requires consent to have been given beforehand, e.g. during a previous interactive login, or by a directory admin.
+					</li>
+				</ul>
+			</p>
+		</intro>
+		
+		<tab name="Interactive authentication">
+
+			<option name="Login">
+				Click <i>Login</i> to open a browser window where you can
+				login with your Microsoft identity and, if necessary, consent to the requested access level (scopes)
+				(see below). The login results in a <i>token</i>
+				being stored in a configurable location (see below).
+			</option>
+
+			<option name="Token storage">
+				Allows to define where the token obtained during login gets stored:
+				<ul>
+					<li>
+						<i>Memory</i>: The token is temporarily stored in-memory. The token will vanish
+						once the workflow is closed.
+					</li>
+					<li>
+						<i>File</i>: The token is persistently stored in a file. This allows the same
+						token to be used by nodes in different workflows.
+					</li>
+					<li>
+						<i>Node</i>
+						: The token is persistently stored in the settings of this node.
+					</li>
+				</ul>
+			</option>
+
+			<option name="Request access to">
+				Allows to define which level of access to Microsoft Office 365 cloud
+				services should be requested during login.
+			</option>
+		</tab>
+
+		<tab name="Username/password authentication">
+
+			<option name="Username">
+				Provide the username of your Microsoft identity (typically an email address).
+			</option>
+			
+			<option name="Password">
+				Provide the password of your Microsoft identity. The password will be stored in weakly encrypted
+				form as part of the node settings in the workflow.
+			</option>
+
+			<option name="Request access to">
+				Allows to define which level of access to Microsoft Office 365 cloud
+				services should be requested during login.
+			</option>
+		</tab>
+
+
+	</fullDescription>
+
+	<ports>
+		<outPort index="0" name="Microsoft Office 365 Session">
+			A Microsoft Office 365 session that uses the logged in Microsoft identity.
+		</outPort>
+	</ports>
 </knimeNode>
