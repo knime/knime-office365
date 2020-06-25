@@ -72,7 +72,7 @@ import com.microsoft.aad.msal4j.PublicClientApplication;
  * @author Alexander Bondaletov
  */
 public class InteractiveAuthProvider extends MSALAuthProvider {
-    private static final String REDIRECT_URL = "http://localhost:8080";
+    private static final String REDIRECT_URL = "http://localhost:51355/";
 
     private static final String KEY_TOKEN_CACHE = "tokenCache";
 

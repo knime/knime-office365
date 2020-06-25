@@ -71,7 +71,7 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
  * @author Alexander Bondaletov
  */
 public abstract class MSALAuthProvider implements MicrosoftAuthProvider {
-    private static final String APP_ID = "e915aace-9024-416c-b797-14601fc3b94c";
+    private static final String APP_ID = "cf47ff49-7da6-4603-b339-f4475176432b";
     private static final String DEFAULT_AUTHORITY = "https://login.microsoftonline.com/common";
 
     private static final String KEY_SCOPES = "scopes";
@@ -83,8 +83,8 @@ public abstract class MSALAuthProvider implements MicrosoftAuthProvider {
      *
      */
     public MSALAuthProvider() {
-        m_scopes = new SettingsModelStringArray(KEY_SCOPES, new String[] { MicrosoftScopes.SITES_READ_WRITE.getScope(),
-                MicrosoftScopes.DIRECTORY_READ.getScope() });
+        m_scopes = new SettingsModelStringArray(KEY_SCOPES,
+                new String[] { MicrosoftScopes.SITES_READ_WRITE.getScope() });
     }
 
     /**
