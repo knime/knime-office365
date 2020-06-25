@@ -109,7 +109,8 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private FSConnection createFSConnection() throws IOException {
         final SharepointConnectionSettings clonedSettings = m_settings.clone();
-        return new SharepointConnection(m_connection.createGraphAuthProvider(), clonedSettings);
+        return new SharepointConnection(SharepointConnectionNodeModel.createGraphAuthProvider(m_connection),
+                clonedSettings);
     }
 
     private JComponent createTimeoutsPanel() {
@@ -180,7 +181,7 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         }
 
         m_connection = ((MicrosoftConnectionPortObjectSpec) specs[0]).getMicrosoftConnection();
-        if (m_connection == null || !m_connection.isLoggedIn()) {
+        if (m_connection == null) {
             throw new NotConfigurableException("Authentication required");
         }
 

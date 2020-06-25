@@ -55,22 +55,24 @@ package org.knime.ext.microsoft.authentication.data;
  */
 public enum MicrosoftScopes {
     /**
-     * Files.ReadWrite.All scope.
+     * Sites.Read.All scope.
      */
-    FILES_READ_WRITE("Files.ReadWrite.All"),
+    SITES_READ("Sharepoint files (Read)", "Sites.Read.All"),
     /**
      * Sites.ReadWrite.All scope.
      */
-    SITES_READ_WRITE("Sites.ReadWrite.All"),
+    SITES_READ_WRITE("Sharepoint files (Read/Write)", "Sites.ReadWrite.All"),
 
     /**
      * Directory.Read.All scope.
      */
-    DIRECTORY_READ("Directory.Read.All");
+    DIRECTORY_READ("User Groups (Read)", "Directory.Read.All");
 
     private String m_scope;
+    private String m_title;
 
-    private MicrosoftScopes(final String scope) {
+    private MicrosoftScopes(final String title, final String scope) {
+        m_title = title;
         m_scope = scope;
     }
 
@@ -79,5 +81,12 @@ public enum MicrosoftScopes {
      */
     public String getScope() {
         return m_scope;
+    }
+
+    /**
+     * @return the title
+     */
+    public String getTitle() {
+        return m_title;
     }
 }

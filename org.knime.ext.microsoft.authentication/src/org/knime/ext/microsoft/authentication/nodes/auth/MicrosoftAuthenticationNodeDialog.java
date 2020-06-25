@@ -83,13 +83,10 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
     public MicrosoftAuthenticationNodeDialog() {
         super();
         m_settings = new MicrosoftAuthenticationSettings();
-        MicrosoftScopesEditComponent scopesEditor = new MicrosoftScopesEditComponent(m_settings.getScopesModel());
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
         box.add(createProviderCombo());
         box.add(createEditorPanel());
-        box.add(m_settings.getStorageLocation().createEditor());
-        box.add(scopesEditor);
 
         addTab("Settings", box);
     }

@@ -50,6 +50,8 @@ package org.knime.ext.microsoft.authentication.nodes.auth;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.util.concurrent.ExecutionException;
 
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -65,13 +67,9 @@ import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObject;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObjectSpec;
 
-import com.microsoft.graph.requests.extensions.GraphServiceClient;
-
 /**
- * Microsoft authentication node. Performs authentication using one of the different
- * methods and provides {@link MicrosoftConnectionPortObject}. This object contains
- * information necessary to to authenticate {@link GraphServiceClient} instance
- * used in other nodes.
+ * Microsoft authentication node. Performs authentication using one of the
+ * different methods and provides {@link MicrosoftConnectionPortObject}.
  *
  * @author Alexander Bondaletov
  */
@@ -99,13 +97,15 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
      */
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        return new PortObjectSpec[] { createSpec() };
+        return new PortObjectSpec[] { new MicrosoftConnectionPortObjectSpec(null) };
     }
 
     private MicrosoftConnectionPortObjectSpec createSpec() throws InvalidSettingsException {
-        MicrosoftConnection connection = m_settings.getConnection();
-        if (!connection.isLoggedIn()) {
-            throw new InvalidSettingsException("Not authenticated");
+        MicrosoftConnection connection;
+        try {
+            connection = m_settings.getCurrentProvider().authenticate();
+        } catch (MalformedURLException | InvalidSettingsException | InterruptedException | ExecutionException ex) {
+            throw new InvalidSettingsException(ex);
         }
         return new MicrosoftConnectionPortObjectSpec(connection);
     }

@@ -49,81 +49,92 @@
 package org.knime.ext.microsoft.authentication.providers;
 
 import java.net.MalformedURLException;
-import java.util.concurrent.ExecutionException;
-
-import javax.swing.JComponent;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
+import org.knime.ext.microsoft.authentication.SilentRefreshAuthenticationProvider;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.providers.ui.UsernamePasswordProviderEditor;
+import org.knime.ext.microsoft.authentication.data.MicrosoftScopes;
 
 import com.microsoft.aad.msal4j.PublicClientApplication;
-import com.microsoft.aad.msal4j.UserNamePasswordParameters;
+import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
- * {@link MSALAuthProvider} implementation that performs authentication
- * using username and password provided by user.
+ * Base class for auth providers implementing different authentication methods
+ * supported by MSAL.
  *
  * @author Alexander Bondaletov
  */
-public class UsernamePasswordAuthProvider extends MSALAuthProvider {
+public abstract class MSALAuthProvider implements MicrosoftAuthProvider {
+    private static final String APP_ID = "e915aace-9024-416c-b797-14601fc3b94c";
+    private static final String DEFAULT_AUTHORITY = "https://login.microsoftonline.com/common";
 
-    private static final String AUTHORITY = "https://login.microsoftonline.com/organizations";
-    private static final String KEY_USERNAME = "username";
-    private static final String KEY_PASSWORD = "password";
-    private static final String ENCRYPTION_KEY = "Z4mJcnXMrtXKW8wp";
+    private static final String KEY_SCOPES = "scopes";
 
-    private final SettingsModelString m_username;
-    private final SettingsModelString m_password;
+    private final SettingsModelStringArray m_scopes;
 
     /**
      * Creates new instance.
+     *
      */
-    public UsernamePasswordAuthProvider() {
-        super();
-        m_username = new SettingsModelString(KEY_USERNAME, "");
-        m_password = new SettingsModelString(KEY_PASSWORD, "");
+    public MSALAuthProvider() {
+        m_scopes = new SettingsModelStringArray(KEY_SCOPES, new String[] { MicrosoftScopes.SITES_READ_WRITE.getScope(),
+                MicrosoftScopes.DIRECTORY_READ.getScope() });
     }
 
     /**
-     * @return the username model
+     * @return the scopes model
      */
-    public SettingsModelString getUsernameModel() {
-        return m_username;
+    public SettingsModelStringArray getScopesModel() {
+        return m_scopes;
     }
 
     /**
-     * @return the password model
+     * @return the scopes
      */
-    public SettingsModelString getPasswordModel() {
-        return m_password;
+    public Set<String> getScopes() {
+        return new HashSet<>(Arrays.asList(m_scopes.getStringArrayValue()));
     }
 
     /**
-     * {@inheritDoc}
+     * Creates {@link IAuthenticationProvider} instance used to authenticate graph
+     * API client.
+     *
+     * @param connection
+     *            The Microsoft connection object.
+     *
+     * @return The auth provider.
+     * @throws MalformedURLException
      */
-    @Override
-    public MicrosoftConnection authenticate() throws InterruptedException, ExecutionException, MalformedURLException {
-        String username = m_username.getStringValue();
-        String password = m_password.getStringValue();
-
+    public IAuthenticationProvider createGraphAuthProvider(final MicrosoftConnection connection)
+            throws MalformedURLException {
         PublicClientApplication app = createClientApp();
-        app.acquireToken(UserNamePasswordParameters.builder(getScopes(), username, password.toCharArray()).build())
-                .get();
-
-        return new MicrosoftConnection(AuthProviderType.USERNAME_PASSWORD, app.tokenCache().serialize(), getScopes(),
-                getAuthority());
+        app.tokenCache().deserialize(connection.getTokenCache());
+        return new SilentRefreshAuthenticationProvider(connection.getScopes(), app);
     }
 
     /**
-     * {@inheritDoc}
+     * Creates the {@link PublicClientApplication} instance.
+     *
+     * @return The client application.
+     * @throws MalformedURLException
      */
-    @Override
-    public JComponent createEditor() {
-        return new UsernamePasswordProviderEditor(this);
+    protected PublicClientApplication createClientApp() throws MalformedURLException {
+        return PublicClientApplication.builder(APP_ID).authority(getAuthority()).build();
+    }
+
+    /**
+     * Returns appropriate authority for a current provider.
+     *
+     * @return The authority.
+     */
+    protected String getAuthority() {
+        return DEFAULT_AUTHORITY;
     }
 
     /**
@@ -131,29 +142,18 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
      */
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        super.saveSettingsTo(settings);
-        settings.addString(m_username.getKey(), m_username.getStringValue());
-        settings.addPassword(m_password.getKey(), ENCRYPTION_KEY, m_password.getStringValue());
+        m_scopes.saveSettingsTo(settings);
     }
 
     /**
-     * {@inheritDoc}
+     * Validates consistency of the current settings.
+     *
+     * @throws InvalidSettingsException
      */
-    @Override
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        UsernamePasswordAuthProvider temp = new UsernamePasswordAuthProvider();
-        temp.loadSettingsFrom(settings);
-        temp.validate();
-    }
-
-    @Override
     public void validate() throws InvalidSettingsException {
-        super.validate();
-        if (m_username.getStringValue().isEmpty()) {
-            throw new InvalidSettingsException("Username cannot be empty");
-        }
-        if (m_password.getStringValue().isEmpty()) {
-            throw new InvalidSettingsException("Password cannot be empty");
+        String[] scopes = m_scopes.getStringArrayValue();
+        if (scopes == null || scopes.length == 0) {
+            throw new InvalidSettingsException("Scopes cannot be empty");
         }
     }
 
@@ -162,17 +162,6 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
      */
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        super.loadSettingsFrom(settings);
-        m_username.setStringValue(settings.getString(m_username.getKey()));
-        m_password.setStringValue(settings.getPassword(m_password.getKey(), ENCRYPTION_KEY));
+        m_scopes.loadSettingsFrom(settings);
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected String getAuthority() {
-        return AUTHORITY;
-    }
-
 }

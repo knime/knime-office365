@@ -48,57 +48,51 @@
  */
 package org.knime.ext.microsoft.authentication.providers.ui;
 
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-
+import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
-import org.knime.core.node.defaultnodesettings.DialogComponentString;
-import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
-
+import org.knime.ext.microsoft.authentication.providers.MSALAuthProvider;
 
 /**
- * Editor component for {@link UsernamePasswordAuthProvider}.
+ * Base class for editor component for {@link MSALAuthProvider}.
  *
+ *
+ * @param <T>
+ *            The actual class of the provider.
  * @author Alexander Bondaletov
  */
-public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<UsernamePasswordAuthProvider> {
+public abstract class MSALAuthProviderEditor<T extends MSALAuthProvider> extends JPanel {
     private static final long serialVersionUID = 1L;
+
+    /**
+     * {@link MSALAuthProvider} instance.
+     */
+    protected final T m_provider;
 
     /**
      * Creates new instance.
      *
      * @param provider
-     *            The auth provider.
+     *            The provider
      *
      */
-    public UsernamePasswordProviderEditor(final UsernamePasswordAuthProvider provider) {
-        super(provider);
+    public MSALAuthProviderEditor(final T provider) {
+        m_provider = provider;
+        initUI();
+    }
+
+    private void initUI() {
+        setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
+        add(createContentPane());
+        add(new MicrosoftScopesEditComponent(m_provider.getScopesModel()));
     }
 
     /**
-     * {@inheritDoc}
+     * Creates panel to edit any provider-specific settings
+     *
+     * @return The content panel.
      */
-    @Override
-    protected JComponent createContentPane() {
-        DialogComponentString usernameInput = new DialogComponentString(m_provider.getUsernameModel(), "Username",
-                false, 40);
-        DialogComponentString passwordInput = new DialogComponentString(m_provider.getPasswordModel(),
-                "Password",
-                false, 40);
-
-        GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.LINE_START;
-        c.weightx = 0.5;
-        c.gridx = 0;
-        c.gridy = 0;
-
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.add(usernameInput.getComponentPanel(), c);
-        c.gridy += 1;
-        panel.add(passwordInput.getComponentPanel(), c);
-        return panel;
-    }
+    protected abstract JComponent createContentPane();
 
 }

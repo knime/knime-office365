@@ -48,35 +48,98 @@
  */
 package org.knime.ext.microsoft.authentication.providers;
 
+import java.net.MalformedURLException;
 import java.net.URI;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.JComponent;
 
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.ext.microsoft.authentication.data.ConfigurableLocationStorage;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.providers.ui.InteractiveProviderEditor;
 
-import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
 import com.microsoft.aad.msal4j.PublicClientApplication;
 
 /**
- * {@link AbstractAuthProvider} implementation that performs interactive
+ * {@link MSALAuthProvider} implementation that performs interactive
  * authentication by opening a browser window.
  *
  * @author Alexander Bondaletov
  */
-public class InteractiveAuthProvider extends AbstractAuthProvider {
+public class InteractiveAuthProvider extends MSALAuthProvider {
     private static final String REDIRECT_URL = "http://localhost:8080";
+
+    private static final String KEY_TOKEN_CACHE = "tokenCache";
+
+    private final SettingsModelString m_tokenCache;
+    private final ConfigurableLocationStorage m_storageLocation;
 
     /**
      * Creates new instance.
-     *
-     * @param connection
-     *            The Microsoft connection object.
      */
-    public InteractiveAuthProvider(final MicrosoftConnection connection) {
-        super(connection);
+    public InteractiveAuthProvider() {
+        super();
+
+        m_tokenCache = new SettingsModelString(KEY_TOKEN_CACHE, null);
+        m_storageLocation = new ConfigurableLocationStorage(m_tokenCache);
+    }
+
+    /**
+     * Performs login by opening browser window and then stores authentication
+     * result.
+     *
+     * @throws MalformedURLException
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
+    public void performLogin() throws MalformedURLException, InterruptedException, ExecutionException {
+        m_tokenCache.setStringValue(null);
+
+        PublicClientApplication app = createClientApp();
+        InteractiveRequestParameters params = InteractiveRequestParameters.builder(URI.create(REDIRECT_URL))
+                .scopes(getScopes()).build();
+
+        app.acquireToken(params).get();
+        m_tokenCache.setStringValue(app.tokenCache().serialize());
+    }
+
+    /**
+     * @return The logged in state of the current provider.
+     */
+    public boolean isLoggedIn() {
+        return m_tokenCache.getStringValue() != null && !m_tokenCache.getStringValue().isEmpty();
+    }
+
+    /**
+     * @return the storageLocation
+     */
+    public ConfigurableLocationStorage getStorageLocation() {
+        return m_storageLocation;
+    }
+
+    /**
+     * @return the tokenCache model
+     */
+    public SettingsModelString getTokenCacheModel() {
+        return m_tokenCache;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MicrosoftConnection authenticate() throws InvalidSettingsException {
+        String tokenCache = m_tokenCache.getStringValue();
+        if (tokenCache == null || tokenCache.isEmpty()) {
+            throw new InvalidSettingsException("Interactive provider is not authenticated");
+        }
+        return new MicrosoftConnection(AuthProviderType.INTERACTIVE, m_tokenCache.getStringValue(), getScopes(),
+                getAuthority());
     }
 
     /**
@@ -91,10 +154,37 @@ public class InteractiveAuthProvider extends AbstractAuthProvider {
      * {@inheritDoc}
      */
     @Override
-    protected CompletableFuture<IAuthenticationResult> acquireToken(final PublicClientApplication app) {
-        InteractiveRequestParameters params = InteractiveRequestParameters.builder(URI.create(REDIRECT_URL))
-                .scopes(m_connection.getScopes()).build();
-
-        return app.acquireToken(params);
+    public void saveSettingsTo(final NodeSettingsWO settings) {
+        super.saveSettingsTo(settings);
+        m_storageLocation.saveSettings(settings);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+        InteractiveAuthProvider temp = new InteractiveAuthProvider();
+        temp.loadSettingsFrom(settings);
+        temp.validate();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void validate() throws InvalidSettingsException {
+        super.validate();
+        m_storageLocation.validate();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
+        super.loadSettingsFrom(settings);
+        m_storageLocation.loadSettings(settings);
+    }
+
 }

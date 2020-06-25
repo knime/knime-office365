@@ -228,7 +228,8 @@ public class SiteSettingsPanel extends JPanel {
         }
 
         try {
-            return GraphServiceClient.builder().authenticationProvider(m_connection.createGraphAuthProvider())
+            return GraphServiceClient.builder()
+                    .authenticationProvider(SharepointConnectionNodeModel.createGraphAuthProvider(m_connection))
                     .buildClient();
         } catch (ClientException | MalformedURLException ex) {
             throw new InvalidSettingsException(ex);

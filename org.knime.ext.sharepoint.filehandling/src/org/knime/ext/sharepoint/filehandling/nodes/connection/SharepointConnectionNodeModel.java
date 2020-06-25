@@ -50,6 +50,7 @@ package org.knime.ext.sharepoint.filehandling.nodes.connection;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -64,11 +65,15 @@ import org.knime.core.node.port.PortType;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObject;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObjectSpec;
+import org.knime.ext.microsoft.authentication.providers.MSALAuthProvider;
+import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
 import org.knime.filehandling.core.connections.FSConnectionRegistry;
 import org.knime.filehandling.core.port.FileSystemPortObject;
 import org.knime.filehandling.core.port.FileSystemPortObjectSpec;
+
+import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
  * Sharepoint Connection node.
@@ -97,7 +102,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
         MicrosoftConnection connection = ((MicrosoftConnectionPortObject) inObjects[0]).getMicrosoftConnection();
-        m_fsConnection = new SharepointConnection(connection.createGraphAuthProvider(), m_settings);
+        m_fsConnection = new SharepointConnection(createGraphAuthProvider(connection), m_settings);
         FSConnectionRegistry.getInstance().register(m_fsId, m_fsConnection);
         return new PortObject[] { new FileSystemPortObject(createSpec()) };
     }
@@ -108,7 +113,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         MicrosoftConnection connection = ((MicrosoftConnectionPortObjectSpec) inSpecs[0]).getMicrosoftConnection();
-        if (connection == null || !connection.isLoggedIn()) {
+        if (connection == null) {
             throw new InvalidSettingsException("Not authenticated");
         }
         m_fsId = FSConnectionRegistry.getInstance().getKey();
@@ -182,4 +187,24 @@ public class SharepointConnectionNodeModel extends NodeModel {
         m_fsId = null;
     }
 
+    /**
+     * Creates {@link IAuthenticationProvider} from the given
+     * {@link MicrosoftConnection} object.
+     *
+     * @param connection
+     *            The Microsoft connection object.
+     * @return The {@link IAuthenticationProvider} instance.
+     * @throws MalformedURLException
+     */
+    public static IAuthenticationProvider createGraphAuthProvider(final MicrosoftConnection connection)
+            throws MalformedURLException {
+        MicrosoftAuthProvider provider = connection.getProviderType()
+                .createProvider();
+
+        if (!(provider instanceof MSALAuthProvider)) {
+            throw new UnsupportedOperationException("Unsupported provider type: " + connection.getProviderType());
+        }
+
+        return ((MSALAuthProvider) provider).createGraphAuthProvider(connection);
+    }
 }

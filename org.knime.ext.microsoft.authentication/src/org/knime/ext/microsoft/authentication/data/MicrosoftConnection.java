@@ -50,7 +50,6 @@ package org.knime.ext.microsoft.authentication.data;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -64,13 +63,7 @@ import javax.swing.border.TitledBorder;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
-import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.SilentRefreshAuthenticationProvider;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
-
-import com.microsoft.aad.msal4j.PublicClientApplication;
-import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
  * Class for holding Microsoft connection information required to restore
@@ -79,32 +72,34 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
  * @author Alexander Bondaletov
  */
 public class MicrosoftConnection {
-    private static final String APP_ID = "e915aace-9024-416c-b797-14601fc3b94c";
-
     private static final String KEY_PROVIDER_TYPE = "providerType";
     private static final String KEY_AUTHORITY = "authority";
     private static final String KEY_TOKEN_CACHE = "tokenCache";
     private static final String KEY_SCOPES = "scopes";
 
-    private final SettingsModelString m_providerType;
-    private final SettingsModelString m_tokenCache;
-    private final ConfigurableLocationStorage m_storageLocation;
-    private final SettingsModelStringArray m_scopes;
-
+    private AuthProviderType m_providerType;
+    private String m_tokenCache;
+    private Set<String> m_scopes;
     private String m_authority;
 
     /**
      * Creates new instance
+     *
+     * @param providerType
+     *            The provider type.
+     * @param tokenCache
+     *            The token cache.
+     * @param scopes
+     *            The scopes
+     * @param authority
+     *            The authority
      */
-    public MicrosoftConnection() {
-        m_providerType = new SettingsModelString(KEY_PROVIDER_TYPE, "");
-        m_tokenCache = new SettingsModelString(KEY_TOKEN_CACHE, null);
-        m_storageLocation = new ConfigurableLocationStorage(m_tokenCache);
-        m_scopes = new SettingsModelStringArray(KEY_SCOPES, new String[] { MicrosoftScopes.FILES_READ_WRITE.getScope(),
-                MicrosoftScopes.SITES_READ_WRITE.getScope(), MicrosoftScopes.DIRECTORY_READ.getScope() });
-
-        m_providerType.addChangeListener(e -> logout());
-        m_scopes.addChangeListener(e -> logout());
+    public MicrosoftConnection(final AuthProviderType providerType, final String tokenCache, final Set<String> scopes,
+            final String authority) {
+        m_providerType = providerType;
+        m_tokenCache = tokenCache;
+        m_scopes = scopes;
+        m_authority = authority;
     }
 
     /**
@@ -116,111 +111,35 @@ public class MicrosoftConnection {
      *
      */
     public MicrosoftConnection(final ConfigRO config) throws InvalidSettingsException {
-        this();
         loadSettings(config);
-    }
-
-    /**
-     * @return the providerType model
-     */
-    public SettingsModelString getProviderTypeModel() {
-        return m_providerType;
     }
 
     /**
      * @return the providerType
      */
     public AuthProviderType getProviderType() {
-        try {
-            return AuthProviderType.valueOf(m_providerType.getStringValue());
-        } catch (IllegalArgumentException e) {
-            return AuthProviderType.INTERACTIVE;
-        }
+        return m_providerType;
     }
 
     /**
-     * @param authority
-     *            the authority to set
+     * @return the tokenCache
      */
-    public void setAuthority(final String authority) {
-        m_authority = authority;
-    }
-
-    /**
-     * @param tokenCache
-     *            the tokenCache to set
-     */
-    public void setTokenCache(final String tokenCache) {
-        m_tokenCache.setStringValue(tokenCache);
-    }
-
-    /**
-     * @return the tokenCache model
-     */
-    public SettingsModelString getTokenCacheModel() {
+    public String getTokenCache() {
         return m_tokenCache;
-    }
-
-    /**
-     * @return the storageLocation
-     */
-    public ConfigurableLocationStorage getStorageLocation() {
-        return m_storageLocation;
     }
 
     /**
      * @return the scopes
      */
     public Set<String> getScopes() {
-        return new HashSet<>(Arrays.asList(m_scopes.getStringArrayValue()));
-    }
-
-    /**
-     * @return the scopes model
-     */
-    public SettingsModelStringArray getScopesModel() {
         return m_scopes;
     }
 
     /**
-     * @return The logged in state of the connection
+     * @return the authority
      */
-    public boolean isLoggedIn() {
-        return m_tokenCache.getStringValue() != null && !m_tokenCache.getStringValue().isEmpty();
-    }
-
-    /**
-     * Performs logout by clearing the token cache.
-     */
-    public void logout() {
-        m_tokenCache.setStringValue(null);
-    }
-
-    /**
-     * Creates the {@link PublicClientApplication} instance from a current config.
-     *
-     * @param withCache
-     *            If set to <code>true</code> token cache would be restored.
-     * @return The client application.
-     * @throws MalformedURLException
-     */
-    public PublicClientApplication createClientApp(final boolean withCache) throws MalformedURLException {
-        PublicClientApplication app = PublicClientApplication.builder(APP_ID).authority(m_authority).build();
-        if (withCache) {
-            app.tokenCache().deserialize(m_tokenCache.getStringValue());
-        }
-        return app;
-    }
-
-    /**
-     * Creates {@link IAuthenticationProvider} instance used to authenticate graph
-     * API client.
-     *
-     * @return The auth provider.
-     * @throws MalformedURLException
-     */
-    public IAuthenticationProvider createGraphAuthProvider() throws MalformedURLException {
-        return new SilentRefreshAuthenticationProvider(getScopes(), createClientApp(true));
+    public String getAuthority() {
+        return m_authority;
     }
 
     /**
@@ -230,11 +149,10 @@ public class MicrosoftConnection {
      *            The config.
      */
     public void saveSettings(final ConfigWO config) {
-        config.addString(m_providerType.getKey(), m_providerType.getStringValue());
+        config.addString(KEY_PROVIDER_TYPE, m_providerType.name());
+        config.addString(KEY_TOKEN_CACHE, m_tokenCache);
         config.addString(KEY_AUTHORITY, m_authority);
-        config.addStringArray(KEY_SCOPES, m_scopes.getStringArrayValue());
-
-        m_storageLocation.saveSettings(config);
+        config.addStringArray(KEY_SCOPES, m_scopes.toArray(new String[] {}));
     }
 
     /**
@@ -245,25 +163,11 @@ public class MicrosoftConnection {
      * @throws InvalidSettingsException
      */
     public void loadSettings(final ConfigRO config) throws InvalidSettingsException {
-        m_providerType.setStringValue(config.getString(KEY_PROVIDER_TYPE));
+        m_providerType = AuthProviderType
+                .valueOf(config.getString(KEY_PROVIDER_TYPE, AuthProviderType.INTERACTIVE.name()));
+        m_tokenCache = config.getString(KEY_TOKEN_CACHE);
         m_authority = config.getString(KEY_AUTHORITY);
-        m_scopes.setStringArrayValue(config.getStringArray(KEY_SCOPES));
-
-        m_storageLocation.loadSettings(config);
-    }
-
-    /**
-     * Validates consistency of the current settigs.
-     *
-     * @throws InvalidSettingsException
-     */
-    public void validate() throws InvalidSettingsException {
-        String[] scopes = m_scopes.getStringArrayValue();
-        if (scopes == null || scopes.length == 0) {
-            throw new InvalidSettingsException("Scopes cannot be empty");
-        }
-
-        m_storageLocation.validate();
+        m_scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
     }
 
     /**
@@ -272,7 +176,7 @@ public class MicrosoftConnection {
     public JComponent getView() {
         StringBuilder sb = new StringBuilder();
         sb.append("<html>");
-        sb.append("Provider: ").append(m_providerType.getStringValue()).append("<br>");
+        sb.append("Provider: ").append(m_providerType.name()).append("<br>");
         sb.append("Authority: ").append(m_authority).append("<br>");
 
         Set<String> scopes = getScopes();
@@ -284,8 +188,8 @@ public class MicrosoftConnection {
         JTextArea textarea = new JTextArea(5, 50);
         textarea.setLineWrap(true);
         textarea.setEditable(false);
-        if (m_tokenCache.getStringValue() != null) {
-            textarea.setText(m_tokenCache.getStringValue());
+        if (m_tokenCache != null) {
+            textarea.setText(m_tokenCache);
         }
         textarea.setBorder(new TitledBorder("Token cache"));
         textarea.setAutoscrolls(true);

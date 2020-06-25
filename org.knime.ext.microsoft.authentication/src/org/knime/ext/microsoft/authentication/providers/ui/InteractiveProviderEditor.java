@@ -48,18 +48,34 @@
  */
 package org.knime.ext.microsoft.authentication.providers.ui;
 
+import java.awt.FlowLayout;
+import java.util.concurrent.ExecutionException;
+
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 
+import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.ext.microsoft.authentication.providers.InteractiveAuthProvider;
+
+import com.microsoft.aad.msal4j.MsalInteractionRequiredException;
 
 /**
  * Editor component for the {@link InteractiveAuthProvider}.
  *
  * @author Alexander Bondaletov
  */
-public class InteractiveProviderEditor extends AbstractAuthProviderEditor<InteractiveAuthProvider> {
+public class InteractiveProviderEditor extends MSALAuthProviderEditor<InteractiveAuthProvider> {
     private static final long serialVersionUID = 1L;
+
+    private JButton m_loginBtn;
+    private JButton m_cancelBtn;
+    private JLabel m_statusLabel;
+    private SwingWorkerWithContext<Void, Void> m_worker;
 
     /**
      * Creates new instance.
@@ -70,6 +86,8 @@ public class InteractiveProviderEditor extends AbstractAuthProviderEditor<Intera
      */
     public InteractiveProviderEditor(final InteractiveAuthProvider provider) {
         super(provider);
+
+        m_provider.getTokenCacheModel().addChangeListener(e -> updateStatusLabel(false));
     }
 
     /**
@@ -77,7 +95,100 @@ public class InteractiveProviderEditor extends AbstractAuthProviderEditor<Intera
      */
     @Override
     protected JComponent createContentPane() {
-        return new JLabel("Browser window will be opened after pressing Login button");
+        Box box = new Box(BoxLayout.PAGE_AXIS);
+        box.add(createButtonsPanel());
+        box.add(m_provider.getStorageLocation().createEditor());
+        return box;
     }
 
+    private JPanel createButtonsPanel() {
+        m_loginBtn = new JButton("Login");
+        m_loginBtn.addActionListener(e -> onLogin());
+
+        m_cancelBtn = new JButton("Cancel");
+        m_cancelBtn.addActionListener(e -> {
+            if (m_worker != null) {
+                m_worker.cancel(true);
+            }
+        });
+
+        m_statusLabel = new JLabel();
+
+        updateControls(false);
+
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panel.add(m_loginBtn);
+        panel.add(m_cancelBtn);
+        panel.add(m_statusLabel);
+        return panel;
+    }
+
+    private void onLogin() {
+        m_worker = new SwingWorkerWithContext<Void, Void>() {
+
+            @Override
+            protected Void doInBackgroundWithContext() throws Exception {
+                m_provider.validate();
+                m_provider.performLogin();
+                return null;
+            }
+
+            @Override
+            protected void doneWithContext() {
+                updateControls(false);
+
+                try {
+                    get();
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                } catch (ExecutionException ex) {
+                    showError(ex);
+                }
+            }
+        };
+
+        updateControls(true);
+        m_worker.execute();
+    }
+
+    private void showError(final Exception ex) {
+        String message = ex.getMessage();
+
+        MsalInteractionRequiredException msalEx = extractMsalException(ex);
+        if (msalEx != null) {
+            message = msalEx.getMessage();
+        }
+
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private static MsalInteractionRequiredException extractMsalException(final Exception ex) {
+        Throwable current = ex;
+        while (current != null) {
+            if (current instanceof MsalInteractionRequiredException) {
+                return (MsalInteractionRequiredException) current;
+            }
+            current = current.getCause();
+        }
+        return null;
+    }
+
+    private void updateControls(final boolean inProgress) {
+        m_loginBtn.setVisible(!inProgress);
+        m_cancelBtn.setVisible(inProgress);
+        updateStatusLabel(inProgress);
+    }
+
+    private void updateStatusLabel(final boolean inProgress) {
+        if (inProgress) {
+            m_statusLabel.setText("Connecting...");
+        } else {
+            boolean loggedIn = m_provider.isLoggedIn();
+            String color = loggedIn ? "#007F0E" : "#CC0000";
+            String connected = loggedIn ? "Connected" : "Not connected";
+            String status = String.format("<html>Status: <font color=%s>%s</font></html>", color, connected);
+
+            m_statusLabel.setText(status);
+        }
+    }
 }

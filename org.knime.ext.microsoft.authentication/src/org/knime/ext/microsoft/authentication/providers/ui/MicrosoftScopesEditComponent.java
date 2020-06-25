@@ -46,7 +46,7 @@
  * History
  *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.nodes.auth;
+package org.knime.ext.microsoft.authentication.providers.ui;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -105,11 +105,11 @@ public class MicrosoftScopesEditComponent extends JPanel {
             c.gridy += 1;
         }
 
-        setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Scopes"));
+        setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Request access to"));
     }
 
     private JCheckBox createCheckbox(final MicrosoftScopes scope) {
-        JCheckBox cb = new JCheckBox(scope.getScope());
+        JCheckBox cb = new JCheckBox(scope.getTitle());
         cb.addActionListener(e -> {
             onSelected(scope, cb.isSelected());
         });

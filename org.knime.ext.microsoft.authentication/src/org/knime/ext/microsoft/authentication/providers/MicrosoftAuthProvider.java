@@ -44,136 +44,70 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-04 (Alexander Bondaletov): created
+ *   2020-06-23 (Alexander Bondaletov): created
  */
 package org.knime.ext.microsoft.authentication.providers;
 
 import java.net.MalformedURLException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.JComponent;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.config.ConfigRO;
-import org.knime.core.node.config.ConfigWO;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
 
-import com.microsoft.aad.msal4j.IAuthenticationResult;
-import com.microsoft.aad.msal4j.PublicClientApplication;
-
 /**
- * Base class for auth providers implementing different authentication methods.
+ * Base interface for auth providers implementing different authentication
+ * methods.
  *
  * @author Alexander Bondaletov
  */
-public abstract class AbstractAuthProvider {
-    private static final String DEFAULT_AUTHORITY = "https://login.microsoftonline.com/common";
-
+public interface MicrosoftAuthProvider {
     /**
-     * Microsoft connection object.
-     */
-    protected final MicrosoftConnection m_connection;
-
-    /**
-     * Creates new instance.
+     * Performs authentication and returns the result in a form of
+     * {@link MicrosoftConnection} object.
      *
-     * @param connection
-     *            The Microsoft connection object.
-     *
-     */
-    public AbstractAuthProvider(final MicrosoftConnection connection) {
-        m_connection = connection;
-    }
-
-    /**
-     * @return the Microsoft connection object.
-     */
-    public MicrosoftConnection getConnection() {
-        return m_connection;
-    }
-
-    /**
-     * Performs authentication and stores authentication info into Microsoft
-     * connection object.
-     *
-     * @throws MalformedURLException
+     * @return The Microsoft connection object.
+     * @throws InvalidSettingsException
      * @throws InterruptedException
      * @throws ExecutionException
+     * @throws MalformedURLException
      */
-    public void login() throws MalformedURLException, InterruptedException, ExecutionException {
-        m_connection.setAuthority(getAuthority());
-        m_connection.setTokenCache(null);
-
-        PublicClientApplication app = m_connection.createClientApp(false);
-        acquireToken(app).get();
-        m_connection.setTokenCache(app.tokenCache().serialize());
-    }
-
-    /**
-     * Returns appropriate authority for a current provider.
-     *
-     * @return The authority.
-     */
-    protected String getAuthority() {
-        return DEFAULT_AUTHORITY;
-    }
-
-    /**
-     * Performs actual authentication and retrieves authentication token using
-     * provider-specific authentication method;
-     *
-     * @param app
-     *            The client app instance.
-     * @return The future containing authentication result.
-     */
-    protected abstract CompletableFuture<IAuthenticationResult> acquireToken(PublicClientApplication app);
+    public MicrosoftConnection authenticate()
+            throws InvalidSettingsException, InterruptedException, ExecutionException, MalformedURLException;
 
     /**
      * Creates editor component for the provider.
      *
      * @return The editor component.
      */
-    public abstract JComponent createEditor();
+    public JComponent createEditor();
 
     /**
-     * Saves provider's settings into a given {@link ConfigWO}.
+     * Saves provider's settings into a given {@link NodeSettingsWO}.
      *
      * @param settings
      *            The settings.
      */
-    public void saveSettingsTo(final ConfigWO settings) {
-        // default empty implementation
-    }
+    public void saveSettingsTo(final NodeSettingsWO settings);
 
     /**
-     * Validates settings stored in a give {@link ConfigRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final ConfigRO settings) throws InvalidSettingsException {
-        // default empty implementation
-    }
-
-    /**
-     * Validates consistency of the current settings.
-     *
-     * @throws InvalidSettingsException
-     */
-    public void validate() throws InvalidSettingsException {
-        // default empty implementation
-    }
-
-    /**
-     * Loads provider's settings from a given {@link ConfigRO}.
+     * Validates settings stored in a give {@link NodeSettingsRO}.
      *
      * @param settings
      *            The settings.
      * @throws InvalidSettingsException
      */
-    public void loadSettingsFrom(final ConfigRO settings) throws InvalidSettingsException {
-        // default empty implementation
-    }
+    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
+
+    /**
+     * Loads provider's settings from a given {@link NodeSettingsRO}.
+     *
+     * @param settings
+     *            The settings.
+     * @throws InvalidSettingsException
+     */
+    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
 }

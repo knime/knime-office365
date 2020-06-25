@@ -55,15 +55,9 @@ import java.util.Map.Entry;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.config.Config;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.data.ConfigurableLocationStorage;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.providers.AbstractAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
-import org.knime.ext.microsoft.authentication.providers.InteractiveAuthProvider;
-import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
+import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 
 
 /**
@@ -73,32 +67,39 @@ import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProv
  */
 public class MicrosoftAuthenticationSettings {
 
-    private final MicrosoftConnection m_connection;
-    private final Map<AuthProviderType, AbstractAuthProvider> m_providers;
+    private static final String KEY_PROVIDER_TYPE = "providerType";
+
+    private final SettingsModelString m_providerType;
+    private final Map<AuthProviderType, MicrosoftAuthProvider> m_providers;
 
     /**
      * Creates new instance.
      */
     public MicrosoftAuthenticationSettings() {
-        m_connection = new MicrosoftConnection();
+        m_providerType = new SettingsModelString(KEY_PROVIDER_TYPE, "");
 
         m_providers = new EnumMap<>(AuthProviderType.class);
-        m_providers.put(AuthProviderType.INTERACTIVE, new InteractiveAuthProvider(m_connection));
-        m_providers.put(AuthProviderType.USERNAME_PASSWORD, new UsernamePasswordAuthProvider(m_connection));
+        for (AuthProviderType type : AuthProviderType.values()) {
+            m_providers.put(type, type.createProvider());
+        }
     }
 
     /**
      * @return the providerType model
      */
     public SettingsModelString getProviderTypeModel() {
-        return m_connection.getProviderTypeModel();
+        return m_providerType;
     }
 
     /**
      * @return the providerType
      */
     public AuthProviderType getProviderType() {
-        return m_connection.getProviderType();
+        try {
+            return AuthProviderType.valueOf(m_providerType.getStringValue());
+        } catch (IllegalArgumentException e) {
+            return AuthProviderType.INTERACTIVE;
+        }
     }
 
     /**
@@ -108,7 +109,7 @@ public class MicrosoftAuthenticationSettings {
      *            The provider type
      * @return The provider.
      */
-    public AbstractAuthProvider getProvider(final AuthProviderType type) {
+    public MicrosoftAuthProvider getProvider(final AuthProviderType type) {
         return m_providers.get(type);
     }
 
@@ -117,22 +118,8 @@ public class MicrosoftAuthenticationSettings {
      *
      * @return The provider.
      */
-    public AbstractAuthProvider getCurrentProvider() {
+    public MicrosoftAuthProvider getCurrentProvider() {
         return getProvider(getProviderType());
-    }
-
-    /**
-     * @return the storage location settings.
-     */
-    public ConfigurableLocationStorage getStorageLocation() {
-        return m_connection.getStorageLocation();
-    }
-
-    /**
-     * @return the scopes model.
-     */
-    public SettingsModelStringArray getScopesModel() {
-        return m_connection.getScopesModel();
     }
 
     /**
@@ -142,10 +129,10 @@ public class MicrosoftAuthenticationSettings {
      *            The settings.
      */
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        m_connection.saveSettings(settings);
+        m_providerType.saveSettingsTo(settings);
 
-        for (Entry<AuthProviderType, AbstractAuthProvider> e : m_providers.entrySet()) {
-            Config config = settings.addConfig(e.getKey().name());
+        for (Entry<AuthProviderType, MicrosoftAuthProvider> e : m_providers.entrySet()) {
+            NodeSettingsWO config = settings.addNodeSettings(e.getKey().name());
             e.getValue().saveSettingsTo(config);
         }
     }
@@ -158,21 +145,10 @@ public class MicrosoftAuthenticationSettings {
      * @throws InvalidSettingsException
      */
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+        m_providerType.validateSettings(settings);
+
         AuthProviderType type = getProviderType();
-        m_providers.get(type).validateSettings(settings.getConfig(type.name()));
-
-        MicrosoftAuthenticationSettings temp = new MicrosoftAuthenticationSettings();
-        temp.loadSettingsFrom(settings);
-        temp.validate();
-    }
-
-    /**
-     * Validates current settings consistency.
-     *
-     * @throws InvalidSettingsException
-     */
-    public void validate() throws InvalidSettingsException {
-        m_connection.validate();
+        m_providers.get(type).validateSettings(settings.getNodeSettings(type.name()));
     }
 
     /**
@@ -183,18 +159,11 @@ public class MicrosoftAuthenticationSettings {
      * @throws InvalidSettingsException
      */
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_connection.loadSettings(settings);
+        m_providerType.loadSettingsFrom(settings);
 
-        for (Entry<AuthProviderType, AbstractAuthProvider> e : m_providers.entrySet()) {
-            e.getValue().loadSettingsFrom(settings.getConfig(e.getKey().name()));
+        for (Entry<AuthProviderType, MicrosoftAuthProvider> e : m_providers.entrySet()) {
+            e.getValue().loadSettingsFrom(settings.getNodeSettings(e.getKey().name()));
         }
-    }
-
-    /**
-     * @return the microsoft connection object.
-     */
-    public MicrosoftConnection getConnection() {
-        return m_connection;
     }
 
 }

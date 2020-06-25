@@ -48,6 +48,10 @@
  */
 package org.knime.ext.microsoft.authentication.providers;
 
+import java.util.function.Supplier;
+
+
+
 /**
  * Microsoft auth provider types.
  *
@@ -57,17 +61,20 @@ public enum AuthProviderType {
     /**
      * Interactive provider.
      */
-    INTERACTIVE("Interactive authentication"),
+    INTERACTIVE("Interactive authentication", InteractiveAuthProvider::new),
 
     /**
      * Username and password authentication provider.
      */
-    USERNAME_PASSWORD("Authenticate using login and password");
+    USERNAME_PASSWORD("Authenticate using login and password", UsernamePasswordAuthProvider::new);
 
     private String m_title;
+    private Supplier<MicrosoftAuthProvider> m_createProvider;
 
-    private AuthProviderType(final String title) {
+    private AuthProviderType(final String title, final Supplier<MicrosoftAuthProvider> createProvider) {
         m_title = title;
+        m_createProvider = createProvider;
+
     }
 
     /**
@@ -78,5 +85,13 @@ public enum AuthProviderType {
         return m_title;
     }
 
+    /**
+     * Creates {@link MicrosoftAuthProvider} instance of a current type.
+     *
+     * @return {@link MicrosoftAuthProvider} instance.
+     */
+    public MicrosoftAuthProvider createProvider() {
+        return m_createProvider.get();
+    }
 
 }
