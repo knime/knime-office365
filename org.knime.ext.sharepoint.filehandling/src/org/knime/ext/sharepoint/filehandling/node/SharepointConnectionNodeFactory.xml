@@ -22,38 +22,44 @@
                 </ol>
             </p>
         </intro>
-            
-        <option name="Sharepoint site">
-            There are three ways to specify Sharepoint site:
-            <ul>
-                <li>
-           			<i>Root site:</i>Connect to the root site of the domain of the current user (see "Microsoft Connection" input port).
-           		</li>
-          		<li>
-           			<i>Web URL:</i>Specify the web URL of a Sharepoint site, for example <i>https://mycompany.sharepoint.com</i>.
-           			
-           		</li>
-           		<li>
-           			<i>Group site:</i> Connect to the team site of a particular Office 365 group.
-           		</li>
-           	</ul>
-        </option>
-        <option name="Subsite">
-            If checked, then connect to a (nested) subsite of the Sharepoint site specified above. Use the "Refresh" button to list all available subsites
-            of the chosen Sharepoint site. Note that this allows you only to access the document libraries of the subsite, not those of the parent site(s).
-        </option>
-	    <option name="Working directory">
-	        Specify the <i>working directory</i> of the resulting file system connection, using the <b>Path syntax</b> explained above. The working
-	        directory must be specified as an absolute path. A working directory allows downstream nodes to access files/folders using <i>relative</i>
-	        paths, i.e. paths that do not have a leading slash. The default working directory is the virtual root "/", under which all the
-	        document libraries are located.
-	    </option>
-	    <option name="Connection timeout in seconds">
-	        Timeout in seconds to establish a connection or 0 for an infinite timeout. 
-	    </option>
-	    <option name="Read timeout in seconds">
-	        Timeout in seconds to read data from an established connection or 0 for an infinite timeout.
-	    </option>
+        
+        <tab name="Settings">
+	        <option name="Sharepoint site">
+	            There are three ways to specify Sharepoint site:
+	            <ul>
+	                <li>
+	           			<i>Root site:</i>Connect to the root site of the domain of the current user (see "Microsoft Connection" input port).
+	           		</li>
+	          		<li>
+	           			<i>Web URL:</i>Specify the web URL of a Sharepoint site, for example <i>https://mycompany.sharepoint.com</i>.
+	           			
+	           		</li>
+	           		<li>
+	           			<i>Group site:</i> Connect to the team site of a particular Office 365 group.
+	           		</li>
+	           	</ul>
+	        </option>
+	        <option name="Subsite">
+	            If checked, then connect to a (nested) subsite of the Sharepoint site specified above. Use the "Refresh" button to list all available subsites
+	            of the chosen Sharepoint site. Note that this allows you only to access the document libraries of the subsite, not those of the parent site(s).
+	        </option>
+		    <option name="Working directory">
+		        Specify the <i>working directory</i> of the resulting file system connection, using the <b>Path syntax</b> explained above. The working
+		        directory must be specified as an absolute path. A working directory allows downstream nodes to access files/folders using <i>relative</i>
+		        paths, i.e. paths that do not have a leading slash. The default working directory is the virtual root "/", under which all the
+		        document libraries are located.
+		    </option>
+	    </tab>
+	    
+        <tab name="Advanced">
+		    <option name="Connection timeout in seconds">
+		        Timeout in seconds to establish a connection or 0 for an infinite timeout. 
+		    </option>
+		    <option name="Read timeout in seconds">
+		        Timeout in seconds to read data from an established connection or 0 for an infinite timeout.
+		    </option>
+		</tab>
+	    
     </fullDescription>
 
     <ports>

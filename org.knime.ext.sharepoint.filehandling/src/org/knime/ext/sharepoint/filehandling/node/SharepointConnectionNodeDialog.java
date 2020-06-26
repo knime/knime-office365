@@ -82,28 +82,29 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
 
+    private final SiteSettingsPanel m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
+
+    private final WorkingDirectoryChooser m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir",
+            this::createFSConnection);
+
     private MicrosoftConnection m_connection;
-
-    private final SiteSettingsPanel m_sitePanel;
-
-    private final WorkingDirectoryChooser m_workingDirChooser;
 
     /**
      * Creates new instance.
      */
     public SharepointConnectionNodeDialog() {
-        m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
+        addTab("Settings", createSettingsPanel());
+        addTab("Advanced", createTimeoutsPanel());
+    }
 
-        m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir", this::createFSConnection);
+
+    private Box createSettingsPanel() {
         m_workingDirChooser.setBorder(BorderFactory.createTitledBorder("File system settings"));
-
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
         box.add(m_sitePanel);
         box.add(m_workingDirChooser);
-        box.add(createTimeoutsPanel());
-
-        addTab("Settings", box);
+        return box;
     }
 
 
@@ -114,16 +115,20 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
     }
 
     private JComponent createTimeoutsPanel() {
-        DialogComponentNumber connectionTimeout = new DialogComponentNumber(m_settings.getConnectionTimeoutModel(), "",
+        final DialogComponentNumber connectionTimeout = new DialogComponentNumber(
+                m_settings.getConnectionTimeoutModel(),
+                "",
                 1);
         connectionTimeout.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
-        DialogComponentNumber readTimeout = new DialogComponentNumber(m_settings.getReadTimeoutModel(), "", 1);
+        final DialogComponentNumber readTimeout = new DialogComponentNumber(m_settings.getReadTimeoutModel(), "", 1);
         readTimeout.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
 
-        JPanel panel = new JPanel(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.LINE_START;
+        final JPanel panel = new JPanel(new GridBagLayout());
+        final GridBagConstraints c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.WEST;
+        c.fill = GridBagConstraints.NONE;
         c.weightx = 0;
+        c.weighty = 0;
         c.gridx = 0;
         c.gridy = 0;
         panel.add(new JLabel("Connection timeout (seconds): "), c);
@@ -138,6 +143,14 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
 
         c.gridy = 1;
         panel.add(readTimeout.getComponentPanel(), c);
+
+        c.fill = GridBagConstraints.BOTH;
+        c.gridx = 0;
+        c.gridy++;
+        c.gridwidth = 2;
+        c.weightx = 1;
+        c.weighty = 1;
+        panel.add(Box.createVerticalGlue(), c);
 
         panel.setBorder(BorderFactory.createTitledBorder("Connection settings"));
         return panel;
