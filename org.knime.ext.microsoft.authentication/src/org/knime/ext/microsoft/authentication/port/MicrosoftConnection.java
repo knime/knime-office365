@@ -82,6 +82,8 @@ public class MicrosoftConnection {
             .append(DateTimeFormatter.ISO_LOCAL_DATE) //
             .appendLiteral(' ') //
             .append(DateTimeFormatter.ISO_LOCAL_TIME) //
+            .appendLiteral(
+                    ' ') //
             .appendZoneRegionId() //
             .toFormatter();
 
