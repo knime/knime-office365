@@ -11,12 +11,13 @@
    <extension
          point="org.knime.core.PortType">
       <portType
+            color="#4386f7"
             hidden="false"
             name="Microsoft Connection"
-            objectClass="org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObject"
-            objectSerializer="org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObject$Serializer"
-            specClass="org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObjectSpec"
-            specSerializer="org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObjectSpec$Serializer">
+            objectClass="org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObject"
+            objectSerializer="org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObject$Serializer"
+            specClass="org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObjectSpec"
+            specSerializer="org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObjectSpec$Serializer">
       </portType>
    </extension>
 </plugin>

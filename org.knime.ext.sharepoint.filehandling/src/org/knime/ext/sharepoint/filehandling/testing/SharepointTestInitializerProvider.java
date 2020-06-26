@@ -56,7 +56,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.knime.core.node.util.CheckUtils;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;

@@ -46,7 +46,7 @@
  * History
  *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.data;
+package org.knime.ext.microsoft.authentication.providers;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;

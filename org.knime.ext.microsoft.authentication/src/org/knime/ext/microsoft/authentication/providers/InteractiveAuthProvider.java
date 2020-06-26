@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.providers;
 
 import java.net.MalformedURLException;
 import java.net.URI;
+import java.util.Date;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.JComponent;
@@ -57,11 +58,12 @@ import javax.swing.JComponent;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelLong;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.ext.microsoft.authentication.data.ConfigurableLocationStorage;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.providers.ui.InteractiveProviderEditor;
 
+import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
 import com.microsoft.aad.msal4j.PublicClientApplication;
 
@@ -75,9 +77,14 @@ public class InteractiveAuthProvider extends MSALAuthProvider {
     private static final String REDIRECT_URL = "http://localhost:51355/";
 
     private static final String KEY_TOKEN_CACHE = "tokenCache";
+    private static final String KEY_USERNAME = "username";
+    private static final String KEY_TOKEN_EXPIRY = "tokenExpiry";
 
     private final SettingsModelString m_tokenCache;
     private final ConfigurableLocationStorage m_storageLocation;
+
+    private final SettingsModelString m_username;
+    private final SettingsModelLong m_tokenExpiry;
 
     /**
      * Creates new instance.
@@ -86,6 +93,8 @@ public class InteractiveAuthProvider extends MSALAuthProvider {
         super();
 
         m_tokenCache = new SettingsModelString(KEY_TOKEN_CACHE, null);
+        m_username = new SettingsModelString(KEY_USERNAME, null);
+        m_tokenExpiry = new SettingsModelLong(KEY_TOKEN_EXPIRY, 0);
         m_storageLocation = new ConfigurableLocationStorage(m_tokenCache);
     }
 
@@ -99,13 +108,18 @@ public class InteractiveAuthProvider extends MSALAuthProvider {
      */
     public void performLogin() throws MalformedURLException, InterruptedException, ExecutionException {
         m_tokenCache.setStringValue(null);
+        m_username.setStringValue(null);
+        m_tokenExpiry.setLongValue(0);
 
         PublicClientApplication app = createClientApp();
         InteractiveRequestParameters params = InteractiveRequestParameters.builder(URI.create(REDIRECT_URL))
                 .scopes(getScopes()).build();
 
-        app.acquireToken(params).get();
+        final IAuthenticationResult result = app.acquireToken(params).get();
+
         m_tokenCache.setStringValue(app.tokenCache().serialize());
+        m_username.setStringValue(result.account().username());
+        m_tokenExpiry.setLongValue(result.expiresOnDate().getTime());
     }
 
     /**
@@ -138,7 +152,10 @@ public class InteractiveAuthProvider extends MSALAuthProvider {
         if (tokenCache == null || tokenCache.isEmpty()) {
             throw new InvalidSettingsException("Interactive provider is not authenticated");
         }
-        return new MicrosoftConnection(AuthProviderType.INTERACTIVE, m_tokenCache.getStringValue(), getScopes(),
+
+        return new MicrosoftConnection(AuthProviderType.INTERACTIVE, m_tokenCache.getStringValue(),
+                m_username.getStringValue(),
+                new Date(m_tokenExpiry.getLongValue()), getScopes(),
                 getAuthority());
     }
 
@@ -157,6 +174,8 @@ public class InteractiveAuthProvider extends MSALAuthProvider {
     public void saveSettingsTo(final NodeSettingsWO settings) {
         super.saveSettingsTo(settings);
         m_storageLocation.saveSettings(settings);
+        m_username.saveSettingsTo(settings);
+        m_tokenExpiry.saveSettingsTo(settings);
     }
 
     /**
@@ -185,6 +204,8 @@ public class InteractiveAuthProvider extends MSALAuthProvider {
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadSettingsFrom(settings);
         m_storageLocation.loadSettings(settings);
+        m_username.loadSettingsFrom(settings);
+        m_tokenExpiry.loadSettingsFrom(settings);
     }
 
 }

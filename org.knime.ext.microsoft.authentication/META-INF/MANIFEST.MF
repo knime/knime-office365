@@ -19,6 +19,6 @@ Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Bundle-Activator: org.knime.ext.microsoft.authentication.MicrosoftAuthenticationPlugin
 Export-Package: org.knime.ext.microsoft.authentication,
- org.knime.ext.microsoft.authentication.data,
+ org.knime.ext.microsoft.authentication.port,
  org.knime.ext.microsoft.authentication.providers
 

@@ -56,7 +56,7 @@ import javax.swing.JComponent;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 
 /**
  * Base interface for auth providers implementing different authentication

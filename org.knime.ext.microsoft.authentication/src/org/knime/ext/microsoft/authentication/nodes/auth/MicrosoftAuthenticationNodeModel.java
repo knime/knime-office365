@@ -63,9 +63,9 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObject;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnectionPortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObject;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObjectSpec;
 
 /**
  * Microsoft authentication node. Performs authentication using one of the

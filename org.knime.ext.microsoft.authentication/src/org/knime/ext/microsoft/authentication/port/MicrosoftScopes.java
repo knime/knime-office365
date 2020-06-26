@@ -44,107 +44,49 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-04 (Alexander Bondaletov): created
+ *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.data;
-
-import javax.swing.JComponent;
-
-import org.knime.core.node.CanceledExecutionException;
-import org.knime.core.node.ExecutionMonitor;
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.ModelContentRO;
-import org.knime.core.node.ModelContentWO;
-import org.knime.core.node.port.AbstractSimplePortObject;
-import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.port.PortType;
-import org.knime.core.node.port.PortTypeRegistry;
+package org.knime.ext.microsoft.authentication.port;
 
 /**
- * Port object containing {@link MicrosoftConnection}.
+ * Enum holding different Microsoft scopes.
  *
  * @author Alexander Bondaletov
  */
-public class MicrosoftConnectionPortObject extends AbstractSimplePortObject {
+public enum MicrosoftScopes {
     /**
-     *
-     * Serializer class
+     * Sites.Read.All scope.
      */
-    public static final class Serializer extends AbstractSimplePortObjectSerializer<MicrosoftConnectionPortObject> {
+    SITES_READ("Sharepoint files (Read)", "Sites.Read.All"),
+    /**
+     * Sites.ReadWrite.All scope.
+     */
+    SITES_READ_WRITE("Sharepoint files (Read/Write)", "Sites.ReadWrite.All"),
+
+    /**
+     * Directory.Read.All scope.
+     */
+    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>", "Directory.Read.All");
+
+    private String m_scope;
+    private String m_title;
+
+    private MicrosoftScopes(final String title, final String scope) {
+        m_title = title;
+        m_scope = scope;
     }
 
     /**
-     * The type of this port.
+     * @return The string representation of the scope.
      */
-    @SuppressWarnings("hiding")
-    public static final PortType TYPE = PortTypeRegistry.getInstance().getPortType(MicrosoftConnectionPortObject.class);
-
-    private MicrosoftConnectionPortObjectSpec m_spec;
-
-    /**
-     * Creates new instance
-     */
-    public MicrosoftConnectionPortObject() {
-        this(null);
+    public String getScope() {
+        return m_scope;
     }
 
     /**
-     * Creates new instance with a given spec.
-     *
-     * @param spec
-     *            The spec.
-     *
+     * @return the title
      */
-    public MicrosoftConnectionPortObject(final MicrosoftConnectionPortObjectSpec spec) {
-        m_spec = spec;
-    }
-
-    /**
-     * @return The microsoft connection object.
-     */
-    public MicrosoftConnection getMicrosoftConnection() {
-        return m_spec.getMicrosoftConnection();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getSummary() {
-        return getMicrosoftConnection().toString();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public PortObjectSpec getSpec() {
-        return m_spec;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void save(final ModelContentWO model, final ExecutionMonitor exec) throws CanceledExecutionException {
-        // nothing to do
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void load(final ModelContentRO model, final PortObjectSpec spec, final ExecutionMonitor exec)
-            throws InvalidSettingsException, CanceledExecutionException {
-        m_spec = (MicrosoftConnectionPortObjectSpec) spec;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public JComponent[] getViews() {
-        return m_spec.getViews();
+    public String getTitle() {
+        return m_title;
     }
 }

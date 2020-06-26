@@ -62,7 +62,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.data.MicrosoftScopes;
+import org.knime.ext.microsoft.authentication.port.MicrosoftScopes;
 
 
 /**

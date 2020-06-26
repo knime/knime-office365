@@ -46,7 +46,7 @@
  * History
  *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.data;
+package org.knime.ext.microsoft.authentication.port;
 
 import javax.swing.JComponent;
 import javax.swing.JLabel;

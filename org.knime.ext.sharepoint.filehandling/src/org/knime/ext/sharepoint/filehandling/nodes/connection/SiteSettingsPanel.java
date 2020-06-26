@@ -67,7 +67,7 @@ import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteMode;

@@ -57,9 +57,10 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.providers.ui.UsernamePasswordProviderEditor;
 
+import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.aad.msal4j.UserNamePasswordParameters;
 
@@ -111,11 +112,13 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
         String password = m_password.getStringValue();
 
         PublicClientApplication app = createClientApp();
-        app.acquireToken(UserNamePasswordParameters.builder(getScopes(), username, password.toCharArray()).build())
+
+        final IAuthenticationResult result = app.acquireToken(
+                UserNamePasswordParameters.builder(getScopes(), username, password.toCharArray()).build())
                 .get();
 
-        return new MicrosoftConnection(AuthProviderType.USERNAME_PASSWORD, app.tokenCache().serialize(), getScopes(),
-                getAuthority());
+        return new MicrosoftConnection(AuthProviderType.USERNAME_PASSWORD, app.tokenCache().serialize(),
+                result.account().username(), result.expiresOnDate(), getScopes(), getAuthority());
     }
 
     /**

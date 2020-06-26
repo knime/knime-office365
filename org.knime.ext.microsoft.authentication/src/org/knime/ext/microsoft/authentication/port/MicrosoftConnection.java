@@ -46,11 +46,16 @@
  * History
  *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.data;
+package org.knime.ext.microsoft.authentication.port;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -72,13 +77,25 @@ import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
  * @author Alexander Bondaletov
  */
 public class MicrosoftConnection {
+
+    private static final DateTimeFormatter ZONED_DATE_TIME_FORMATTER = new DateTimeFormatterBuilder() //
+            .append(DateTimeFormatter.ISO_LOCAL_DATE) //
+            .appendLiteral(' ') //
+            .append(DateTimeFormatter.ISO_LOCAL_TIME) //
+            .appendZoneRegionId() //
+            .toFormatter();
+
     private static final String KEY_PROVIDER_TYPE = "providerType";
     private static final String KEY_AUTHORITY = "authority";
+    private static final String KEY_USERNAME = "username";
+    private static final String KEY_TOKEN_EXPIRY = "tokenExpiry";
     private static final String KEY_TOKEN_CACHE = "tokenCache";
     private static final String KEY_SCOPES = "scopes";
 
     private AuthProviderType m_providerType;
     private String m_tokenCache;
+    private String m_username;
+    private Date m_tokenExpiryDate;
     private Set<String> m_scopes;
     private String m_authority;
 
@@ -89,15 +106,21 @@ public class MicrosoftConnection {
      *            The provider type.
      * @param tokenCache
      *            The token cache.
+     * @param tokenExpiry
+     * @param username
      * @param scopes
      *            The scopes
      * @param authority
      *            The authority
      */
-    public MicrosoftConnection(final AuthProviderType providerType, final String tokenCache, final Set<String> scopes,
+    public MicrosoftConnection(final AuthProviderType providerType, final String tokenCache,
+            final String username, final Date tokenExpiry, final Set<String> scopes,
             final String authority) {
+
         m_providerType = providerType;
         m_tokenCache = tokenCache;
+        m_username = username;
+        m_tokenExpiryDate = tokenExpiry;
         m_scopes = scopes;
         m_authority = authority;
     }
@@ -151,6 +174,8 @@ public class MicrosoftConnection {
     public void saveSettings(final ConfigWO config) {
         config.addString(KEY_PROVIDER_TYPE, m_providerType.name());
         config.addString(KEY_TOKEN_CACHE, m_tokenCache);
+        config.addString(KEY_USERNAME, m_username);
+        config.addLong(KEY_TOKEN_EXPIRY, m_tokenExpiryDate.getTime());
         config.addString(KEY_AUTHORITY, m_authority);
         config.addStringArray(KEY_SCOPES, m_scopes.toArray(new String[] {}));
     }
@@ -166,6 +191,8 @@ public class MicrosoftConnection {
         m_providerType = AuthProviderType
                 .valueOf(config.getString(KEY_PROVIDER_TYPE, AuthProviderType.INTERACTIVE.name()));
         m_tokenCache = config.getString(KEY_TOKEN_CACHE);
+        m_username = config.getString(KEY_USERNAME);
+        m_tokenExpiryDate = new Date(config.getLong(KEY_TOKEN_EXPIRY));
         m_authority = config.getString(KEY_AUTHORITY);
         m_scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
     }
@@ -176,6 +203,8 @@ public class MicrosoftConnection {
     public JComponent getView() {
         StringBuilder sb = new StringBuilder();
         sb.append("<html>");
+        sb.append("Username: ").append(m_username).append("<br>");
+        sb.append("Token expires on: ").append(formatDate(m_tokenExpiryDate)).append("<br>");
         sb.append("Provider: ").append(m_providerType.name()).append("<br>");
         sb.append("Authority: ").append(m_authority).append("<br>");
 
@@ -210,5 +239,21 @@ public class MicrosoftConnection {
         panel.add(textarea, c);
         panel.setName("Connection");
         return panel;
+    }
+
+    /**
+     * @return A short human readable summary
+     */
+    public String getSummary() {
+        return String.format("logged in as %s / expires %s", m_username, formatDate(m_tokenExpiryDate));
+    }
+
+    /**
+     * @param tokenExpiryDate
+     * @return
+     */
+    private Object formatDate(final Date tokenExpiryDate) {
+        final ZonedDateTime zoned = ZonedDateTime.ofInstant(m_tokenExpiryDate.toInstant(), ZoneId.systemDefault());
+        return zoned.format(ZONED_DATE_TIME_FORMATTER);
     }
 }

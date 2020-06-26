@@ -58,8 +58,8 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
 import org.knime.ext.microsoft.authentication.SilentRefreshAuthenticationProvider;
-import org.knime.ext.microsoft.authentication.data.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.data.MicrosoftScopes;
+import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.port.MicrosoftScopes;
 
 import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
