@@ -50,7 +50,7 @@ package org.knime.ext.sharepoint.filehandling;
 
 import java.io.IOException;
 
-import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 
 import com.google.gson.JsonObject;
 import com.microsoft.graph.models.extensions.DirectoryObject;

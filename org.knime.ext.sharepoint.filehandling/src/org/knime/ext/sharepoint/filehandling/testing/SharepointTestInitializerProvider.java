@@ -58,10 +58,10 @@ import java.util.concurrent.Executors;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
-import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
-import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteMode;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings;
+import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteMode;
 import org.knime.filehandling.core.connections.FSLocationSpec;
 import org.knime.filehandling.core.testing.DefaultFSTestInitializerProvider;
 

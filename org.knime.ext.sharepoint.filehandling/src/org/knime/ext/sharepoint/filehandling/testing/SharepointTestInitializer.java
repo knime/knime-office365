@@ -52,9 +52,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointPath;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointPath;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.FSFiles;
 import org.knime.filehandling.core.testing.DefaultFSTestInitializer;

@@ -46,7 +46,7 @@
  * History
  *   2020-05-03 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.connections;
+package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -61,7 +61,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
+import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings;
 import org.knime.filehandling.core.connections.DefaultFSLocationSpec;
 import org.knime.filehandling.core.connections.FSCategory;
 import org.knime.filehandling.core.connections.FSLocationSpec;

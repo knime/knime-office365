@@ -44,77 +44,68 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-17 (Alexander Bondaletov): created
+ *   2020-05-03 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.connections;
+package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.attribute.FileTime;
+import java.net.URI;
+import java.net.URISyntaxException;
 
-import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
-import org.knime.filehandling.core.connections.base.attributes.PosixAttributes;
-import org.knime.filehandling.core.util.CheckedExceptionFunction;
+import org.knime.core.node.util.FileSystemBrowser;
+import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings;
+import org.knime.filehandling.core.connections.FSConnection;
+import org.knime.filehandling.core.connections.FSFileSystem;
+import org.knime.filehandling.core.filechooser.NioFileSystemBrowser;
 
-import com.microsoft.graph.models.extensions.DriveItem;
+import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
- * Sharepoint implementation of the {@link BaseFileAttributes}.
+ * Sharepoint implementation of {@link FSConnection} interface.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointFileAttributes extends BaseFileAttributes {
+public class SharepointConnection implements FSConnection {
 
-    private final DriveItem m_driveItem;
-
-    /**
-     * @param fileKey
-     *            The Path of the file.
-     * @param driveItem
-     *            The {@link DriveItem} corresponding to the file.
-     * @param posixAttributesFunction
-     *            The function to fetch POSIX metadata.
-     */
-    public SharepointFileAttributes(final Path fileKey, final DriveItem driveItem,
-            final CheckedExceptionFunction<Path, PosixAttributes, IOException> posixAttributesFunction) {
-        super(driveItem != null && driveItem.folder == null, //
-                fileKey, //
-                getLastModifiedTime(driveItem), //
-                getLastModifiedTime(driveItem), //
-                getCreationTime(driveItem), //
-                driveItem == null || driveItem.size == null ? 0 : driveItem.size,
-                false, false, posixAttributesFunction);
-        m_driveItem = driveItem;
-    }
+    private final SharepointFileSystem m_filesystem;
+    private final long m_cacheTTL = 60000;
 
     /**
-     * @param fileKey
-     *            The Path of the file.
-     * @param driveItem
-     *            The {@link DriveItem} corresponding to the file.
+     * @param authProvider
+     *            Authentication provider
+     * @param settings
+     *            Connection settings.
+     * @throws IOException
+     *
      */
-    public SharepointFileAttributes(final Path fileKey, final DriveItem driveItem) {
-        this(fileKey, driveItem, null);
-    }
+    public SharepointConnection(final IAuthenticationProvider authProvider,
+            final SharepointConnectionSettings settings)
+            throws IOException {
 
-    /**
-     * @return the driveItem
-     */
-    public DriveItem getDriveItem() {
-        return m_driveItem;
-    }
-
-    private static FileTime getLastModifiedTime(final DriveItem item) {
-        if (item == null) {
-            return FileTime.fromMillis(0);
+        URI uri = null;
+        try {
+            uri = new URI(SharepointFileSystem.FS_TYPE, "sharepoint", null, null);
+        } catch (URISyntaxException ex) {
+            // never happens
         }
-        return FileTime.from(item.lastModifiedDateTime.toInstant());
+
+        m_filesystem = new SharepointFileSystem(uri, m_cacheTTL, authProvider, settings);
     }
 
-    private static FileTime getCreationTime(final DriveItem item) {
-        if (item == null) {
-            return FileTime.fromMillis(0);
-        }
-        return FileTime.from(item.createdDateTime.toInstant());
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public FSFileSystem<?> getFileSystem() {
+        return m_filesystem;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public FileSystemBrowser getFileSystemBrowser() {
+        return new NioFileSystemBrowser(this);
+    }
+
 }

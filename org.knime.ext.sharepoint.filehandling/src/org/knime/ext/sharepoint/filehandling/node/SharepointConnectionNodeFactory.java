@@ -44,68 +44,60 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-03 (Alexander Bondaletov): created
+ *   2020-05-02 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.connections;
+package org.knime.ext.sharepoint.filehandling.node;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-
-import org.knime.core.node.util.FileSystemBrowser;
-import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings;
-import org.knime.filehandling.core.connections.FSConnection;
-import org.knime.filehandling.core.connections.FSFileSystem;
-import org.knime.filehandling.core.filechooser.NioFileSystemBrowser;
-
-import com.microsoft.graph.authentication.IAuthenticationProvider;
+import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeFactory;
+import org.knime.core.node.NodeView;
 
 /**
- * Sharepoint implementation of {@link FSConnection} interface.
+ * Factory class for Sharepoing Connection Node.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnection implements FSConnection {
-
-    private final SharepointFileSystem m_filesystem;
-    private final long m_cacheTTL = 60000;
+public class SharepointConnectionNodeFactory extends NodeFactory<SharepointConnectionNodeModel> {
 
     /**
-     * @param authProvider
-     *            Authentication provider
-     * @param settings
-     *            Connection settings.
-     * @throws IOException
-     *
+     * {@inheritDoc}
      */
-    public SharepointConnection(final IAuthenticationProvider authProvider,
-            final SharepointConnectionSettings settings)
-            throws IOException {
-
-        URI uri = null;
-        try {
-            uri = new URI(SharepointFileSystem.FS_TYPE, "sharepoint", null, null);
-        } catch (URISyntaxException ex) {
-            // never happens
-        }
-
-        m_filesystem = new SharepointFileSystem(uri, m_cacheTTL, authProvider, settings);
+    @Override
+    public SharepointConnectionNodeModel createNodeModel() {
+        return new SharepointConnectionNodeModel();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FSFileSystem<?> getFileSystem() {
-        return m_filesystem;
+    protected int getNrNodeViews() {
+        return 0;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public FileSystemBrowser getFileSystemBrowser() {
-        return new NioFileSystemBrowser(this);
+    public NodeView<SharepointConnectionNodeModel> createNodeView(final int viewIndex,
+            final SharepointConnectionNodeModel nodeModel) {
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected boolean hasDialog() {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected NodeDialogPane createNodeDialogPane() {
+        return new SharepointConnectionNodeDialog();
     }
 
 }

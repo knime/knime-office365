@@ -44,60 +44,77 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-02 (Alexander Bondaletov): created
+ *   2020-05-17 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.nodes.connection;
+package org.knime.ext.sharepoint.filehandling.fs;
 
-import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+
+import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
+import org.knime.filehandling.core.connections.base.attributes.PosixAttributes;
+import org.knime.filehandling.core.util.CheckedExceptionFunction;
+
+import com.microsoft.graph.models.extensions.DriveItem;
 
 /**
- * Factory class for Sharepoing Connection Node.
+ * Sharepoint implementation of the {@link BaseFileAttributes}.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnectionNodeFactory extends NodeFactory<SharepointConnectionNodeModel> {
+public class SharepointFileAttributes extends BaseFileAttributes {
+
+    private final DriveItem m_driveItem;
 
     /**
-     * {@inheritDoc}
+     * @param fileKey
+     *            The Path of the file.
+     * @param driveItem
+     *            The {@link DriveItem} corresponding to the file.
+     * @param posixAttributesFunction
+     *            The function to fetch POSIX metadata.
      */
-    @Override
-    public SharepointConnectionNodeModel createNodeModel() {
-        return new SharepointConnectionNodeModel();
+    public SharepointFileAttributes(final Path fileKey, final DriveItem driveItem,
+            final CheckedExceptionFunction<Path, PosixAttributes, IOException> posixAttributesFunction) {
+        super(driveItem != null && driveItem.folder == null, //
+                fileKey, //
+                getLastModifiedTime(driveItem), //
+                getLastModifiedTime(driveItem), //
+                getCreationTime(driveItem), //
+                driveItem == null || driveItem.size == null ? 0 : driveItem.size,
+                false, false, posixAttributesFunction);
+        m_driveItem = driveItem;
     }
 
     /**
-     * {@inheritDoc}
+     * @param fileKey
+     *            The Path of the file.
+     * @param driveItem
+     *            The {@link DriveItem} corresponding to the file.
      */
-    @Override
-    protected int getNrNodeViews() {
-        return 0;
+    public SharepointFileAttributes(final Path fileKey, final DriveItem driveItem) {
+        this(fileKey, driveItem, null);
     }
 
     /**
-     * {@inheritDoc}
+     * @return the driveItem
      */
-    @Override
-    public NodeView<SharepointConnectionNodeModel> createNodeView(final int viewIndex,
-            final SharepointConnectionNodeModel nodeModel) {
-        return null;
+    public DriveItem getDriveItem() {
+        return m_driveItem;
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected boolean hasDialog() {
-        return true;
+    private static FileTime getLastModifiedTime(final DriveItem item) {
+        if (item == null) {
+            return FileTime.fromMillis(0);
+        }
+        return FileTime.from(item.lastModifiedDateTime.toInstant());
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new SharepointConnectionNodeDialog();
+    private static FileTime getCreationTime(final DriveItem item) {
+        if (item == null) {
+            return FileTime.fromMillis(0);
+        }
+        return FileTime.from(item.createdDateTime.toInstant());
     }
-
 }

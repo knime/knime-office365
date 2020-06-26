@@ -46,7 +46,7 @@
  * History
  *   2020-05-17 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.nodes.connection;
+package org.knime.ext.sharepoint.filehandling.node;
 
 import static java.util.stream.Collectors.toList;
 
@@ -69,9 +69,9 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.nodes.connection.LoadedItemsSelector.IdComboboxItem;
-import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteMode;
-import org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionSettings.SiteSettings;
+import org.knime.ext.sharepoint.filehandling.node.LoadedItemsSelector.IdComboboxItem;
+import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteMode;
+import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteSettings;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.DirectoryObject;

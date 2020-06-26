@@ -46,7 +46,7 @@
  * History
  *   2020-05-14 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.connections;
+package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;

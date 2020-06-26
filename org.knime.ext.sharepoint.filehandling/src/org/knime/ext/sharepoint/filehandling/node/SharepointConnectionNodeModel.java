@@ -46,7 +46,7 @@
  * History
  *   2020-05-02 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.nodes.connection;
+package org.knime.ext.sharepoint.filehandling.node;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,8 +67,8 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObject
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.MSALAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointConnection;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.filehandling.core.connections.FSConnectionRegistry;
 import org.knime.filehandling.core.port.FileSystemPortObject;
 import org.knime.filehandling.core.port.FileSystemPortObjectSpec;

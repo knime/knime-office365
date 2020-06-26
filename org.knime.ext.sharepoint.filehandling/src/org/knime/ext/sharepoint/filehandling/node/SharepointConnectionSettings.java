@@ -46,7 +46,7 @@
  * History
  *   2020-05-17 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.nodes.connection;
+package org.knime.ext.sharepoint.filehandling.node;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -60,7 +60,7 @@ import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.connections.SharepointFileSystem;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
