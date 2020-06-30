@@ -44,74 +44,46 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-10 (Alexander Bondaletov): created
+ *   2020-06-29 (Alexander Bondaletov): created
  */
 package org.knime.ext.sharepoint.filehandling;
 
 import java.io.IOException;
 
-import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.microsoft.authentication.MSALAccessTokenSupplier;
 
-import com.google.gson.JsonObject;
-import com.microsoft.graph.models.extensions.DirectoryObject;
+import com.microsoft.graph.authentication.IAuthenticationProvider;
+import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.http.IHttpRequest;
+import com.microsoft.graph.requests.extensions.GraphServiceClient;
 
 /**
- * Utility class for Graph API.
+ * {@link IAuthenticationProvider} implementation that uses
+ * {@link MSALAccessTokenSupplier} to acquire tokens and authenticate
+ * {@link GraphServiceClient}
  *
  * @author Alexander Bondaletov
  */
-public class GraphApiUtil {
-    /**
-     * oDataType corresponds to a Group
-     */
-    public static final String GROUP_DATA_TYPE = "#microsoft.graph.group";
+public class GraphApiAuthenticationProvider implements IAuthenticationProvider {
 
-    private static final String PROP_DISPLAY_NAME = "displayName";
-    private static final String SEPARATOR_REPLACEMENT = "$_$";
+    private final MSALAccessTokenSupplier m_tokenSupplier;
 
     /**
-     * Attempts to unwrap and throw underlying {@link IOException}. Iterates through
-     * the whole 'cause-chain' in attempt to find {@link IOException}.
      *
-     * @param ex
-     *            The exception.
-     * @return Original exception.
-     * @throws IOException
      */
-    public static RuntimeException unwrapIOE(final RuntimeException ex) throws IOException {
-        Throwable cause = ex.getCause();
-        while (cause != null) {
-            if (cause instanceof IOException) {
-                throw (IOException) cause;
-            }
-            cause = cause.getCause();
-        }
-        return ex;
+    public GraphApiAuthenticationProvider(final MSALAccessTokenSupplier tokenSupplier) {
+        m_tokenSupplier = tokenSupplier;
     }
 
     /**
-     * Gets the displayName from the raw JSON of the {@link DirectoryObject}.
-     *
-     * @param obj
-     *            Directory object.
-     * @return Display name or empty string if the property is missing.
+     * {@inheritDoc}
      */
-    public static String getDisplayName(final DirectoryObject obj) {
-        JsonObject json = obj.getRawObject();
-        if (json.has(PROP_DISPLAY_NAME)) {
-            return json.get(PROP_DISPLAY_NAME).getAsString();
+    @Override
+    public void authenticateRequest(final IHttpRequest request) {
+        try {
+            request.addHeader("Authorization", "Bearer " + m_tokenSupplier.getAccessToken());
+        } catch (IOException ex) {
+            throw new ClientException(ex.getMessage(), ex);
         }
-        return "";
-    }
-
-    /**
-     * Escapes the drive name by replacing '/' characters with '$_$' sequence.
-     *
-     * @param name
-     *            The drive name.
-     * @return Escaped drive name.
-     */
-    public static final String escapeDriveName(final String name) {
-        return name.replace(SharepointFileSystem.PATH_SEPARATOR, SEPARATOR_REPLACEMENT);
     }
 }

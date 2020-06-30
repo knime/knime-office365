@@ -48,6 +48,7 @@
  */
 package org.knime.ext.microsoft.authentication;
 
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Date;
 import java.util.Set;
@@ -57,22 +58,18 @@ import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.aad.msal4j.SilentParameters;
-import com.microsoft.graph.authentication.IAuthenticationProvider;
-import com.microsoft.graph.http.IHttpRequest;
-import com.microsoft.graph.requests.extensions.GraphServiceClient;
 
 /**
- * {@link IAuthenticationProvider} implementation used to authenticate
- * {@link GraphServiceClient}.<br>
+ * Class for supplying a short-lived access token provided by MSAL.
+ * Automatically refreshes this token using information stored in the client's
+ * token cache.
  *
  * Should be initialized with {@link PublicClientApplication} instance with
- * token cache restored. Signs every {@link IHttpRequest} with a short-lived
- * access token and automatically refreshes this token using information stored
- * in the client's token cache.
+ * token cache restored.
  *
  * @author Alexander Bondaletov
  */
-public class SilentRefreshAuthenticationProvider implements IAuthenticationProvider {
+public class MSALAccessTokenSupplier {
     private final Set<String> m_scopes;
     private final PublicClientApplication m_client;
 
@@ -89,28 +86,27 @@ public class SilentRefreshAuthenticationProvider implements IAuthenticationProvi
      *            initialized/restored.
      *
      */
-    public SilentRefreshAuthenticationProvider(final Set<String> scopes, final PublicClientApplication client) {
+    public MSALAccessTokenSupplier(final Set<String> scopes, final PublicClientApplication client) {
         m_scopes = scopes;
         m_client = client;
         m_expiresOn = new Date(0);
     }
 
     /**
-     * {@inheritDoc}
+     * Provides OAuth Access Token. Performs token refresh request in case current
+     * token is expired.
+     *
+     * @return The access token
+     * @throws IOException
      */
-    @Override
-    public void authenticateRequest(final IHttpRequest request) {
-        request.addHeader("Authorization", "Bearer " + getAccessToken());
-    }
-
-    private String getAccessToken() {
+    public String getAccessToken() throws IOException {
         if (m_accessToken == null || m_expiresOn.before(new Date())) {
             try {
                 refreshToken();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-            } catch (MalformedURLException | ExecutionException e) {
-                throw new RuntimeException(e);
+            } catch (ExecutionException ex) {
+                throw unwrapIOE(ex);
             }
         }
         return m_accessToken;
@@ -125,4 +121,14 @@ public class SilentRefreshAuthenticationProvider implements IAuthenticationProvi
         m_expiresOn = result.expiresOnDate();
     }
 
+    private static IOException unwrapIOE(final ExecutionException ex) {
+        Throwable cause = ex.getCause();
+        while (cause != null) {
+            if (cause instanceof IOException) {
+                return (IOException) cause;
+            }
+            cause = cause.getCause();
+        }
+        return new IOException("Error during refreshing access token", ex.getCause());
+    }
 }

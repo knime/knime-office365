@@ -62,11 +62,13 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.knime.ext.microsoft.authentication.MSALAccessTokenSupplier;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObject;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.MSALAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
+import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.filehandling.core.connections.FSConnectionRegistry;
@@ -205,6 +207,9 @@ public class SharepointConnectionNodeModel extends NodeModel {
             throw new UnsupportedOperationException("Unsupported provider type: " + connection.getProviderType());
         }
 
-        return ((MSALAuthProvider) provider).createGraphAuthProvider(connection);
+        MSALAccessTokenSupplier tokenSupplier = ((MSALAuthProvider) provider)
+                .createTokenSupplier(connection);
+
+        return new GraphApiAuthenticationProvider(tokenSupplier);
     }
 }

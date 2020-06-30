@@ -57,12 +57,11 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.SilentRefreshAuthenticationProvider;
+import org.knime.ext.microsoft.authentication.MSALAccessTokenSupplier;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.port.MicrosoftScopes;
 
 import com.microsoft.aad.msal4j.PublicClientApplication;
-import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
  * Base class for auth providers implementing different authentication methods
@@ -102,20 +101,20 @@ public abstract class MSALAuthProvider implements MicrosoftAuthProvider {
     }
 
     /**
-     * Creates {@link IAuthenticationProvider} instance used to authenticate graph
-     * API client.
+     * Creates {@link MSALAccessTokenSupplier} instance used to acquire OAuth Asses
+     * Token
      *
      * @param connection
      *            The Microsoft connection object.
      *
-     * @return The auth provider.
+     * @return The token supplier.
      * @throws MalformedURLException
      */
-    public IAuthenticationProvider createGraphAuthProvider(final MicrosoftConnection connection)
+    public MSALAccessTokenSupplier createTokenSupplier(final MicrosoftConnection connection)
             throws MalformedURLException {
         PublicClientApplication app = createClientApp();
         app.tokenCache().deserialize(connection.getTokenCache());
-        return new SilentRefreshAuthenticationProvider(connection.getScopes(), app);
+        return new MSALAccessTokenSupplier(connection.getScopes(), app);
     }
 
     /**

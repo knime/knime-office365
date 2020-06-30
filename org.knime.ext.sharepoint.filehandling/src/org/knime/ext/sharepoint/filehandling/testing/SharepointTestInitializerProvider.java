@@ -58,6 +58,7 @@ import java.util.concurrent.Executors;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
+import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings;
@@ -124,7 +125,7 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         provider.getUsernameModel().setStringValue(config.get("username"));
         provider.getPasswordModel().setStringValue(config.get("password"));
         MicrosoftConnection connection = provider.authenticate();
-        return provider.createGraphAuthProvider(connection);
+        return new GraphApiAuthenticationProvider(provider.createTokenSupplier(connection));
     }
 
     @Override
