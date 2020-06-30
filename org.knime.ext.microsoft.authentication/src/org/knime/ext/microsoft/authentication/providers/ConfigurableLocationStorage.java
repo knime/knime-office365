@@ -55,6 +55,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
@@ -65,6 +66,8 @@ import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.core.node.defaultnodesettings.DialogComponentFileChooser;
@@ -81,11 +84,13 @@ public class ConfigurableLocationStorage {
     private static final NodeLogger LOGGER = NodeLogger.getLogger(ConfigurableLocationStorage.class);
     private static final String KEY_LOCATION = "location";
     private static final String KEY_FILE_PATH = "filePath";
+    private static final String KEY_UID = "uid";
 
     private static Map<String, String> storage = new HashMap<>();
 
     private final SettingsModelString m_location;
     private final SettingsModelString m_filePath;
+    private final SettingsModelString m_uid;
 
     private final SettingsModelString m_dataModel;
 
@@ -99,6 +104,7 @@ public class ConfigurableLocationStorage {
     public ConfigurableLocationStorage(final SettingsModelString dataModel) {
         m_location = new SettingsModelString(KEY_LOCATION, StorageLocation.MEMORY.name());
         m_filePath = new SettingsModelString(KEY_FILE_PATH, "");
+        m_uid = new SettingsModelString(KEY_UID, UUID.randomUUID().toString());
         m_dataModel = dataModel;
     }
 
@@ -117,9 +123,10 @@ public class ConfigurableLocationStorage {
      * @param settings
      *            The settings.
      */
-    public void saveSettings(final ConfigWO settings) {
-        settings.addString(m_location.getKey(), m_location.getStringValue());
-        settings.addString(m_filePath.getKey(), m_filePath.getStringValue());
+    public void saveSettings(final NodeSettingsWO settings) {
+        m_location.saveSettingsTo(settings);
+        m_filePath.saveSettingsTo(settings);
+        m_uid.saveSettingsTo(settings);
 
         try {
             saveData(settings);
@@ -132,7 +139,7 @@ public class ConfigurableLocationStorage {
         StorageLocation location = getLocation();
         switch (location) {
         case MEMORY:
-            putToMemory(m_dataModel.getKey(), m_dataModel.getStringValue());
+            putToMemory(getMemoryStorageKey(), m_dataModel.getStringValue());
             break;
         case FILE:
             String data = m_dataModel.getStringValue();
@@ -145,6 +152,10 @@ public class ConfigurableLocationStorage {
             break;
 
         }
+    }
+
+    private String getMemoryStorageKey() {
+        return m_dataModel.getKey() + m_uid.getStringValue();
     }
 
     /**
@@ -168,9 +179,10 @@ public class ConfigurableLocationStorage {
      *            The settings.
      * @throws InvalidSettingsException
      */
-    public void loadSettings(final ConfigRO settings) throws InvalidSettingsException {
-        m_location.setStringValue(settings.getString(KEY_LOCATION));
-        m_filePath.setStringValue(settings.getString(KEY_FILE_PATH));
+    public void loadSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+        m_location.loadSettingsFrom(settings);
+        m_filePath.loadSettingsFrom(settings);
+        m_uid.loadSettingsFrom(settings);
 
         try {
             loadData(settings);
@@ -183,7 +195,7 @@ public class ConfigurableLocationStorage {
         StorageLocation location = getLocation();
         switch (location) {
         case MEMORY:
-            m_dataModel.setStringValue(getFromMemory(m_dataModel.getKey()));
+            m_dataModel.setStringValue(getFromMemory(getMemoryStorageKey()));
             break;
         case FILE:
             m_dataModel.setStringValue(new String(
