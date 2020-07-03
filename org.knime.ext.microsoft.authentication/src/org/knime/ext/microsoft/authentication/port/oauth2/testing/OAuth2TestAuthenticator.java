@@ -44,60 +44,29 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-04 (Alexander Bondaletov): created
+ *   2020-07-06 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.nodes.auth;
+package org.knime.ext.microsoft.authentication.port.oauth2.testing;
 
-import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import java.io.IOException;
+import java.util.UUID;
+
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.UsernamePasswordAuthProvider;
 
 /**
- * Factory class for Microsoft Authentication node.
- *
- * @author Alexander Bondaletov
+ * This class is part of the testing infrastructure and allows to easily
+ * authenticate in order to get an {@link OAuth2Credential}.
+ * 
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class MicrosoftAuthenticationNodeFactory extends NodeFactory<MicrosoftAuthenticationNodeModel> {
+public class OAuth2TestAuthenticator {
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public MicrosoftAuthenticationNodeModel createNodeModel() {
-        return new MicrosoftAuthenticationNodeModel();
+    public static OAuth2Credential authenticateWithUsernamePassword(final String username, final String password)
+            throws IOException {
+        UsernamePasswordAuthProvider provider = new UsernamePasswordAuthProvider(UUID.randomUUID().toString());
+        provider.getUsernameModel().setStringValue(username);
+        provider.getPasswordModel().setStringValue(password);
+        return provider.getCredential(null);
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected int getNrNodeViews() {
-        return 0;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public NodeView<MicrosoftAuthenticationNodeModel> createNodeView(final int viewIndex,
-            final MicrosoftAuthenticationNodeModel nodeModel) {
-        return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new MicrosoftAuthenticationNodeDialog();
-    }
-
 }

@@ -48,7 +48,10 @@
  */
 package org.knime.ext.microsoft.authentication.providers;
 
-import java.util.function.Supplier;
+import java.util.function.Function;
+
+import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
+import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.UsernamePasswordAuthProvider;
 
 
 
@@ -69,17 +72,14 @@ public enum AuthProviderType {
     USERNAME_PASSWORD("Username/password authentication", UsernamePasswordAuthProvider::new);
 
     private String m_title;
-    private Supplier<MicrosoftAuthProvider> m_createProvider;
+    private Function<String, MicrosoftAuthProvider> m_createProvider;
 
-    private AuthProviderType(final String title, final Supplier<MicrosoftAuthProvider> createProvider) {
+    private AuthProviderType(final String title, final Function<String, MicrosoftAuthProvider> createProvider) {
         m_title = title;
         m_createProvider = createProvider;
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String toString() {
         return m_title;
@@ -88,10 +88,12 @@ public enum AuthProviderType {
     /**
      * Creates {@link MicrosoftAuthProvider} instance of a current type.
      *
+     * @param nodeInstanceId
+     *
      * @return {@link MicrosoftAuthProvider} instance.
      */
-    public MicrosoftAuthProvider createProvider() {
-        return m_createProvider.get();
+    public MicrosoftAuthProvider createProvider(final String nodeInstanceId) {
+        return m_createProvider.apply(nodeInstanceId);
     }
 
 }

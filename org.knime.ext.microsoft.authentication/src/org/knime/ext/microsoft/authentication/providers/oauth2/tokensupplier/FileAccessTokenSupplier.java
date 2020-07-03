@@ -44,79 +44,67 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-07-03 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.core.node.config.ConfigRO;
+import org.knime.core.node.config.ConfigWO;
+import org.knime.core.util.FileUtil;
+import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
+
+import com.microsoft.aad.msal4j.PublicClientApplication;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Concrete {@link BaseAccessTokenSupplier} that reads the MSAL4J token cache
+ * from a file and uses the contained refresh token to produce a fresh access
+ * token when needed.
  *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public interface MicrosoftAuthProvider {
+public class FileAccessTokenSupplier extends BaseAccessTokenSupplier {
+
+    private static final String KEY_FILE_PATH = "filePath";
+
+    private String m_filePath;
 
     /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
-     *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
+     * @param filePath
      */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    public FileAccessTokenSupplier(final String authority, final String filePath) {
+        super(authority, SupplierType.FILE);
+        m_filePath = filePath;
+    }
 
-    /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
-     */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    public FileAccessTokenSupplier(final String authority) {
+        super(authority, SupplierType.FILE);
+    }
 
-    /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
-     *
-     * @param settings
-     *            The settings.
-     */
-    public void saveSettingsTo(final NodeSettingsWO settings);
+    @Override
+    protected PublicClientApplication createPublicClientApplication() throws IOException {
+        try {
+            byte[] tokenCache = Files.readAllBytes(FileUtil.resolveToPath(FileUtil.toURL(m_filePath)));
+            PublicClientApplication app = MSALUtil.createClientApp(getAuthority());
+            app.tokenCache().deserialize(new String(tokenCache));
+            return app;
+        } catch (URISyntaxException ex) {
+            throw new IOException(ex.getMessage(), ex);
+        }
+    }
 
-    /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
+    @Override
+    public void saveSettings(final ConfigWO config) {
+        super.saveSettings(config);
+        config.addString(KEY_FILE_PATH, m_filePath);
+    }
 
-    /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
-
-    /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
-     */
-    public void clearMemoryTokenCache();
+    @Override
+    public void loadSettings(final ConfigRO config) throws InvalidSettingsException {
+        m_filePath = config.getString(KEY_FILE_PATH);
+    }
 }

@@ -44,79 +44,84 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-07-03 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage;
 
 import java.io.IOException;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.BaseAccessTokenSupplier;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Concrete storage provider that stores an MSAL4J token cache string in the
+ * global {@link MemoryTokenCache}.
  *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public interface MicrosoftAuthProvider {
+class InMemoryStorage implements StorageProvider {
 
     /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
-     *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
+     * Holds a key that is unique to this node instance (even when the node is
+     * copied it will have a different key). The key is used to store the token
+     * cache in-memory.
      */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    private final String m_cacheKey;
+
+    private final String m_authority;
 
     /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
+     * @param nodeInstanceId
+     * @param authority
      */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    public InMemoryStorage(final String nodeInstanceId, final String authority) {
+        m_cacheKey = "mem-" + nodeInstanceId;
+        m_authority = authority;
+    }
 
-    /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
-     *
-     * @param settings
-     *            The settings.
-     */
-    public void saveSettingsTo(final NodeSettingsWO settings);
+    public BaseAccessTokenSupplier createAccessTokenSupplier() {
+        return new MemoryCacheAccessTokenSupplier(m_authority, m_cacheKey);
+    }
 
-    /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
+    private String getMemoryCacheKey() {
+        return m_cacheKey;
+    }
 
-    /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
+    @Override
+    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
+        // do nothing
+    }
 
-    /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
-     */
-    public void clearMemoryTokenCache();
+    @Override
+    public void saveSettingsTo(final NodeSettingsWO settings) {
+        // do nothing
+    }
+
+    @Override
+    public void validate() throws InvalidSettingsException {
+        // do nothing
+    }
+
+    @Override
+    public void writeTokenCache(final String tokenCacheString) throws IOException {
+        MemoryTokenCache.put(getMemoryCacheKey(), tokenCacheString);
+    }
+
+    @Override
+    public String readTokenCache() throws IOException {
+        return MemoryTokenCache.get(getMemoryCacheKey());
+    }
+
+    @Override
+    public void clear() throws IOException {
+        MemoryTokenCache.remove(getMemoryCacheKey());
+    }
+
+    @Override
+    public void clearMemoryTokenCache() {
+        MemoryTokenCache.remove(getMemoryCacheKey());
+    }
 }

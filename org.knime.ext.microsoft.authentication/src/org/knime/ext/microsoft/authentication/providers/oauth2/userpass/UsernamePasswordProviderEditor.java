@@ -46,7 +46,7 @@
  * History
  *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers.ui;
+package org.knime.ext.microsoft.authentication.providers.oauth2.userpass;
 
 import java.awt.Component;
 import java.awt.FlowLayout;
@@ -69,8 +69,9 @@ import org.knime.core.node.defaultnodesettings.DialogComponentPasswordField;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.workflow.VariableType.CredentialsType;
-import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
+import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
+import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.oauth2.ScopesEditComponent;
 
 
 /**
@@ -81,7 +82,10 @@ import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProv
 public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<UsernamePasswordAuthProvider> {
 
     private MicrosoftAuthenticationNodeDialog m_parent;
-    private DialogComponentFlowVariableNameSelection2 m_fwSelector;
+
+    private JRadioButton rbEnterCreds;
+    private JRadioButton rbUseFw;
+    private DialogComponentFlowVariableNameSelection2 m_flowVarSelector;
 
     /**
      * Creates new instance.
@@ -97,42 +101,38 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
         super(provider);
 
         m_parent = parent;
-        m_fwSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(), "",
+        m_flowVarSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(),
+                "",
                 () -> m_parent.getAvailableFlowVariables(CredentialsType.INSTANCE));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected JComponent createContentPane() {
-        JRadioButton rbEnterCreds = new JRadioButton("Enter username and password");
+        rbEnterCreds = new JRadioButton("Username/Password");
         rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
 
-        JRadioButton rbUseFw = new JRadioButton("Read from credential variable");
+        rbUseFw = new JRadioButton("Credentials flow variable");
         rbUseFw.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(true));
 
         ButtonGroup group = new ButtonGroup();
         group.add(rbEnterCreds);
         group.add(rbUseFw);
-        rbEnterCreds.setSelected(true);
-        m_provider.getUseCredentialsModel().addChangeListener(e -> {
-            boolean useCreds = m_provider.getUseCredentialsModel().getBooleanValue();
-            rbEnterCreds.setSelected(!useCreds);
-            rbUseFw.setSelected(useCreds);
-        });
 
         JPanel enterCredPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         enterCredPanel.add(rbEnterCreds);
 
-        JPanel fwPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        fwPanel.add(rbUseFw);
-        fwPanel.add(m_fwSelector.getComponentPanel());
+        JPanel flowVarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        flowVarPanel.add(rbUseFw);
+        flowVarPanel.add(m_flowVarSelector.getComponentPanel());
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
         box.add(enterCredPanel);
         box.add(createUsernamePasswordPanel());
-        box.add(fwPanel);
+        box.add(flowVarPanel);
+        box.add(Box.createVerticalStrut(10));
+
+        box.add(new ScopesEditComponent(m_provider.getScopesModel()));
+        box.add(Box.createVerticalGlue());
         return box;
     }
 
@@ -156,6 +156,7 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
         c.gridy = 1;
         panel.add(new JLabel("Password: "), c);
 
+        c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 1;
         c.gridx = 1;
         c.gridy = 0;
@@ -168,12 +169,18 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
         return panel;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
-        m_fwSelector.loadSettingsFrom(settings, specs);
+        m_flowVarSelector.loadSettingsFrom(settings, specs);
+    }
+
+    @Override
+    public void onProviderSelected() {
+        if (!m_provider.getUseCredentialsModel().getBooleanValue()) {
+            rbEnterCreds.setSelected(true);
+        } else {
+            rbUseFw.setSelected(true);
+        }
     }
 }

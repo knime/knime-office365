@@ -44,79 +44,107 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.port;
 
-import java.io.IOException;
+import javax.swing.JComponent;
 
+import org.knime.core.node.CanceledExecutionException;
+import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.core.node.ModelContentRO;
+import org.knime.core.node.ModelContentWO;
+import org.knime.core.node.port.AbstractSimplePortObject;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.port.PortType;
+import org.knime.core.node.port.PortTypeRegistry;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Port object containing a {@link MicrosoftCredential}.
  *
  * @author Alexander Bondaletov
  */
-public interface MicrosoftAuthProvider {
+public class MicrosoftCredentialPortObject extends AbstractSimplePortObject {
+    /**
+     *
+     * Serializer class
+     */
+    public static final class Serializer extends AbstractSimplePortObjectSerializer<MicrosoftCredentialPortObject> {
+    }
 
     /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
-     *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
+     * The type of this port.
      */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    @SuppressWarnings("hiding")
+    public static final PortType TYPE = PortTypeRegistry.getInstance().getPortType(MicrosoftCredentialPortObject.class);
+
+    private MicrosoftCredentialPortObjectSpec m_spec;
 
     /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
+     * Creates new instance
      */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    public MicrosoftCredentialPortObject() {
+        this(null);
+    }
 
     /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
+     * Creates new instance with a given spec.
      *
-     * @param settings
-     *            The settings.
+     * @param spec
+     *            The spec.
+     *
      */
-    public void saveSettingsTo(final NodeSettingsWO settings);
+    public MicrosoftCredentialPortObject(final MicrosoftCredentialPortObjectSpec spec) {
+        m_spec = spec;
+    }
 
     /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
+     * @return The microsoft connection object.
      */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
+    public MicrosoftCredential getMicrosoftCredentials() {
+        return m_spec.getMicrosoftCredential();
+    }
 
     /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
+     * {@inheritDoc}
      */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
+    @Override
+    public String getSummary() {
+        return getMicrosoftCredentials().getSummary();
+    }
 
     /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
+     * {@inheritDoc}
      */
-    public void clearMemoryTokenCache();
+    @Override
+    public PortObjectSpec getSpec() {
+        return m_spec;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void save(final ModelContentWO model, final ExecutionMonitor exec) throws CanceledExecutionException {
+        // nothing to do
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected void load(final ModelContentRO model, final PortObjectSpec spec, final ExecutionMonitor exec)
+            throws InvalidSettingsException, CanceledExecutionException {
+        m_spec = (MicrosoftCredentialPortObjectSpec) spec;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JComponent[] getViews() {
+        return m_spec.getViews();
+    }
 }

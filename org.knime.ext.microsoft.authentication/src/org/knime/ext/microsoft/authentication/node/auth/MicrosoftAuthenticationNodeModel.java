@@ -46,12 +46,10 @@
  * History
  *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.nodes.auth;
+package org.knime.ext.microsoft.authentication.node.auth;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.util.concurrent.ExecutionException;
 
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -63,111 +61,101 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
-import org.knime.core.node.workflow.ICredentials;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObject;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
+import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
 
 /**
  * Microsoft authentication node. Performs authentication using one of the
- * different methods and provides {@link MicrosoftConnectionPortObject}.
+ * different methods and provides {@link MicrosoftCredentialPortObject}.
  *
  * @author Alexander Bondaletov
  */
 public class MicrosoftAuthenticationNodeModel extends NodeModel {
 
-    private final MicrosoftAuthenticationSettings m_settings = new MicrosoftAuthenticationSettings();
+    private final MicrosoftAuthenticationSettings m_settings;
 
     /**
      * Creates new instance.
+     *
+     * @param nodeInstanceId
      */
-    protected MicrosoftAuthenticationNodeModel() {
-        super(new PortType[] {}, new PortType[] { MicrosoftConnectionPortObject.TYPE });
+    MicrosoftAuthenticationNodeModel(final String nodeInstanceId) {
+        super(new PortType[] {}, new PortType[] { MicrosoftCredentialPortObject.TYPE });
+        m_settings = new MicrosoftAuthenticationSettings(nodeInstanceId);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        return new PortObject[] { new MicrosoftConnectionPortObject(createSpec()) };
+        return new PortObject[] { new MicrosoftCredentialPortObject(createSpec()) };
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        return new PortObjectSpec[] { new MicrosoftConnectionPortObjectSpec(null) };
+        return new PortObjectSpec[] { new MicrosoftCredentialPortObjectSpec(null) };
     }
 
-    private MicrosoftConnectionPortObjectSpec createSpec() throws InvalidSettingsException {
-        MicrosoftConnection connection;
-        try {
-            connection = m_settings.getCurrentProvider().authenticate(this);
-        } catch (MalformedURLException | InvalidSettingsException | InterruptedException | ExecutionException ex) {
-            throw new InvalidSettingsException(ex);
-        }
-        return new MicrosoftConnectionPortObjectSpec(connection);
+    private MicrosoftCredentialPortObjectSpec createSpec() throws IOException {
+        MicrosoftCredential cred = m_settings.getCurrentProvider().getCredential(getCredentialsProvider());
+
+        return new MicrosoftCredentialPortObjectSpec(cred);
     }
 
-    /**
-     * @param name
-     *            The credentials name
-     * @return {@link ICredentials} instance for a given name.
-     */
-    public ICredentials getCredentials(final String name) {
-        return getCredentialsProvider().get(name);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
-        // no internals
+
+        final String needResetAndRexecuteMsg = "Access token not available anymore. Please re-execute this node.";
+
+        if (m_settings.getProviderType() == AuthProviderType.INTERACTIVE) {
+            final InteractiveAuthProvider provider = (InteractiveAuthProvider) m_settings.getCurrentProvider();
+            switch (provider.getStorageSettings().getStorageType()) {
+            case MEMORY:
+                setWarningMessage(
+                        "Access token not available anymore. Please reset this node and login in the node dialog again.");
+                break;
+            case SETTINGS:
+                setWarningMessage(needResetAndRexecuteMsg);
+                break;
+            default:
+                // don't display warning for FILE
+                break;
+            }
+        } else if (m_settings.getProviderType() == AuthProviderType.USERNAME_PASSWORD) {
+            setWarningMessage(needResetAndRexecuteMsg);
+        }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
         // no internals
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
         m_settings.saveSettingsTo(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_settings.validateSettings(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_settings.loadSettingsFrom(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void reset() {
-        // not used
+
     }
 
+    @Override
+    protected void onDispose() {
+        m_settings.clearMemoryTokenCache();
+    }
 }

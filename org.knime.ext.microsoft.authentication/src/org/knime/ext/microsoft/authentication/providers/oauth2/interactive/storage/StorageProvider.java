@@ -44,79 +44,39 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-07-06 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage;
 
 import java.io.IOException;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.BaseAccessTokenSupplier;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Describes a storage provider that somehow stores an MSAL4J token cache
+ * string.
  *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public interface MicrosoftAuthProvider {
+interface StorageProvider {
 
-    /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
-     *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
-     */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
 
-    /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
-     */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    void saveSettingsTo(final NodeSettingsWO settings);
 
-    /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
-     *
-     * @param settings
-     *            The settings.
-     */
-    public void saveSettingsTo(final NodeSettingsWO settings);
+    void validate() throws InvalidSettingsException;
 
-    /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
+    void writeTokenCache(final String tokenCacheString) throws IOException;
 
-    /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
+    String readTokenCache() throws IOException;
 
-    /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
-     */
-    public void clearMemoryTokenCache();
+    BaseAccessTokenSupplier createAccessTokenSupplier();
+
+    void clear() throws IOException;
+
+    void clearMemoryTokenCache();
+
 }

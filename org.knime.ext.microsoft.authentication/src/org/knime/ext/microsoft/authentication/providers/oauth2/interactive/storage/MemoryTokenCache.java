@@ -44,79 +44,42 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-07-03 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Provides a JVM global in-memory cache for storing MSAL4J token cache strings.
+ * Main motivation for this class is to avoid writing any tokens into the
+ * {@link MicrosoftCredential} (which is part of the port object and serialized
+ * to disk). Instead, the {@link MicrosoftCredential} only holds a key for this
+ * cache.
  *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public interface MicrosoftAuthProvider {
+public class MemoryTokenCache {
 
-    /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
-     *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
-     */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    private final static Map<String, String> IN_MEMORY_STORAGE = new HashMap<>();
 
-    /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
-     */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    public synchronized static void put(final String key, final String tokenCacheString) {
+        IN_MEMORY_STORAGE.put(key, tokenCacheString);
+    }
 
-    /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
-     *
-     * @param settings
-     *            The settings.
-     */
-    public void saveSettingsTo(final NodeSettingsWO settings);
+    public synchronized static boolean containsKey(final String key) {
+        return IN_MEMORY_STORAGE.containsKey(key);
+    }
 
-    /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
+    public synchronized static String get(final String key) throws IOException {
+        return IN_MEMORY_STORAGE.get(key);
+    }
 
-    /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
-
-    /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
-     */
-    public void clearMemoryTokenCache();
+    public synchronized static void remove(final String key) {
+        IN_MEMORY_STORAGE.remove(key);
+    }
 }

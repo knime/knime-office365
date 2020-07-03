@@ -44,79 +44,40 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-06-28 (Alexander Bondaletov): created
  */
 package org.knime.ext.microsoft.authentication.providers;
 
-import java.io.IOException;
+import javax.swing.JComponent;
 
-import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Base interface for {@link MicrosoftAuthProvider} editor component.
  *
  * @author Alexander Bondaletov
  */
-public interface MicrosoftAuthProvider {
-
+public interface MicrosoftAuthProviderEditor {
     /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
-     *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
+     * @return The component
      */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    public JComponent getComponent();
+
+    public void onProviderSelected();
 
     /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
-     */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
-
-    /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
+     * Performs initialization of the dialog components that should be initialized
+     * with specs or any other actions that should be executed after settings are
+     * loaded.
      *
      * @param settings
-     *            The settings.
+     *            The node settings
+     * @param specs
+     *            The input specs.
+     * @throws NotConfigurableException
      */
-    public void saveSettingsTo(final NodeSettingsWO settings);
-
-    /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
-
-    /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
-
-    /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
-     */
-    public void clearMemoryTokenCache();
+    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException;
 }

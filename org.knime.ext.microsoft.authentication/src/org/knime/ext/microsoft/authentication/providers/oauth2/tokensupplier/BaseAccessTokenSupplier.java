@@ -44,15 +44,20 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-06 (Alexander Bondaletov): created
+ *   2020-07-03 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication;
+package org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.util.Date;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.config.ConfigRO;
+import org.knime.core.node.config.ConfigWO;
+import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 
 import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
@@ -60,66 +65,68 @@ import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.aad.msal4j.SilentParameters;
 
 /**
- * Class for supplying a short-lived access token provided by MSAL.
- * Automatically refreshes this token using information stored in the client's
- * token cache.
+ * Abstract base class for OAuth2 access token suppliers. This base class will
+ * use the refresh token contained in the MSAL4J token cache to produce a fresh
+ * access token when needed.
  *
- * Should be initialized with {@link PublicClientApplication} instance with
- * token cache restored.
- *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class MSALAccessTokenSupplier {
-    private final Set<String> m_scopes;
-    private final PublicClientApplication m_client;
-
-    private String m_accessToken;
-    private Date m_expiresOn;
+public abstract class BaseAccessTokenSupplier {
 
     /**
-     * Creates new instance.
+     * Types of suppliers for OAuth2 access tokens.
      *
-     * @param scopes
-     *            Requested scopes.
-     * @param client
-     *            The client instance. Should have it's token cache
-     *            initialized/restored.
-     *
+     * @author bjoern
      */
-    public MSALAccessTokenSupplier(final Set<String> scopes, final PublicClientApplication client) {
-        m_scopes = scopes;
-        m_client = client;
-        m_expiresOn = new Date(0);
+    public enum SupplierType {
+        FILE, MEMORY;
+    }
+
+    static final String KEY_TOKEN_SUPPLIER_TYPE = "tokenSupplierType";
+
+    private final SupplierType m_type;
+
+    private final String m_authority;
+
+    public BaseAccessTokenSupplier(final String authority, final SupplierType type) {
+        m_type = type;
+        m_authority = authority;
     }
 
     /**
-     * Provides OAuth Access Token. Performs token refresh request in case current
-     * token is expired.
-     *
-     * @return The access token
-     * @throws IOException
+     * @return the authority
      */
-    public String getAccessToken() throws IOException {
-        if (m_accessToken == null || m_expiresOn.before(new Date())) {
-            try {
-                refreshToken();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException ex) {
-                throw unwrapIOE(ex);
-            }
+    public String getAuthority() {
+        return m_authority;
+    }
+
+    public void saveSettings(final ConfigWO config) {
+        config.addString(KEY_TOKEN_SUPPLIER_TYPE, m_type.toString());
+    }
+
+    public abstract void loadSettings(ConfigRO config) throws InvalidSettingsException;
+
+    public final String getAccessToken(final EnumSet<Scope> scopes) throws IOException {
+        final PublicClientApplication app = createPublicClientApplication();
+
+        try {
+            IAccount account = app.getAccounts().get().iterator().next();
+
+            final Set<String> scopeStrings = new HashSet<>();
+            scopes.stream().map((s) -> s.getScope()).forEach(scopeStrings::add);
+
+            IAuthenticationResult result = app
+                    .acquireTokenSilently(SilentParameters.builder(scopeStrings, account).build())
+                    .get();
+            return result.accessToken();
+        } catch (InterruptedException e) {
+            throw new IOException("Canceled while acquiring access token", e);
+        } catch (ExecutionException ex) {
+            throw unwrapIOE(ex);
         }
-        return m_accessToken;
     }
 
-    private void refreshToken()
-            throws MalformedURLException, InterruptedException, ExecutionException {
-        IAccount account = m_client.getAccounts().get().iterator().next();
-        IAuthenticationResult result = m_client
-                .acquireTokenSilently(SilentParameters.builder(m_scopes, account).build()).get();
-        m_accessToken = result.accessToken();
-        m_expiresOn = result.expiresOnDate();
-    }
+    protected abstract PublicClientApplication createPublicClientApplication() throws IOException;
 
     private static IOException unwrapIOE(final ExecutionException ex) {
         Throwable cause = ex.getCause();

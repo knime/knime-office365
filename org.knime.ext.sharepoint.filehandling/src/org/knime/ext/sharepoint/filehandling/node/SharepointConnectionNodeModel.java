@@ -62,12 +62,10 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
-import org.knime.ext.microsoft.authentication.MSALAccessTokenSupplier;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObject;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObjectSpec;
-import org.knime.ext.microsoft.authentication.providers.MSALAuthProvider;
-import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
@@ -95,26 +93,22 @@ public class SharepointConnectionNodeModel extends NodeModel {
      * Creates new instance.
      */
     protected SharepointConnectionNodeModel() {
-        super(new PortType[] { MicrosoftConnectionPortObject.TYPE }, new PortType[] { FileSystemPortObject.TYPE });
+        super(new PortType[] { MicrosoftCredentialPortObject.TYPE }, new PortType[] { FileSystemPortObject.TYPE });
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        MicrosoftConnection connection = ((MicrosoftConnectionPortObject) inObjects[0]).getMicrosoftConnection();
+        MicrosoftCredential connection = ((MicrosoftCredentialPortObjectSpec) inObjects[0]
+                .getSpec())
+                .getMicrosoftCredential();
         m_fsConnection = new SharepointConnection(createGraphAuthProvider(connection), m_settings);
         FSConnectionRegistry.getInstance().register(m_fsId, m_fsConnection);
         return new PortObject[] { new FileSystemPortObject(createSpec()) };
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        MicrosoftConnection connection = ((MicrosoftConnectionPortObjectSpec) inSpecs[0]).getMicrosoftConnection();
+        MicrosoftCredential connection = ((MicrosoftCredentialPortObjectSpec) inSpecs[0]).getMicrosoftCredential();
         if (connection == null) {
             throw new InvalidSettingsException("Not authenticated");
         }
@@ -191,25 +185,23 @@ public class SharepointConnectionNodeModel extends NodeModel {
 
     /**
      * Creates {@link IAuthenticationProvider} from the given
-     * {@link MicrosoftConnection} object.
+     * {@link MicrosoftCredential} object.
      *
      * @param connection
      *            The Microsoft connection object.
      * @return The {@link IAuthenticationProvider} instance.
      * @throws MalformedURLException
      */
-    public static IAuthenticationProvider createGraphAuthProvider(final MicrosoftConnection connection)
-            throws MalformedURLException {
-        MicrosoftAuthProvider provider = connection.getProviderType()
-                .createProvider();
+    public static IAuthenticationProvider createGraphAuthProvider(
+            final MicrosoftCredential connection)
+            throws IOException {
 
-        if (!(provider instanceof MSALAuthProvider)) {
-            throw new UnsupportedOperationException("Unsupported provider type: " + connection.getProviderType());
+        if (!(connection instanceof OAuth2Credential)) {
+            throw new UnsupportedOperationException("Unsupported credential type: " + connection.getType());
         }
 
-        MSALAccessTokenSupplier tokenSupplier = ((MSALAuthProvider) provider)
-                .createTokenSupplier(connection);
+        final String accessToken = ((OAuth2Credential) connection).getAccessToken();
 
-        return new GraphApiAuthenticationProvider(tokenSupplier);
+        return new GraphApiAuthenticationProvider(accessToken);
     }
 }

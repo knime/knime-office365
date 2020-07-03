@@ -44,79 +44,52 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-07-03 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.oauth2;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import com.microsoft.aad.msal4j.MsalClientException;
+import com.microsoft.aad.msal4j.PublicClientApplication;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Utility class the help with MSAL4J.
  *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public interface MicrosoftAuthProvider {
+public class MSALUtil {
+
+    private static final String APP_ID = "cf47ff49-7da6-4603-b339-f4475176432b";
+
+    public static final String COMMON_AUTHORITY = "https://login.microsoftonline.com/common";
+
+    public static final String ORGANIZATIONS_AUTHORITY = "https://login.microsoftonline.com/organizations";
 
     /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
+     * Creates the {@link PublicClientApplication} instance.
      *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
+     * @return The client application.
+     * @throws MalformedURLException
      */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    public static PublicClientApplication createClientApp(final String authority) {
+        try {
+            return PublicClientApplication.builder(APP_ID).authority(authority).build();
+        } catch (MalformedURLException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
+    }
 
-    /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
-     */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    public static PublicClientApplication createClientAppWithToken(final String authority, final String tokenCache)
+            throws IOException {
+        try {
+            final PublicClientApplication app = MSALUtil.createClientApp(authority);
+            app.tokenCache().deserialize(tokenCache);
+            return app;
+        } catch (MsalClientException e) {
+            throw new IOException(e.getMessage(), e);
+        }
+    }
 
-    /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
-     *
-     * @param settings
-     *            The settings.
-     */
-    public void saveSettingsTo(final NodeSettingsWO settings);
-
-    /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
-
-    /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
-
-    /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
-     */
-    public void clearMemoryTokenCache();
 }

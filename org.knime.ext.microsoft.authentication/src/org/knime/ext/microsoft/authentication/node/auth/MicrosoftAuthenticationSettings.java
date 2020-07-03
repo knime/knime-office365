@@ -46,7 +46,7 @@
  * History
  *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.nodes.auth;
+package org.knime.ext.microsoft.authentication.node.auth;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -58,6 +58,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
+import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
 
 
 /**
@@ -74,13 +75,15 @@ public class MicrosoftAuthenticationSettings {
 
     /**
      * Creates new instance.
+     *
+     * @param nodeInstanceId
      */
-    public MicrosoftAuthenticationSettings() {
+    public MicrosoftAuthenticationSettings(final String nodeInstanceId) {
         m_providerType = new SettingsModelString(KEY_PROVIDER_TYPE, "");
 
         m_providers = new EnumMap<>(AuthProviderType.class);
         for (AuthProviderType type : AuthProviderType.values()) {
-            m_providers.put(type, type.createProvider());
+            m_providers.put(type, type.createProvider(nodeInstanceId));
         }
     }
 
@@ -120,6 +123,17 @@ public class MicrosoftAuthenticationSettings {
      */
     public MicrosoftAuthProvider getCurrentProvider() {
         return getProvider(getProviderType());
+    }
+
+    /**
+     * Clears any tokens that the providers have put into {@link MemoryTokenCache}.
+     * Typically, this should be called when the node is reset or the workflow is
+     * disposed.
+     */
+    public void clearMemoryTokenCache() {
+        for (MicrosoftAuthProvider provider : m_providers.values()) {
+            provider.clearMemoryTokenCache();
+        }
     }
 
     /**

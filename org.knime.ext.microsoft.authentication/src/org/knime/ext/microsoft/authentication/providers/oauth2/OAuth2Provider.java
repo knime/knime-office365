@@ -46,32 +46,29 @@
  * History
  *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.oauth2;
 
-import java.net.MalformedURLException;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.MSALAccessTokenSupplier;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.port.MicrosoftScopes;
-
-import com.microsoft.aad.msal4j.PublicClientApplication;
+import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
+import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 
 /**
- * Base class for auth providers implementing different authentication methods
- * supported by MSAL.
+ * Base class for auth providers implementing OAuth2 authentication using
+ * msal4j.
  *
  * @author Alexander Bondaletov
  */
-public abstract class MSALAuthProvider implements MicrosoftAuthProvider {
-    private static final String APP_ID = "cf47ff49-7da6-4603-b339-f4475176432b";
-    private static final String DEFAULT_AUTHORITY = "https://login.microsoftonline.com/common";
+public abstract class OAuth2Provider implements MicrosoftAuthProvider {
 
     private static final String KEY_SCOPES = "scopes";
 
@@ -81,9 +78,9 @@ public abstract class MSALAuthProvider implements MicrosoftAuthProvider {
      * Creates new instance.
      *
      */
-    public MSALAuthProvider() {
+    public OAuth2Provider() {
         m_scopes = new SettingsModelStringArray(KEY_SCOPES,
-                new String[] { MicrosoftScopes.SITES_READ_WRITE.getScope() });
+                new String[] { Scope.SITES_READ_WRITE.getScope() });
     }
 
     /**
@@ -93,52 +90,29 @@ public abstract class MSALAuthProvider implements MicrosoftAuthProvider {
         return m_scopes;
     }
 
-    /**
-     * @return the scopes
-     */
-    public Set<String> getScopes() {
+    public Set<String> getScopesStringSet() {
         return new HashSet<>(Arrays.asList(m_scopes.getStringArrayValue()));
     }
 
     /**
-     * Creates {@link MSALAccessTokenSupplier} instance used to acquire OAuth Asses
-     * Token
-     *
-     * @param connection
-     *            The Microsoft connection object.
-     *
-     * @return The token supplier.
-     * @throws MalformedURLException
+     * @return the scopes
      */
-    public MSALAccessTokenSupplier createTokenSupplier(final MicrosoftConnection connection)
-            throws MalformedURLException {
-        PublicClientApplication app = createClientApp();
-        app.tokenCache().deserialize(connection.getTokenCache());
-        return new MSALAccessTokenSupplier(connection.getScopes(), app);
+    public EnumSet<Scope> getScopesEnumSet() {
+        final List<Scope> scopeList = Arrays.stream(m_scopes.getStringArrayValue()) //
+                .<Scope>map(
+                        Scope::fromScope) //
+                .collect(Collectors.toList());
+
+        return EnumSet.copyOf(scopeList);
     }
 
     /**
-     * Creates the {@link PublicClientApplication} instance.
-     *
-     * @return The client application.
-     * @throws MalformedURLException
-     */
-    protected PublicClientApplication createClientApp() throws MalformedURLException {
-        return PublicClientApplication.builder(APP_ID).authority(getAuthority()).build();
-    }
-
-    /**
-     * Returns appropriate authority for a current provider.
+     * Returns appropriate authority for the current provider.
      *
      * @return The authority.
      */
-    protected String getAuthority() {
-        return DEFAULT_AUTHORITY;
-    }
+    protected abstract String getAuthority();
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
         m_scopes.saveSettingsTo(settings);
@@ -156,9 +130,6 @@ public abstract class MSALAuthProvider implements MicrosoftAuthProvider {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_scopes.loadSettingsFrom(settings);

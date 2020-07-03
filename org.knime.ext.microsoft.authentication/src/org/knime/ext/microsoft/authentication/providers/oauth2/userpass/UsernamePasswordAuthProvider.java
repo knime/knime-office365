@@ -46,9 +46,9 @@
  * History
  *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.oauth2.userpass;
 
-import java.net.MalformedURLException;
+import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -57,31 +57,35 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
-import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeModel;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.providers.ui.MicrosoftAuthProviderEditor;
-import org.knime.ext.microsoft.authentication.providers.ui.UsernamePasswordProviderEditor;
+import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
+import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
+import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.aad.msal4j.UserNamePasswordParameters;
 
 /**
- * {@link MSALAuthProvider} implementation that performs authentication
+ * {@link OAuth2Provider} implementation that performs authentication
  * using username and password provided by user.
  *
  * @author Alexander Bondaletov
  */
-public class UsernamePasswordAuthProvider extends MSALAuthProvider {
+public class UsernamePasswordAuthProvider extends OAuth2Provider {
 
-    private static final String AUTHORITY = "https://login.microsoftonline.com/organizations";
     private static final String KEY_USERNAME = "username";
     private static final String KEY_PASSWORD = "password";
     private static final String KEY_USE_CREDENTIALS = "useCredentials";
     private static final String KEY_CREDENTIALS_NAME = "credentialsName";
     private static final String ENCRYPTION_KEY = "Z4mJcnXMrtXKW8wp";
+
+    private final String m_cacheKey;
 
     private final SettingsModelString m_username;
     private final SettingsModelPassword m_password;
@@ -90,8 +94,10 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
 
     /**
      * Creates new instance.
+     *
+     * @param nodeInstanceId
      */
-    public UsernamePasswordAuthProvider() {
+    public UsernamePasswordAuthProvider(final String nodeInstanceId) {
         super();
         m_username = new SettingsModelString(KEY_USERNAME, "");
         m_password = new SettingsModelPassword(KEY_PASSWORD, ENCRYPTION_KEY, "");
@@ -105,6 +111,8 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
             m_password.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
         });
+
+        m_cacheKey = "userpass-" + nodeInstanceId;
     }
 
     /**
@@ -135,45 +143,58 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
         return m_credentialsName;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public MicrosoftConnection authenticate(final MicrosoftAuthenticationNodeModel model)
-            throws InterruptedException, ExecutionException, MalformedURLException {
+    public OAuth2Credential getCredential(
+            final CredentialsProvider credentialsProvider)
+            throws IOException {
         String username;
         String password;
 
         if (m_useCredentials.getBooleanValue()) {
-            ICredentials creds = model.getCredentials(m_credentialsName.getStringValue());
+            ICredentials creds = credentialsProvider.get(m_credentialsName.getStringValue());
             username = creds.getLogin();
             password = creds.getPassword();
+
+            if (password == null || password.isEmpty()) {
+                throw new IOException("The selected credentials flow variable does not provide a password");
+            }
         } else {
             username = m_username.getStringValue();
             password = m_password.getStringValue();
         }
 
-        PublicClientApplication app = createClientApp();
+        PublicClientApplication app = MSALUtil.createClientApp(getAuthority());
 
-        final IAuthenticationResult result = app.acquireToken(
-                UserNamePasswordParameters.builder(getScopes(), username, password.toCharArray()).build())
-                .get();
+        try {
+            final IAuthenticationResult result = app.acquireToken(
+                    UserNamePasswordParameters.builder(getScopesStringSet(), username, password.toCharArray()).build())
+                    .get();
 
-        return new MicrosoftConnection(AuthProviderType.USERNAME_PASSWORD, app.tokenCache().serialize(),
-                result.account().username(), result.expiresOnDate(), getScopes(), getAuthority());
+            MemoryTokenCache.put(m_cacheKey, app.tokenCache().serialize());
+
+            final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(getAuthority(),
+                    m_cacheKey);
+
+            return new OAuth2Credential(tokenSupplier, //
+                    result.account().username(), //
+                    result.expiresOnDate().toInstant(), //
+                    getScopesEnumSet(), //
+                    getAuthority());
+        } catch (InterruptedException | ExecutionException ex) {
+            throw new IOException(ex);
+        }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
         return new UsernamePasswordProviderEditor(this, parent);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
+    protected String getAuthority() {
+        return MSALUtil.ORGANIZATIONS_AUTHORITY;
+    }
+
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
         super.saveSettingsTo(settings);
@@ -183,9 +204,6 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
         m_credentialsName.saveSettingsTo(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_username.validateSettings(settings);
@@ -193,7 +211,7 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        UsernamePasswordAuthProvider temp = new UsernamePasswordAuthProvider();
+        UsernamePasswordAuthProvider temp = new UsernamePasswordAuthProvider("");
         temp.loadSettingsFrom(settings);
         temp.validate();
     }
@@ -215,9 +233,6 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadSettingsFrom(settings);
@@ -227,12 +242,8 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
         m_useCredentials.loadSettingsFrom(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected String getAuthority() {
-        return AUTHORITY;
+    public void clearMemoryTokenCache() {
+        MemoryTokenCache.remove(m_cacheKey);
     }
-
 }

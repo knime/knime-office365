@@ -67,8 +67,8 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnectionPortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
@@ -87,7 +87,7 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
     private final WorkingDirectoryChooser m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir",
             this::createFSConnection);
 
-    private MicrosoftConnection m_connection;
+    private MicrosoftCredential m_connection;
 
     /**
      * Creates new instance.
@@ -193,7 +193,7 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
             // ignore
         }
 
-        m_connection = ((MicrosoftConnectionPortObjectSpec) specs[0]).getMicrosoftConnection();
+        m_connection = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
         if (m_connection == null) {
             throw new NotConfigurableException("Authentication required");
         }

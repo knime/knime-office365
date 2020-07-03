@@ -44,79 +44,59 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-07-03 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier;
 
 import java.io.IOException;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.core.node.config.ConfigRO;
+import org.knime.core.node.config.ConfigWO;
+import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
 
+import com.microsoft.aad.msal4j.PublicClientApplication;
+
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Concrete {@link BaseAccessTokenSupplier} that reads the MSAL4J token cache
+ * from the JVM global {@link MemoryTokenCache} and uses the contained refresh
+ * token to produce a fresh access token when needed.
  *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public interface MicrosoftAuthProvider {
+public class MemoryCacheAccessTokenSupplier extends BaseAccessTokenSupplier {
 
-    /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
-     *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
-     */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    private static final String KEY_CACHE_KEY = "cacheKey";
 
-    /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
-     */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    private String m_cacheKey;
 
-    /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
-     *
-     * @param settings
-     *            The settings.
-     */
-    public void saveSettingsTo(final NodeSettingsWO settings);
+    public MemoryCacheAccessTokenSupplier(final String authority) {
+        super(authority, SupplierType.MEMORY);
+    }
 
-    /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
+    public MemoryCacheAccessTokenSupplier(final String authority, final String cacheKey) {
+        super(authority, SupplierType.MEMORY);
+        m_cacheKey = cacheKey;
+    }
 
-    /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
+    @Override
+    protected PublicClientApplication createPublicClientApplication() throws IOException {
+        final String tokenCacheString = MemoryTokenCache.get(m_cacheKey);
+        if (tokenCacheString == null) {
+            throw new IOException("No access token found. Please re-execute the Microsoft Authentication node.");
+        }
+        return MSALUtil.createClientAppWithToken(getAuthority(), tokenCacheString);
+    }
 
-    /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
-     */
-    public void clearMemoryTokenCache();
+    @Override
+    public void saveSettings(final ConfigWO config) {
+        super.saveSettings(config);
+        config.addString(KEY_CACHE_KEY, m_cacheKey);
+    }
+
+    @Override
+    public void loadSettings(final ConfigRO config) throws InvalidSettingsException {
+        m_cacheKey = config.getString(KEY_CACHE_KEY);
+    }
 }

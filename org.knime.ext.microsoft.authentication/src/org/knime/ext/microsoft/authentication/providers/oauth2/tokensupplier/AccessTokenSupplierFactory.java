@@ -44,81 +44,42 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-06 (Alexander Bondaletov): created
+ *   2020-07-06 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers.ui;
+package org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier;
 
-import javax.swing.BoxLayout;
-import javax.swing.JComponent;
-import javax.swing.JPanel;
-
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.microsoft.authentication.providers.MSALAuthProvider;
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.config.ConfigRO;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.BaseAccessTokenSupplier.SupplierType;
 
 /**
- * Base class for editor component for {@link MSALAuthProvider}.
+ * Factory class that creates instances of concrete
+ * {@link BaseAccessTokenSupplier}s.
  *
- *
- * @param <T>
- *            The actual class of the provider.
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public abstract class MSALAuthProviderEditor<T extends MSALAuthProvider> implements MicrosoftAuthProviderEditor {
+public class AccessTokenSupplierFactory {
 
-    /**
-     * {@link MSALAuthProvider} instance.
-     */
-    protected final T m_provider;
-    /**
-     * Editor component panel.
-     */
-    protected JPanel m_component;
+    public static BaseAccessTokenSupplier createFromSettings(final String authority,
+            final ConfigRO config)
+            throws InvalidSettingsException {
 
-    /**
-     * Creates new instance.
-     *
-     * @param provider
-     *            The provider
-     *
-     */
-    public MSALAuthProviderEditor(final T provider) {
-        m_provider = provider;
-    }
+        final SupplierType type = SupplierType
+                .valueOf(config.getString(BaseAccessTokenSupplier.KEY_TOKEN_SUPPLIER_TYPE));
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public JComponent getComponent() {
-        if (m_component == null) {
-            initUI();
+        final BaseAccessTokenSupplier supplier;
+        switch (type) {
+        case FILE:
+            supplier = new FileAccessTokenSupplier(authority);
+            break;
+        case MEMORY:
+            supplier = new MemoryCacheAccessTokenSupplier(authority);
+            break;
+        default:
+            throw new IllegalStateException();
         }
-        return m_component;
+
+        supplier.loadSettings(config);
+        return supplier;
     }
-
-    private void initUI() {
-        m_component = new JPanel();
-        m_component.setLayout(new BoxLayout(m_component, BoxLayout.PAGE_AXIS));
-        m_component.add(createContentPane());
-        m_component.add(new MicrosoftScopesEditComponent(m_provider.getScopesModel()));
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
-            throws NotConfigurableException {
-        // default empty implementation
-    }
-
-    /**
-     * Creates panel to edit any provider-specific settings
-     *
-     * @return The content panel.
-     */
-    protected abstract JComponent createContentPane();
-
 }

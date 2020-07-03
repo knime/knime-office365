@@ -44,79 +44,116 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.port;
 
-import java.io.IOException;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.core.node.ModelContentRO;
+import org.knime.core.node.ModelContentWO;
+import org.knime.core.node.port.AbstractSimplePortObjectSpec;
+import org.knime.core.node.util.ViewUtils;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Specification for the {@link MicrosoftCredentialPortObject}.
  *
  * @author Alexander Bondaletov
  */
-public interface MicrosoftAuthProvider {
+public class MicrosoftCredentialPortObjectSpec extends AbstractSimplePortObjectSpec {
+    /**
+     * Serializer class.
+     */
+    public static final class Serializer extends AbstractSimplePortObjectSpecSerializer<MicrosoftCredentialPortObjectSpec> {
+    }
+
+    private MicrosoftCredential m_credentials;
 
     /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
-     *
-     * @param credentialsProvider
-     *            A provider for workflow credentials. Only required by certain
-     *            authentication providers.
-     *
-     * @return The Microsoft connection object.
-     * @throws IOException
+     * Creates new instance.
      */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    public MicrosoftCredentialPortObjectSpec() {
+        this(null);
+    }
 
     /**
-     * Creates editor component for the provider.
+     * Creates new instance with a given {@link MicrosoftConnection}.
      *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
+     * @param microsoftCredentials
+     *            The connection.
      */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    public MicrosoftCredentialPortObjectSpec(final MicrosoftCredential microsoftCredentials) {
+        m_credentials = microsoftCredentials;
+    }
 
     /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
-     *
-     * @param settings
-     *            The settings.
+     * @return the Microsoft Connection
      */
-    public void saveSettingsTo(final NodeSettingsWO settings);
+    public MicrosoftCredential getMicrosoftCredential() {
+        return m_credentials;
+    }
 
     /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
+     * {@inheritDoc}
      */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
+    @Override
+    protected void save(final ModelContentWO model) {
+        m_credentials.saveSettings(model);
+
+    }
 
     /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
+     * {@inheritDoc}
      */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
+    @Override
+    protected void load(final ModelContentRO model) throws InvalidSettingsException {
+        m_credentials = MicrosoftCredential.loadFromSettings(model);
+    }
 
     /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
+     * {@inheritDoc}
      */
-    public void clearMemoryTokenCache();
+    @Override
+    public boolean equals(final Object ospec) {
+        if (this == ospec) {
+            return true;
+        }
+
+        if (!(ospec instanceof MicrosoftCredentialPortObjectSpec)) {
+            return false;
+        }
+
+        MicrosoftCredentialPortObjectSpec spec = (MicrosoftCredentialPortObjectSpec) ospec;
+
+        if (m_credentials == null) {
+            return spec.m_credentials == null;
+        }
+
+        return m_credentials.equals(spec.m_credentials);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int hashCode() {
+        return m_credentials == null ? 0 : m_credentials.hashCode();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JComponent[] getViews() {
+        if (m_credentials != null) {
+            return new JComponent[] { m_credentials.getView() };
+        }
+
+        JPanel f = ViewUtils.getInFlowLayout(new JLabel("No connection available"));
+        f.setName("Connection");
+        return new JComponent[] { f };
+    }
 }

@@ -46,7 +46,7 @@
  * History
  *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers.ui;
+package org.knime.ext.microsoft.authentication.providers.oauth2;
 
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -62,7 +62,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.port.MicrosoftScopes;
+import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 
 
 /**
@@ -70,11 +70,11 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftScopes;
  *
  * @author Alexander Bondaletov
  */
-public class MicrosoftScopesEditComponent extends JPanel {
+public class ScopesEditComponent extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private SettingsModelStringArray m_scopes;
-    private Map<MicrosoftScopes, JCheckBox> m_checkboxes;
+    private Map<Scope, JCheckBox> m_checkboxes;
 
     /**
      * Creates new instance.
@@ -82,9 +82,9 @@ public class MicrosoftScopesEditComponent extends JPanel {
      * @param scopes
      *            Settings model to store settings.
      */
-    public MicrosoftScopesEditComponent(final SettingsModelStringArray scopes) {
+    public ScopesEditComponent(final SettingsModelStringArray scopes) {
         m_scopes = scopes;
-        m_checkboxes = new EnumMap<>(MicrosoftScopes.class);
+        m_checkboxes = new EnumMap<>(Scope.class);
         initUI();
 
         m_scopes.addChangeListener(e -> updateCheckboxes());
@@ -100,7 +100,7 @@ public class MicrosoftScopesEditComponent extends JPanel {
         c.gridx = 0;
         c.gridy = 0;
 
-        for (MicrosoftScopes scope : MicrosoftScopes.values()) {
+        for (Scope scope : Scope.values()) {
             add(createCheckbox(scope), c);
             c.gridy += 1;
         }
@@ -108,7 +108,7 @@ public class MicrosoftScopesEditComponent extends JPanel {
         setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Request access to"));
     }
 
-    private JCheckBox createCheckbox(final MicrosoftScopes scope) {
+    private JCheckBox createCheckbox(final Scope scope) {
         JCheckBox cb = new JCheckBox(scope.getTitle());
         cb.addActionListener(e -> {
             onSelected(scope, cb.isSelected());
@@ -117,7 +117,7 @@ public class MicrosoftScopesEditComponent extends JPanel {
         return cb;
     }
 
-    private void onSelected(final MicrosoftScopes scope, final boolean selected) {
+    private void onSelected(final Scope scope, final boolean selected) {
         Set<String> scopes = toSet(m_scopes);
 
         if (selected) {
@@ -131,7 +131,7 @@ public class MicrosoftScopesEditComponent extends JPanel {
 
     private void updateCheckboxes() {
         Set<String> set = toSet(m_scopes);
-        for (Entry<MicrosoftScopes, JCheckBox> entry : m_checkboxes.entrySet()) {
+        for (Entry<Scope, JCheckBox> entry : m_checkboxes.entrySet()) {
             entry.getValue().setSelected(set.contains(entry.getKey().getScope()));
         }
     }

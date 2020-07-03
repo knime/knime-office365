@@ -46,47 +46,78 @@
  * History
  *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.port;
+package org.knime.ext.microsoft.authentication.providers.oauth2;
+
+import javax.swing.BoxLayout;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 
 /**
- * Enum holding different Microsoft scopes.
+ * Base class for editor component for {@link OAuth2Provider}.
  *
+ *
+ * @param <T>
+ *            The actual class of the provider.
  * @author Alexander Bondaletov
  */
-public enum MicrosoftScopes {
-    /**
-     * Sites.Read.All scope.
-     */
-    SITES_READ("Sharepoint files (Read)", "Sites.Read.All"),
-    /**
-     * Sites.ReadWrite.All scope.
-     */
-    SITES_READ_WRITE("Sharepoint files (Read/Write)", "Sites.ReadWrite.All"),
+public abstract class MSALAuthProviderEditor<T extends OAuth2Provider> implements MicrosoftAuthProviderEditor {
 
     /**
-     * Directory.Read.All scope.
+     * {@link OAuth2Provider} instance.
      */
-    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>", "Directory.Read.All");
+    protected final T m_provider;
+    /**
+     * Editor component panel.
+     */
+    protected JPanel m_component;
 
-    private String m_scope;
-    private String m_title;
-
-    private MicrosoftScopes(final String title, final String scope) {
-        m_title = title;
-        m_scope = scope;
+    /**
+     * Creates new instance.
+     *
+     * @param provider
+     *            The provider
+     *
+     */
+    public MSALAuthProviderEditor(final T provider) {
+        m_provider = provider;
     }
 
     /**
-     * @return The string representation of the scope.
+     * {@inheritDoc}
      */
-    public String getScope() {
-        return m_scope;
+    @Override
+    public JComponent getComponent() {
+        if (m_component == null) {
+            initUI();
+        }
+        return m_component;
+    }
+
+    private void initUI() {
+        m_component = new JPanel();
+        m_component.setLayout(new BoxLayout(m_component, BoxLayout.PAGE_AXIS));
+        m_component.add(createContentPane());
     }
 
     /**
-     * @return the title
+     * {@inheritDoc}
      */
-    public String getTitle() {
-        return m_title;
+    @Override
+    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException {
+        // default empty implementation
     }
+
+    /**
+     * Creates panel to edit any provider-specific settings
+     *
+     * @return The content panel.
+     */
+    protected abstract JComponent createContentPane();
+
 }

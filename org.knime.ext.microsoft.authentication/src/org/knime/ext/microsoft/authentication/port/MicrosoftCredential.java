@@ -44,116 +44,93 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-04 (Alexander Bondaletov): created
+ *   2020-07-03 (bjoern): created
  */
 package org.knime.ext.microsoft.authentication.port;
 
 import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.ModelContentRO;
-import org.knime.core.node.ModelContentWO;
-import org.knime.core.node.port.AbstractSimplePortObjectSpec;
-import org.knime.core.node.util.ViewUtils;
+import org.knime.core.node.config.ConfigRO;
+import org.knime.core.node.config.ConfigWO;
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 
 /**
- * Specification for the {@link MicrosoftConnectionPortObject}.
- *
- * @author Alexander Bondaletov
+ * Abstract superclass for classes that provide access to credentials for
+ * services in Microsoft Office 365/Azure.
+ * 
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class MicrosoftConnectionPortObjectSpec extends AbstractSimplePortObjectSpec {
+public abstract class MicrosoftCredential {
+
     /**
-     * Serializer class.
+     * Type of credentials.
      */
-    public static final class Serializer extends AbstractSimplePortObjectSpecSerializer<MicrosoftConnectionPortObjectSpec> {
+    public enum Type {
+        /**
+         * Indicates that the credentials are an OAuth2 access token.
+         */
+        OAUTH2_ACCESS_TOKEN;
+
+        // more credential types will be supported in the future
     }
 
-    private MicrosoftConnection m_microsoftConnection;
+    private static final String KEY_TYPE = "type";
+
+    private final Type m_type;
 
     /**
-     * Creates new instance.
-     */
-    public MicrosoftConnectionPortObjectSpec() {
-        this(null);
-    }
-
-    /**
-     * Creates new instance with a given {@link MicrosoftConnection}.
+     * Creates a new credential.
      *
-     * @param microsoftConnection
-     *            The connection.
+     * @param type
+     *            The type of the credential.
      */
-    public MicrosoftConnectionPortObjectSpec(final MicrosoftConnection microsoftConnection) {
-        m_microsoftConnection = microsoftConnection;
+    public MicrosoftCredential(final Type type) {
+        m_type = type;
     }
 
     /**
-     * @return the Microsoft Connection
+     * @return the providerType
      */
-    public MicrosoftConnection getMicrosoftConnection() {
-        return m_microsoftConnection;
+    public Type getType() {
+        return m_type;
     }
 
     /**
-     * {@inheritDoc}
+     * Saves the settings from the current instance to the given {@link ConfigWO}
+     *
+     * @param config
+     *            The config.
      */
-    @Override
-    protected void save(final ModelContentWO model) {
-        m_microsoftConnection.saveSettings(model);
-
+    public void saveSettings(final ConfigWO config) {
+        config.addString(KEY_TYPE, m_type.name());
     }
 
     /**
-     * {@inheritDoc}
+     * Loads settings from the give {@link ConfigRO}.
+     *
+     * @param config
+     *            The config
+     * @throws InvalidSettingsException
      */
-    @Override
-    protected void load(final ModelContentRO model) throws InvalidSettingsException {
-        m_microsoftConnection = new MicrosoftConnection(model);
-    }
+    static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
+        final Type type = Type.valueOf(config.getString(KEY_TYPE, Type.OAUTH2_ACCESS_TOKEN.name()));
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean equals(final Object ospec) {
-        if (this == ospec) {
-            return true;
+        switch (type) {
+        case OAUTH2_ACCESS_TOKEN:
+            return OAuth2Credential.loadFromSettings(config);
+        default:
+            throw new InvalidSettingsException("Unsupported credential type " + type);
         }
-
-        if (!(ospec instanceof MicrosoftConnectionPortObjectSpec)) {
-            return false;
-        }
-
-        MicrosoftConnectionPortObjectSpec spec = (MicrosoftConnectionPortObjectSpec) ospec;
-
-        if (m_microsoftConnection == null) {
-            return spec.m_microsoftConnection == null;
-        }
-
-        return m_microsoftConnection.equals(spec.m_microsoftConnection);
     }
 
     /**
-     * {@inheritDoc}
+     * @return The view component.
      */
-    @Override
-    public int hashCode() {
-        return m_microsoftConnection == null ? 0 : m_microsoftConnection.hashCode();
-    }
+    public abstract JComponent getView();
 
     /**
-     * {@inheritDoc}
+     * @return A short human readable summary
      */
-    @Override
-    public JComponent[] getViews() {
-        if (m_microsoftConnection != null) {
-            return new JComponent[] { m_microsoftConnection.getView() };
-        }
-
-        JPanel f = ViewUtils.getInFlowLayout(new JLabel("No connection available"));
-        f.setName("Connection");
-        return new JComponent[] { f };
-    }
+    public abstract String getSummary();
 }

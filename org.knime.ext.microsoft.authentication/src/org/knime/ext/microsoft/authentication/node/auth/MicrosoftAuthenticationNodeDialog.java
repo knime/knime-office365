@@ -46,12 +46,12 @@
  * History
  *   2020-06-04 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.nodes.auth;
+package org.knime.ext.microsoft.authentication.node.auth;
 
 import java.awt.CardLayout;
 import java.awt.FlowLayout;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -67,7 +67,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
-import org.knime.ext.microsoft.authentication.providers.ui.MicrosoftAuthProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 
 
 
@@ -78,15 +78,20 @@ import org.knime.ext.microsoft.authentication.providers.ui.MicrosoftAuthProvider
  */
 public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
 
+    private JComboBox<AuthProviderType> m_providerCombo;
+
     private final MicrosoftAuthenticationSettings m_settings;
-    private List<MicrosoftAuthProviderEditor> m_editors;
+
+    private Map<AuthProviderType, MicrosoftAuthProviderEditor> m_editors;
 
     /**
      * Creates new instance.
+     *
+     * @param nodeInstanceId
      */
-    public MicrosoftAuthenticationNodeDialog() {
+    public MicrosoftAuthenticationNodeDialog(final String nodeInstanceId) {
         super();
-        m_settings = new MicrosoftAuthenticationSettings();
+        m_settings = new MicrosoftAuthenticationSettings(nodeInstanceId);
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
         box.add(createProviderCombo());
@@ -96,31 +101,28 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
     }
 
     private JComponent createProviderCombo() {
-        JComboBox<AuthProviderType> cb = new JComboBox<>(AuthProviderType.values());
+        m_providerCombo = new JComboBox<>(AuthProviderType.values());
 
-        cb.addActionListener(e -> {
-            AuthProviderType provider = (AuthProviderType) cb.getSelectedItem();
+        m_providerCombo.addActionListener(e -> {
+            AuthProviderType provider = (AuthProviderType) m_providerCombo.getSelectedItem();
             m_settings.getProviderTypeModel().setStringValue(provider.name());
-        });
-
-        m_settings.getProviderTypeModel().addChangeListener(e -> {
-            cb.setSelectedItem(m_settings.getProviderType());
+            m_editors.get(m_settings.getProviderType()).onProviderSelected();
         });
 
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panel.add(new JLabel("Authentication mode:"));
-        panel.add(cb);
+        panel.add(m_providerCombo);
 
         return panel;
     }
 
     private JPanel createEditorPanel() {
         JPanel cards = new JPanel(new CardLayout());
-        m_editors = new ArrayList<>();
+        m_editors = new HashMap<>();
 
         for (AuthProviderType type : AuthProviderType.values()) {
             MicrosoftAuthProviderEditor editor = m_settings.getProvider(type).createEditor(this);
-            m_editors.add(editor);
+            m_editors.put(type, editor);
             cards.add(editor.getComponent(), type.name());
         }
 
@@ -131,27 +133,27 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
         return cards;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
         m_settings.saveSettingsTo(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
+    public void onOpen() {
+        m_providerCombo.setSelectedItem(m_settings.getProviderType());
+        m_editors.get(m_settings.getProviderType()).onProviderSelected();
+    }
+
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
+
         try {
             m_settings.loadSettingsFrom(settings);
         } catch (InvalidSettingsException ex) {
-            // ignore
         }
 
-        for (MicrosoftAuthProviderEditor editor : m_editors) {
+        for (MicrosoftAuthProviderEditor editor : m_editors.values()) {
             editor.loadSettingsFrom(settings, specs);
         }
     }

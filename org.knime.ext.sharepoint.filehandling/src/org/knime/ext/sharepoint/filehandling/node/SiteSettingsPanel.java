@@ -53,7 +53,6 @@ import static java.util.stream.Collectors.toList;
 import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -67,13 +66,12 @@ import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.node.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteMode;
 import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteSettings;
 
-import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.models.extensions.Site;
@@ -90,7 +88,7 @@ public class SiteSettingsPanel extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final SiteSettings m_settings;
-    private MicrosoftConnection m_connection;
+    private MicrosoftCredential m_connection;
 
     private JPanel m_cards;
     private LoadedItemsSelector m_groupSelector;
@@ -118,7 +116,7 @@ public class SiteSettingsPanel extends JPanel {
      * @param connection
      *            The Microsoft connection object.
      */
-    public void settingsLoaded(final MicrosoftConnection connection) {
+    public void settingsLoaded(final MicrosoftCredential connection) {
         m_connection = connection;
 
         m_subsiteSelector.onSettingsLoaded();
@@ -231,7 +229,8 @@ public class SiteSettingsPanel extends JPanel {
             return GraphServiceClient.builder()
                     .authenticationProvider(SharepointConnectionNodeModel.createGraphAuthProvider(m_connection))
                     .buildClient();
-        } catch (ClientException | MalformedURLException ex) {
+        } catch (IOException ex) {
+            // FIXME: this means we are doing IO in the UI thread...
             throw new InvalidSettingsException(ex);
         }
     }

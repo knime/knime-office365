@@ -49,15 +49,11 @@
 package org.knime.ext.sharepoint.filehandling.testing;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.knime.core.node.util.CheckUtils;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.microsoft.authentication.port.oauth2.testing.OAuth2TestAuthenticator;
 import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
@@ -79,25 +75,8 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
     public SharepointTestInitializer setup(final Map<String, String> configuration) throws IOException {
 
         validateConfiguration(configuration);
-        ExecutorService pool = Executors.newFixedThreadPool(1);
 
-        final IAuthenticationProvider authProvider;
-        try {
-            authProvider = authenticate(configuration);
-        } catch (IOException ex) {
-            throw ex;
-        } catch (InterruptedException ex) {
-            throw new IOException(ex);
-        } catch (ExecutionException ex) {
-            final Throwable cause = ex.getCause();
-            if (cause instanceof IOException) {
-                throw (IOException) cause;
-            } else {
-                throw new IOException(cause);
-            }
-        } finally {
-            pool.shutdown();
-        }
+        final IAuthenticationProvider authProvider = authenticate(configuration);
 
         final String workingDir = generateRandomizedWorkingDir(configuration.get("workingDirPrefix"),
                 SharepointFileSystem.PATH_SEPARATOR);
@@ -120,12 +99,11 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
     }
 
     private static IAuthenticationProvider authenticate(final Map<String, String> config)
-            throws MalformedURLException, InterruptedException, ExecutionException {
-        UsernamePasswordAuthProvider provider = new UsernamePasswordAuthProvider();
-        provider.getUsernameModel().setStringValue(config.get("username"));
-        provider.getPasswordModel().setStringValue(config.get("password"));
-        MicrosoftConnection connection = provider.authenticate(null);
-        return new GraphApiAuthenticationProvider(provider.createTokenSupplier(connection));
+            throws IOException {
+
+        final OAuth2Credential credential = OAuth2TestAuthenticator
+                .authenticateWithUsernamePassword(config.get("username"), config.get("password"));
+        return new GraphApiAuthenticationProvider(credential.getAccessToken());
     }
 
     @Override

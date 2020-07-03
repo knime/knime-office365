@@ -44,107 +44,64 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-04 (Alexander Bondaletov): created
+ *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.port;
+package org.knime.ext.microsoft.authentication.port.oauth2;
 
-import javax.swing.JComponent;
-
-import org.knime.core.node.CanceledExecutionException;
-import org.knime.core.node.ExecutionMonitor;
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.ModelContentRO;
-import org.knime.core.node.ModelContentWO;
-import org.knime.core.node.port.AbstractSimplePortObject;
-import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.port.PortType;
-import org.knime.core.node.port.PortTypeRegistry;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Port object containing {@link MicrosoftConnection}.
+ * Enum holding different OAuth2 scopes for the Microsoft Office365/Azure cloud.
  *
  * @author Alexander Bondaletov
  */
-public class MicrosoftConnectionPortObject extends AbstractSimplePortObject {
+public enum Scope {
+
     /**
-     *
-     * Serializer class
+     * Sites.Read.All scope.
      */
-    public static final class Serializer extends AbstractSimplePortObjectSerializer<MicrosoftConnectionPortObject> {
+    SITES_READ("Sharepoint files (Read)", "Sites.Read.All"),
+    /**
+     * Sites.ReadWrite.All scope.
+     */
+    SITES_READ_WRITE("Sharepoint files (Read/Write)", "Sites.ReadWrite.All"),
+
+    /**
+     * Directory.Read.All scope.
+     */
+    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>", "Directory.Read.All");
+
+    private static final Map<String, Scope> SCOPES = new HashMap<>();
+    static {
+        for (Scope scopeEnum : Scope.values()) {
+            SCOPES.put(scopeEnum.getScope(), scopeEnum);
+        }
+    }
+
+    private String m_scope;
+    private String m_title;
+
+    private Scope(final String title, final String scope) {
+        m_title = title;
+        m_scope = scope;
     }
 
     /**
-     * The type of this port.
+     * @return The string representation of the scope.
      */
-    @SuppressWarnings("hiding")
-    public static final PortType TYPE = PortTypeRegistry.getInstance().getPortType(MicrosoftConnectionPortObject.class);
-
-    private MicrosoftConnectionPortObjectSpec m_spec;
-
-    /**
-     * Creates new instance
-     */
-    public MicrosoftConnectionPortObject() {
-        this(null);
+    public String getScope() {
+        return m_scope;
     }
 
     /**
-     * Creates new instance with a given spec.
-     *
-     * @param spec
-     *            The spec.
-     *
+     * @return the title
      */
-    public MicrosoftConnectionPortObject(final MicrosoftConnectionPortObjectSpec spec) {
-        m_spec = spec;
+    public String getTitle() {
+        return m_title;
     }
 
-    /**
-     * @return The microsoft connection object.
-     */
-    public MicrosoftConnection getMicrosoftConnection() {
-        return m_spec.getMicrosoftConnection();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getSummary() {
-        return getMicrosoftConnection().getSummary();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public PortObjectSpec getSpec() {
-        return m_spec;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void save(final ModelContentWO model, final ExecutionMonitor exec) throws CanceledExecutionException {
-        // nothing to do
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void load(final ModelContentRO model, final PortObjectSpec spec, final ExecutionMonitor exec)
-            throws InvalidSettingsException, CanceledExecutionException {
-        m_spec = (MicrosoftConnectionPortObjectSpec) spec;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public JComponent[] getViews() {
-        return m_spec.getViews();
+    public static Scope fromScope(final String scope) {
+        return SCOPES.get(scope);
     }
 }

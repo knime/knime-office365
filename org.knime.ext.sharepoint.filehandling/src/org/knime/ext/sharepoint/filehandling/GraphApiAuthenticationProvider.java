@@ -48,42 +48,26 @@
  */
 package org.knime.ext.sharepoint.filehandling;
 
-import java.io.IOException;
-
-import org.knime.ext.microsoft.authentication.MSALAccessTokenSupplier;
-
 import com.microsoft.graph.authentication.IAuthenticationProvider;
-import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.IHttpRequest;
 import com.microsoft.graph.requests.extensions.GraphServiceClient;
 
 /**
  * {@link IAuthenticationProvider} implementation that uses
- * {@link MSALAccessTokenSupplier} to acquire tokens and authenticate
  * {@link GraphServiceClient}
  *
  * @author Alexander Bondaletov
  */
 public class GraphApiAuthenticationProvider implements IAuthenticationProvider {
 
-    private final MSALAccessTokenSupplier m_tokenSupplier;
+    private final String m_accessToken;
 
-    /**
-     *
-     */
-    public GraphApiAuthenticationProvider(final MSALAccessTokenSupplier tokenSupplier) {
-        m_tokenSupplier = tokenSupplier;
+    public GraphApiAuthenticationProvider(final String accessToken) {
+        m_accessToken = accessToken;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void authenticateRequest(final IHttpRequest request) {
-        try {
-            request.addHeader("Authorization", "Bearer " + m_tokenSupplier.getAccessToken());
-        } catch (IOException ex) {
-            throw new ClientException(ex.getMessage(), ex);
-        }
+        request.addHeader("Authorization", "Bearer " + m_accessToken);
     }
 }

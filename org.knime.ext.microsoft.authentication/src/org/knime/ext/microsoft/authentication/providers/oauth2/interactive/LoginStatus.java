@@ -44,39 +44,72 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-28 (Alexander Bondaletov): created
+ *   2020-07-04 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers.ui;
+package org.knime.ext.microsoft.authentication.providers.oauth2.interactive;
 
-import javax.swing.JComponent;
+import java.io.IOException;
+import java.time.Instant;
 
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
+import org.json.JSONObject;
+
+import com.microsoft.aad.msal4j.IAuthenticationResult;
 
 /**
- * Base interface for {@link MicrosoftAuthProvider} editor component.
+ * Captures the current OAuth2 login status. Main use case is displaying it in
+ * the node dialog.
  *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public interface MicrosoftAuthProviderEditor {
-    /**
-     * @return The component
-     */
-    public JComponent getComponent();
+public class LoginStatus {
+
+    public final static LoginStatus NOT_LOGGED_IN = new LoginStatus(null, null);
+
+    private final String m_username;
+
+    private final Instant m_accessTokenExpiry;
+
+    private LoginStatus(final String username, final Instant accessTokenExpiry) {
+        m_username = username;
+        m_accessTokenExpiry = accessTokenExpiry;
+    }
+
+    public boolean isLoggedIn() {
+        return m_username != null;
+    }
 
     /**
-     * Performs initialization of the dialog components that should be initialized
-     * with specs or any other actions that should be executed after settings are
-     * loaded.
-     *
-     * @param settings
-     *            The node settings
-     * @param specs
-     *            The input specs.
-     * @throws NotConfigurableException
+     * @return the username
      */
-    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
-            throws NotConfigurableException;
+    public String getUsername() {
+        return m_username;
+    }
+
+    /**
+     * @return the accessTokenExpiresOn
+     */
+    public Instant getAccessTokenExpiry() {
+        return m_accessTokenExpiry;
+    }
+
+    public static LoginStatus parseFromTokenCache(final String tokenCache) throws IOException {
+        try {
+            final JSONObject obj = new JSONObject(tokenCache);
+
+            final JSONObject accessTokenObj = obj.getJSONObject("AccessToken");
+            final long expiresOnSecs = accessTokenObj.getJSONObject((String) accessTokenObj.keys().next())
+                    .getLong("expires_on");
+
+            final JSONObject accountObj = obj.getJSONObject("Account");
+            final String username = accountObj.getJSONObject((String) accountObj.keys().next()).getString("username");
+            return new LoginStatus(username, Instant.ofEpochSecond(expiresOnSecs));
+        } catch (Exception e) {
+            throw new IOException("Could not read token", e);
+        }
+    }
+
+    public static LoginStatus fromAuthenticationResult(final IAuthenticationResult result) {
+        return new LoginStatus(result.account().username(), result.expiresOnDate().toInstant());
+    }
+
 }
