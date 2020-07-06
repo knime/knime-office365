@@ -44,77 +44,39 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-23 (Alexander Bondaletov): created
+ *   2020-06-28 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers;
+package org.knime.ext.microsoft.authentication.providers.ui;
 
-import java.net.MalformedURLException;
-import java.util.concurrent.ExecutionException;
+import javax.swing.JComponent;
 
-import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeModel;
-import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
-import org.knime.ext.microsoft.authentication.providers.ui.MicrosoftAuthProviderEditor;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 
 /**
- * Base interface for auth providers implementing different authentication
- * methods.
+ * Base interface for {@link MicrosoftAuthProvider} editor component.
  *
  * @author Alexander Bondaletov
  */
-public interface MicrosoftAuthProvider {
+public interface MicrosoftAuthProviderEditor {
     /**
-     * Performs authentication and returns the result in a form of
-     * {@link MicrosoftConnection} object.
-     *
-     * @param model
-     *            The node model.
-     *
-     * @return The Microsoft connection object.
-     * @throws InvalidSettingsException
-     * @throws InterruptedException
-     * @throws ExecutionException
-     * @throws MalformedURLException
+     * @return The component
      */
-    public MicrosoftConnection authenticate(MicrosoftAuthenticationNodeModel model)
-            throws InvalidSettingsException, InterruptedException, ExecutionException, MalformedURLException;
+    public JComponent getComponent();
 
     /**
-     * Creates editor component for the provider.
-     *
-     * @param parent
-     *            The node dialog.
-     *
-     * @return The editor component.
-     */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
-
-    /**
-     * Saves provider's settings into a given {@link NodeSettingsWO}.
+     * Performs initialization of the dialog components that should be initialized
+     * with specs or any other actions that should be executed after settings are
+     * loaded.
      *
      * @param settings
-     *            The settings.
+     *            The node settings
+     * @param specs
+     *            The input specs.
+     * @throws NotConfigurableException
      */
-    public void saveSettingsTo(final NodeSettingsWO settings);
-
-    /**
-     * Validates settings stored in a give {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException;
-
-    /**
-     * Loads provider's settings from a given {@link NodeSettingsRO}.
-     *
-     * @param settings
-     *            The settings.
-     * @throws InvalidSettingsException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
+    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException;
 }

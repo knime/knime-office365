@@ -53,15 +53,16 @@ import java.net.URI;
 import java.util.Date;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.JComponent;
-
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelLong;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeDialog;
+import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeModel;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
 import org.knime.ext.microsoft.authentication.providers.ui.InteractiveProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.ui.MicrosoftAuthProviderEditor;
 
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
@@ -147,7 +148,8 @@ public class InteractiveAuthProvider extends MSALAuthProvider {
      * {@inheritDoc}
      */
     @Override
-    public MicrosoftConnection authenticate() throws InvalidSettingsException {
+    public MicrosoftConnection authenticate(final MicrosoftAuthenticationNodeModel model)
+            throws InvalidSettingsException {
         String tokenCache = m_tokenCache.getStringValue();
         if (tokenCache == null || tokenCache.isEmpty()) {
             throw new InvalidSettingsException("Interactive provider is not authenticated");
@@ -163,7 +165,7 @@ public class InteractiveAuthProvider extends MSALAuthProvider {
      * {@inheritDoc}
      */
     @Override
-    public JComponent createEditor() {
+    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
         return new InteractiveProviderEditor(this);
     }
 

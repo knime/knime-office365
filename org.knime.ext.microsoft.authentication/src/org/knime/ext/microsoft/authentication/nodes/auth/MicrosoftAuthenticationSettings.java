@@ -147,7 +147,14 @@ public class MicrosoftAuthenticationSettings {
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_providerType.validateSettings(settings);
 
-        AuthProviderType type = getProviderType();
+        AuthProviderType type;
+        try {
+            String typeStr = settings.getString(m_providerType.getKey(), "");
+            type = typeStr.isEmpty() ? AuthProviderType.INTERACTIVE : AuthProviderType.valueOf(typeStr);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidSettingsException(e);
+        }
+
         m_providers.get(type).validateSettings(settings.getNodeSettings(type.name()));
     }
 

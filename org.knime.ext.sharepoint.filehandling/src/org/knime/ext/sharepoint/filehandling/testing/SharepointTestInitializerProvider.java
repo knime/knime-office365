@@ -124,7 +124,7 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         UsernamePasswordAuthProvider provider = new UsernamePasswordAuthProvider();
         provider.getUsernameModel().setStringValue(config.get("username"));
         provider.getPasswordModel().setStringValue(config.get("password"));
-        MicrosoftConnection connection = provider.authenticate();
+        MicrosoftConnection connection = provider.authenticate(null);
         return new GraphApiAuthenticationProvider(provider.createTokenSupplier(connection));
     }
 

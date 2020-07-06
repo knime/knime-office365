@@ -70,7 +70,6 @@ import com.microsoft.aad.msal4j.MsalInteractionRequiredException;
  * @author Alexander Bondaletov
  */
 public class InteractiveProviderEditor extends MSALAuthProviderEditor<InteractiveAuthProvider> {
-    private static final long serialVersionUID = 1L;
 
     private JButton m_loginBtn;
     private JButton m_cancelBtn;
@@ -159,7 +158,7 @@ public class InteractiveProviderEditor extends MSALAuthProviderEditor<Interactiv
             message = msalEx.getMessage();
         }
 
-        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(m_component, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
 
     private static MsalInteractionRequiredException extractMsalException(final Exception ex) {

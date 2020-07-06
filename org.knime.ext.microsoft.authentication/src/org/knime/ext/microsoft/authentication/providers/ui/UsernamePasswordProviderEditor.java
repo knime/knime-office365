@@ -48,13 +48,28 @@
  */
 package org.knime.ext.microsoft.authentication.providers.ui;
 
+import java.awt.Component;
+import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.defaultnodesettings.DialogComponentFlowVariableNameSelection2;
+import org.knime.core.node.defaultnodesettings.DialogComponentPasswordField;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.workflow.VariableType.CredentialsType;
+import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProvider;
 
 
@@ -64,17 +79,26 @@ import org.knime.ext.microsoft.authentication.providers.UsernamePasswordAuthProv
  * @author Alexander Bondaletov
  */
 public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<UsernamePasswordAuthProvider> {
-    private static final long serialVersionUID = 1L;
+
+    private MicrosoftAuthenticationNodeDialog m_parent;
+    private DialogComponentFlowVariableNameSelection2 m_fwSelector;
 
     /**
      * Creates new instance.
      *
      * @param provider
      *            The auth provider.
+     * @param parent
+     *            The node dialog.
      *
      */
-    public UsernamePasswordProviderEditor(final UsernamePasswordAuthProvider provider) {
+    public UsernamePasswordProviderEditor(final UsernamePasswordAuthProvider provider,
+            final MicrosoftAuthenticationNodeDialog parent) {
         super(provider);
+
+        m_parent = parent;
+        m_fwSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(), "",
+                () -> m_parent.getAvailableFlowVariables(CredentialsType.INSTANCE));
     }
 
     /**
@@ -82,23 +106,74 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
      */
     @Override
     protected JComponent createContentPane() {
-        DialogComponentString usernameInput = new DialogComponentString(m_provider.getUsernameModel(), "Username",
-                false, 40);
-        DialogComponentString passwordInput = new DialogComponentString(m_provider.getPasswordModel(),
-                "Password",
-                false, 40);
+        JRadioButton rbEnterCreds = new JRadioButton("Enter username and password");
+        rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
 
-        GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.LINE_START;
-        c.weightx = 0.5;
+        JRadioButton rbUseFw = new JRadioButton("Read from credential variable");
+        rbUseFw.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(true));
+
+        ButtonGroup group = new ButtonGroup();
+        group.add(rbEnterCreds);
+        group.add(rbUseFw);
+        rbEnterCreds.setSelected(true);
+        m_provider.getUseCredentialsModel().addChangeListener(e -> {
+            boolean useCreds = m_provider.getUseCredentialsModel().getBooleanValue();
+            rbEnterCreds.setSelected(!useCreds);
+            rbUseFw.setSelected(useCreds);
+        });
+
+        JPanel enterCredPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        enterCredPanel.add(rbEnterCreds);
+
+        JPanel fwPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        fwPanel.add(rbUseFw);
+        fwPanel.add(m_fwSelector.getComponentPanel());
+
+        Box box = new Box(BoxLayout.PAGE_AXIS);
+        box.add(enterCredPanel);
+        box.add(createUsernamePasswordPanel());
+        box.add(fwPanel);
+        return box;
+    }
+
+    private JPanel createUsernamePasswordPanel() {
+        DialogComponentString usernameInput = new DialogComponentString(m_provider.getUsernameModel(), "", false, 30);
+        usernameInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
+        DialogComponentPasswordField passwordInput = new DialogComponentPasswordField(m_provider.getPasswordModel(), "",
+                30);
+        passwordInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        final JPanel panel = new JPanel(new GridBagLayout());
+        final GridBagConstraints c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.WEST;
+        c.fill = GridBagConstraints.NONE;
+        c.weightx = 0;
+        c.weighty = 0;
         c.gridx = 0;
         c.gridy = 0;
+        panel.add(new JLabel("Username: "), c);
 
-        JPanel panel = new JPanel(new GridBagLayout());
+        c.gridy = 1;
+        panel.add(new JLabel("Password: "), c);
+
+        c.weightx = 1;
+        c.gridx = 1;
+        c.gridy = 0;
         panel.add(usernameInput.getComponentPanel(), c);
-        c.gridy += 1;
+
+        c.gridy = 1;
         panel.add(passwordInput.getComponentPanel(), c);
+
+        panel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
         return panel;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException {
+        m_fwSelector.loadSettingsFrom(settings, specs);
+    }
 }

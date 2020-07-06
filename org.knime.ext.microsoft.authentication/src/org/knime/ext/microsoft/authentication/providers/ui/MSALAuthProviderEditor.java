@@ -52,6 +52,9 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.MSALAuthProvider;
 
 /**
@@ -62,13 +65,16 @@ import org.knime.ext.microsoft.authentication.providers.MSALAuthProvider;
  *            The actual class of the provider.
  * @author Alexander Bondaletov
  */
-public abstract class MSALAuthProviderEditor<T extends MSALAuthProvider> extends JPanel {
-    private static final long serialVersionUID = 1L;
+public abstract class MSALAuthProviderEditor<T extends MSALAuthProvider> implements MicrosoftAuthProviderEditor {
 
     /**
      * {@link MSALAuthProvider} instance.
      */
     protected final T m_provider;
+    /**
+     * Editor component panel.
+     */
+    protected JPanel m_component;
 
     /**
      * Creates new instance.
@@ -79,13 +85,33 @@ public abstract class MSALAuthProviderEditor<T extends MSALAuthProvider> extends
      */
     public MSALAuthProviderEditor(final T provider) {
         m_provider = provider;
-        initUI();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JComponent getComponent() {
+        if (m_component == null) {
+            initUI();
+        }
+        return m_component;
     }
 
     private void initUI() {
-        setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
-        add(createContentPane());
-        add(new MicrosoftScopesEditComponent(m_provider.getScopesModel()));
+        m_component = new JPanel();
+        m_component.setLayout(new BoxLayout(m_component, BoxLayout.PAGE_AXIS));
+        m_component.add(createContentPane());
+        m_component.add(new MicrosoftScopesEditComponent(m_provider.getScopesModel()));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException {
+        // default empty implementation
     }
 
     /**

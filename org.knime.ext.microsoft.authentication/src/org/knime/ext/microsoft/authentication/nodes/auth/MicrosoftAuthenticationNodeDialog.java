@@ -50,6 +50,8 @@ package org.knime.ext.microsoft.authentication.nodes.auth;
 
 import java.awt.CardLayout;
 import java.awt.FlowLayout;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -65,6 +67,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
+import org.knime.ext.microsoft.authentication.providers.ui.MicrosoftAuthProviderEditor;
 
 
 
@@ -76,6 +79,7 @@ import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
 
     private final MicrosoftAuthenticationSettings m_settings;
+    private List<MicrosoftAuthProviderEditor> m_editors;
 
     /**
      * Creates new instance.
@@ -112,10 +116,12 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
 
     private JPanel createEditorPanel() {
         JPanel cards = new JPanel(new CardLayout());
+        m_editors = new ArrayList<>();
 
         for (AuthProviderType type : AuthProviderType.values()) {
-            JComponent editor = m_settings.getProvider(type).createEditor();
-            cards.add(editor, type.name());
+            MicrosoftAuthProviderEditor editor = m_settings.getProvider(type).createEditor(this);
+            m_editors.add(editor);
+            cards.add(editor.getComponent(), type.name());
         }
 
         m_settings.getProviderTypeModel().addChangeListener(e -> {
@@ -143,6 +149,10 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
             m_settings.loadSettingsFrom(settings);
         } catch (InvalidSettingsException ex) {
             // ignore
+        }
+
+        for (MicrosoftAuthProviderEditor editor : m_editors) {
+            editor.loadSettingsFrom(settings, specs);
         }
     }
 }

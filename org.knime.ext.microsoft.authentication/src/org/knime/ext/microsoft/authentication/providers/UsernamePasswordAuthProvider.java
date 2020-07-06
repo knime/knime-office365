@@ -51,13 +51,17 @@ package org.knime.ext.microsoft.authentication.providers;
 import java.net.MalformedURLException;
 import java.util.concurrent.ExecutionException;
 
-import javax.swing.JComponent;
-
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
+import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.workflow.ICredentials;
+import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeDialog;
+import org.knime.ext.microsoft.authentication.nodes.auth.MicrosoftAuthenticationNodeModel;
 import org.knime.ext.microsoft.authentication.port.MicrosoftConnection;
+import org.knime.ext.microsoft.authentication.providers.ui.MicrosoftAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.ui.UsernamePasswordProviderEditor;
 
 import com.microsoft.aad.msal4j.IAuthenticationResult;
@@ -75,10 +79,14 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
     private static final String AUTHORITY = "https://login.microsoftonline.com/organizations";
     private static final String KEY_USERNAME = "username";
     private static final String KEY_PASSWORD = "password";
+    private static final String KEY_USE_CREDENTIALS = "useCredentials";
+    private static final String KEY_CREDENTIALS_NAME = "credentialsName";
     private static final String ENCRYPTION_KEY = "Z4mJcnXMrtXKW8wp";
 
     private final SettingsModelString m_username;
-    private final SettingsModelString m_password;
+    private final SettingsModelPassword m_password;
+    private final SettingsModelBoolean m_useCredentials;
+    private final SettingsModelString m_credentialsName;
 
     /**
      * Creates new instance.
@@ -86,7 +94,17 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
     public UsernamePasswordAuthProvider() {
         super();
         m_username = new SettingsModelString(KEY_USERNAME, "");
-        m_password = new SettingsModelString(KEY_PASSWORD, "");
+        m_password = new SettingsModelPassword(KEY_PASSWORD, ENCRYPTION_KEY, "");
+        m_useCredentials = new SettingsModelBoolean(KEY_USE_CREDENTIALS, false);
+        m_credentialsName = new SettingsModelString(KEY_CREDENTIALS_NAME, "");
+
+        m_credentialsName.setEnabled(false);
+        m_useCredentials.addChangeListener(e -> {
+            boolean useCreds = m_useCredentials.getBooleanValue();
+            m_username.setEnabled(!useCreds);
+            m_password.setEnabled(!useCreds);
+            m_credentialsName.setEnabled(useCreds);
+        });
     }
 
     /**
@@ -99,17 +117,41 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
     /**
      * @return the password model
      */
-    public SettingsModelString getPasswordModel() {
+    public SettingsModelPassword getPasswordModel() {
         return m_password;
+    }
+
+    /**
+     * @return the useCredentials model
+     */
+    public SettingsModelBoolean getUseCredentialsModel() {
+        return m_useCredentials;
+    }
+
+    /**
+     * @return the credentialsName model
+     */
+    public SettingsModelString getCredentialsNameModel() {
+        return m_credentialsName;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public MicrosoftConnection authenticate() throws InterruptedException, ExecutionException, MalformedURLException {
-        String username = m_username.getStringValue();
-        String password = m_password.getStringValue();
+    public MicrosoftConnection authenticate(final MicrosoftAuthenticationNodeModel model)
+            throws InterruptedException, ExecutionException, MalformedURLException {
+        String username;
+        String password;
+
+        if (m_useCredentials.getBooleanValue()) {
+            ICredentials creds = model.getCredentials(m_credentialsName.getStringValue());
+            username = creds.getLogin();
+            password = creds.getPassword();
+        } else {
+            username = m_username.getStringValue();
+            password = m_password.getStringValue();
+        }
 
         PublicClientApplication app = createClientApp();
 
@@ -125,8 +167,8 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
      * {@inheritDoc}
      */
     @Override
-    public JComponent createEditor() {
-        return new UsernamePasswordProviderEditor(this);
+    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
+        return new UsernamePasswordProviderEditor(this, parent);
     }
 
     /**
@@ -135,8 +177,10 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
         super.saveSettingsTo(settings);
-        settings.addString(m_username.getKey(), m_username.getStringValue());
-        settings.addPassword(m_password.getKey(), ENCRYPTION_KEY, m_password.getStringValue());
+        m_username.saveSettingsTo(settings);
+        m_password.saveSettingsTo(settings);
+        m_useCredentials.saveSettingsTo(settings);
+        m_credentialsName.saveSettingsTo(settings);
     }
 
     /**
@@ -144,6 +188,11 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
      */
     @Override
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+        m_username.validateSettings(settings);
+        m_password.validateSettings(settings);
+        m_useCredentials.validateSettings(settings);
+        m_credentialsName.validateSettings(settings);
+
         UsernamePasswordAuthProvider temp = new UsernamePasswordAuthProvider();
         temp.loadSettingsFrom(settings);
         temp.validate();
@@ -152,11 +201,17 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
     @Override
     public void validate() throws InvalidSettingsException {
         super.validate();
-        if (m_username.getStringValue().isEmpty()) {
-            throw new InvalidSettingsException("Username cannot be empty");
-        }
-        if (m_password.getStringValue().isEmpty()) {
-            throw new InvalidSettingsException("Password cannot be empty");
+        if (!m_useCredentials.getBooleanValue()) {
+            if (m_username.getStringValue().isEmpty()) {
+                throw new InvalidSettingsException("Username cannot be empty");
+            }
+            if (m_password.getStringValue().isEmpty()) {
+                throw new InvalidSettingsException("Password cannot be empty");
+            }
+        } else {
+            if (m_credentialsName.getStringValue().isEmpty()) {
+                throw new InvalidSettingsException("Credentials are not selected");
+            }
         }
     }
 
@@ -166,8 +221,10 @@ public class UsernamePasswordAuthProvider extends MSALAuthProvider {
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadSettingsFrom(settings);
-        m_username.setStringValue(settings.getString(m_username.getKey()));
-        m_password.setStringValue(settings.getPassword(m_password.getKey(), ENCRYPTION_KEY));
+        m_username.loadSettingsFrom(settings);
+        m_password.loadSettingsFrom(settings);
+        m_credentialsName.loadSettingsFrom(settings);
+        m_useCredentials.loadSettingsFrom(settings);
     }
 
     /**
