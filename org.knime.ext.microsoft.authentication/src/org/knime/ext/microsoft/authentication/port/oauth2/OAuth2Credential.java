@@ -71,8 +71,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.AccessTokenSupplierFactory;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.BaseAccessTokenSupplier;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
  * Subclass of {@link MicrosoftCredential} that provides access to an OAuth2
@@ -96,7 +95,7 @@ public class OAuth2Credential extends MicrosoftCredential {
     private static final String KEY_TOKEN_EXPIRY = "tokenExpiry";
     private static final String KEY_SCOPES = "scopes";
 
-    private BaseAccessTokenSupplier m_tokenSupplier;
+    private MemoryCacheAccessTokenSupplier m_tokenSupplier;
     private String m_username;
     private Instant m_accessTokenExpiresAt;
     private EnumSet<Scope> m_scopes;
@@ -115,7 +114,7 @@ public class OAuth2Credential extends MicrosoftCredential {
      *            The authority
      */
     public OAuth2Credential(
-            final BaseAccessTokenSupplier tokenSupplier, //
+            final MemoryCacheAccessTokenSupplier tokenSupplier, //
             final String username, //
             final Instant accessTokenExpiresAt, //
             final EnumSet<Scope> scopes, //
@@ -187,8 +186,8 @@ public class OAuth2Credential extends MicrosoftCredential {
                 .collect(Collectors.toList());
         final EnumSet<Scope> scopes = EnumSet.copyOf(scopeList);
 
-        final BaseAccessTokenSupplier tokenSupplier = AccessTokenSupplierFactory
-                .createFromSettings(authority, config.getConfig(KEY_TOKEN));
+        final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(authority);
+        tokenSupplier.loadSettings(config.getConfig(KEY_TOKEN));
 
         return new OAuth2Credential(tokenSupplier, username, tokenExpiry, scopes, authority);
     }

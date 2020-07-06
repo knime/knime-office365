@@ -55,7 +55,6 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.BaseAccessTokenSupplier;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
@@ -115,7 +114,7 @@ class NodeSettingsStorage implements StorageProvider {
     }
 
     @Override
-    public BaseAccessTokenSupplier createAccessTokenSupplier() {
+    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
         return new MemoryCacheAccessTokenSupplier(m_authority, m_cacheKey);
     }
 

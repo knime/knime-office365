@@ -60,6 +60,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
+import org.knime.core.node.NodeDialogPane;
 import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.ScopesEditComponent;
@@ -74,6 +75,8 @@ import com.microsoft.aad.msal4j.MsalInteractionRequiredException;
  */
 public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<InteractiveAuthProvider> {
 
+    private final NodeDialogPane m_parentNodeDialog;
+
     private JButton m_loginBtn;
     private JButton m_cancelBtn;
     private JLabel m_statusLabel;
@@ -85,10 +88,12 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
      *
      * @param provider
      *            The auth provider.
+     * @param nodeDialog
      *
      */
-    public InteractiveAuthProviderEditor(final InteractiveAuthProvider provider) {
+    public InteractiveAuthProviderEditor(final InteractiveAuthProvider provider, final NodeDialogPane nodeDialog) {
         super(provider);
+        m_parentNodeDialog = nodeDialog;
     }
 
     @Override
@@ -105,7 +110,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         box.add(createButtonsPanel());
         box.add(Box.createVerticalStrut(10));
 
-        m_storageEditor = new StorageEditor(m_provider.getStorageSettings());
+        m_storageEditor = new StorageEditor(m_provider.getStorageSettings(), m_parentNodeDialog);
         box.add(m_storageEditor);
         box.add(Box.createVerticalStrut(10));
         m_provider.getStorageSettings().getStorageTypeModel().addChangeListener((e) -> {

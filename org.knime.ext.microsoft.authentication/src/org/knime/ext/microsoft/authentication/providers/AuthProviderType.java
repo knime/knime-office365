@@ -48,8 +48,9 @@
  */
 package org.knime.ext.microsoft.authentication.providers;
 
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
+import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.UsernamePasswordAuthProvider;
 
@@ -72,9 +73,10 @@ public enum AuthProviderType {
     USERNAME_PASSWORD("Username/password authentication", UsernamePasswordAuthProvider::new);
 
     private String m_title;
-    private Function<String, MicrosoftAuthProvider> m_createProvider;
+    private BiFunction<PortsConfiguration, String, MicrosoftAuthProvider> m_createProvider;
 
-    private AuthProviderType(final String title, final Function<String, MicrosoftAuthProvider> createProvider) {
+    private AuthProviderType(final String title,
+            final BiFunction<PortsConfiguration, String, MicrosoftAuthProvider> createProvider) {
         m_title = title;
         m_createProvider = createProvider;
 
@@ -92,8 +94,8 @@ public enum AuthProviderType {
      *
      * @return {@link MicrosoftAuthProvider} instance.
      */
-    public MicrosoftAuthProvider createProvider(final String nodeInstanceId) {
-        return m_createProvider.apply(nodeInstanceId);
+    public MicrosoftAuthProvider createProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
+        return m_createProvider.apply(portsConfig, nodeInstanceId);
     }
 
 }

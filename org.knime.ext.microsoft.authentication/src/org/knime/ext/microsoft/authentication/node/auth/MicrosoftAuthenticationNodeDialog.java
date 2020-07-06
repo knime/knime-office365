@@ -65,6 +65,7 @@ import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
@@ -87,11 +88,13 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
     /**
      * Creates new instance.
      *
+     * @param portsConfig
+     *
      * @param nodeInstanceId
      */
-    public MicrosoftAuthenticationNodeDialog(final String nodeInstanceId) {
+    public MicrosoftAuthenticationNodeDialog(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         super();
-        m_settings = new MicrosoftAuthenticationSettings(nodeInstanceId);
+        m_settings = new MicrosoftAuthenticationSettings(portsConfig, nodeInstanceId);
 
         Box box = new Box(BoxLayout.PAGE_AXIS);
         box.add(createProviderCombo());

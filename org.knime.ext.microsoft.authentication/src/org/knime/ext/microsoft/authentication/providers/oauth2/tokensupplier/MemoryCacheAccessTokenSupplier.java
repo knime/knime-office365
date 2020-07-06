@@ -49,53 +49,97 @@
 package org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier;
 
 import java.io.IOException;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
+import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
 
+import com.microsoft.aad.msal4j.IAccount;
+import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.PublicClientApplication;
+import com.microsoft.aad.msal4j.SilentParameters;
 
 /**
- * Concrete {@link BaseAccessTokenSupplier} that reads the MSAL4J token cache
- * from the JVM global {@link MemoryTokenCache} and uses the contained refresh
- * token to produce a fresh access token when needed.
+ * Access token supplier that reads the MSAL4J token cache from the JVM global
+ * {@link MemoryTokenCache} and uses the contained refresh token to produce a
+ * fresh access token when needed.
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class MemoryCacheAccessTokenSupplier extends BaseAccessTokenSupplier {
+public class MemoryCacheAccessTokenSupplier {
 
     private static final String KEY_CACHE_KEY = "cacheKey";
+
+    private final String m_authority;
 
     private String m_cacheKey;
 
     public MemoryCacheAccessTokenSupplier(final String authority) {
-        super(authority, SupplierType.MEMORY);
+        this(authority, null);
     }
 
     public MemoryCacheAccessTokenSupplier(final String authority, final String cacheKey) {
-        super(authority, SupplierType.MEMORY);
+        m_authority = authority;
         m_cacheKey = cacheKey;
     }
 
-    @Override
+
+    /**
+     * @return the authority
+     */
+    public String getAuthority() {
+        return m_authority;
+    }
+
+    public final String getAccessToken(final EnumSet<Scope> scopes) throws IOException {
+        final PublicClientApplication app = createPublicClientApplication();
+
+        try {
+            IAccount account = app.getAccounts().get().iterator().next();
+
+            final Set<String> scopeStrings = new HashSet<>();
+            scopes.stream().map((s) -> s.getScope()).forEach(scopeStrings::add);
+
+            IAuthenticationResult result = app
+                    .acquireTokenSilently(SilentParameters.builder(scopeStrings, account).build()).get();
+            return result.accessToken();
+        } catch (InterruptedException e) {
+            throw new IOException("Canceled while acquiring access token", e);
+        } catch (ExecutionException ex) {
+            throw unwrapIOE(ex);
+        }
+    }
+
+    private static IOException unwrapIOE(final ExecutionException ex) {
+        Throwable cause = ex.getCause();
+        while (cause != null) {
+            if (cause instanceof IOException) {
+                return (IOException) cause;
+            }
+            cause = cause.getCause();
+        }
+        return new IOException("Error during refreshing access token", ex.getCause());
+    }
+
     protected PublicClientApplication createPublicClientApplication() throws IOException {
         final String tokenCacheString = MemoryTokenCache.get(m_cacheKey);
         if (tokenCacheString == null) {
             throw new IOException("No access token found. Please re-execute the Microsoft Authentication node.");
         }
-        return MSALUtil.createClientAppWithToken(getAuthority(), tokenCacheString);
+        return MSALUtil.createClientAppWithToken(m_authority, tokenCacheString);
     }
 
-    @Override
     public void saveSettings(final ConfigWO config) {
-        super.saveSettings(config);
         config.addString(KEY_CACHE_KEY, m_cacheKey);
     }
 
-    @Override
     public void loadSettings(final ConfigRO config) throws InvalidSettingsException {
         m_cacheKey = config.getString(KEY_CACHE_KEY);
     }

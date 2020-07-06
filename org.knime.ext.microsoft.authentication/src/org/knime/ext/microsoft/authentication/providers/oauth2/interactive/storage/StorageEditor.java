@@ -54,12 +54,15 @@ import java.awt.Insets;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
-import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
-import org.knime.core.node.defaultnodesettings.DialogComponentFileChooser;
-import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.FlowVariableModel;
+import org.knime.core.node.NodeDialogPane;
+import org.knime.filehandling.core.data.location.variable.FSLocationVariableType;
+import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.DialogComponentWriterFileChooser;
+import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.SettingsModelWriterFileChooser;
+import org.knime.filehandling.core.defaultnodesettings.filtermode.SettingsModelFilterMode.FilterMode;
 
 /**
  * Dialog panel that allows the user to choose between the different ways of
@@ -71,13 +74,13 @@ public class StorageEditor extends JPanel {
 
     private final StorageSettings m_settings;
 
-    private final DialogComponentFileChooser m_fileChooser;
+    private final DialogComponentWriterFileChooser m_fileChooser;
 
     private final JRadioButton m_rbMemory;
     private final JRadioButton m_rbFile;
     private final JRadioButton m_rbSettings;
 
-    public StorageEditor(final StorageSettings settings) {
+    public StorageEditor(final StorageSettings settings, final NodeDialogPane nodeDialog) {
         super(new GridBagLayout());
         m_settings = settings;
 
@@ -90,11 +93,14 @@ public class StorageEditor extends JPanel {
         group.add(m_rbFile);
         group.add(m_rbSettings);
 
-        final SettingsModelString filePathModel = m_settings.getFileStorage().getFilePathModel();
-        m_fileChooser = new DialogComponentFileChooser(
-                filePathModel,
-                "microsoft_authentication_file_path",
-                JFileChooser.SAVE_DIALOG, false);
+        final SettingsModelWriterFileChooser fileModel = m_settings.getFileStorage().getFileModel();
+        final FlowVariableModel fvm = nodeDialog //
+                .createFlowVariableModel(fileModel.getKeysForFSLocation(), //
+                        FSLocationVariableType.INSTANCE);
+        m_fileChooser = new DialogComponentWriterFileChooser(fileModel,
+                "microsoft_auth_token_cache_file",
+                fvm,
+                FilterMode.FILE);
 
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.HORIZONTAL;

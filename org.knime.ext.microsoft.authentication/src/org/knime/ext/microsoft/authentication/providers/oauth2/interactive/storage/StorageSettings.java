@@ -53,8 +53,11 @@ import java.io.IOException;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.BaseAccessTokenSupplier;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
+import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
 
 /**
  * Class for storing settings in a one of the different locations. Supported
@@ -84,13 +87,14 @@ public class StorageSettings {
 
     private final NodeSettingsStorage m_nodeSettingsStorage;
 
-    /**
-     * @param nodeInstanceId
-     */
-    public StorageSettings(final String nodeInstanceId, final String authority) {
+    public StorageSettings(final PortsConfiguration portsConfig, final String nodeInstanceId, final String authority) {
         m_inMemoryStorage = new InMemoryStorage(nodeInstanceId, authority);
         m_nodeSettingsStorage = new NodeSettingsStorage(nodeInstanceId, authority);
-        m_fileStorage = new FileStorage(authority);
+        m_fileStorage = new FileStorage(portsConfig, nodeInstanceId, authority);
+
+        m_storageType.addChangeListener((e) -> {
+            m_fileStorage.getFileModel().setEnabled(getStorageType() == StorageType.FILE);
+        });
 
     }
 
@@ -180,11 +184,10 @@ public class StorageSettings {
      *            The settings.
      */
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        m_storageType.saveSettingsTo(settings);
         m_inMemoryStorage.saveSettingsTo(settings.addNodeSettings(KEY_MEMORY));
         m_fileStorage.saveSettingsTo(settings.addNodeSettings(KEY_FILE));
         m_nodeSettingsStorage.saveSettingsTo(settings.addNodeSettings(KEY_NODE_SETTINGS));
-
+        m_storageType.saveSettingsTo(settings);
     }
 
     /**
@@ -195,10 +198,11 @@ public class StorageSettings {
      * @throws InvalidSettingsException
      */
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_storageType.loadSettingsFrom(settings);
         m_inMemoryStorage.loadSettingsFrom(settings.getNodeSettings(KEY_MEMORY));
         m_fileStorage.loadSettingsFrom(settings.getNodeSettings(KEY_FILE));
         m_nodeSettingsStorage.loadSettingsFrom(settings.getNodeSettings(KEY_NODE_SETTINGS));
+        m_storageType.loadSettingsFrom(settings);
+        m_fileStorage.getFileModel().setEnabled(getStorageType() == StorageType.FILE);
     }
 
     /**
@@ -220,7 +224,7 @@ public class StorageSettings {
         }
     }
 
-    public BaseAccessTokenSupplier createAccessTokenSupplier() {
+    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
         switch (getStorageType()) {
         case MEMORY:
             return m_inMemoryStorage.createAccessTokenSupplier();
@@ -264,5 +268,10 @@ public class StorageSettings {
         m_inMemoryStorage.clearMemoryTokenCache();
         m_fileStorage.clearMemoryTokenCache();
         m_nodeSettingsStorage.clearMemoryTokenCache();
+    }
+
+    public void configureFileChoosersInModel(final PortObjectSpec[] inSpecs,
+            final NodeModelStatusConsumer statusConsumer) throws InvalidSettingsException {
+        m_fileStorage.configureFileChooserInModel(inSpecs, statusConsumer);
     }
 }

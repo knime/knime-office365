@@ -48,18 +48,22 @@
  */
 package org.knime.ext.microsoft.authentication.node.auth;
 
+import java.util.Optional;
 import java.util.UUID;
 
+import org.knime.core.node.ConfigurableNodeFactory;
 import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
+import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
+import org.knime.filehandling.core.port.FileSystemPortObject;
 
 /**
  * Factory class for Microsoft Authentication node.
  *
  * @author Alexander Bondaletov
  */
-public class MicrosoftAuthenticationNodeFactory extends NodeFactory<MicrosoftAuthenticationNodeModel> {
+public class MicrosoftAuthenticationNodeFactory extends ConfigurableNodeFactory<MicrosoftAuthenticationNodeModel> {
 
     /**
      * This member variable is required to exclusively share a key for a static map
@@ -70,8 +74,18 @@ public class MicrosoftAuthenticationNodeFactory extends NodeFactory<MicrosoftAut
     private final String m_nodeInstanceId = UUID.randomUUID().toString();
 
     @Override
-    public MicrosoftAuthenticationNodeModel createNodeModel() {
-        return new MicrosoftAuthenticationNodeModel(m_nodeInstanceId);
+    protected Optional<PortsConfigurationBuilder> createPortsConfigBuilder() {
+        final PortsConfigurationBuilder builder = new PortsConfigurationBuilder();
+        builder.addExtendableInputPortGroup("File System Connection", FileSystemPortObject.TYPE);
+        builder.addFixedOutputPortGroup("credentialPort", MicrosoftCredentialPortObject.TYPE);
+        return Optional.of(builder);
+    }
+
+    @Override
+    protected MicrosoftAuthenticationNodeModel createNodeModel(final NodeCreationConfiguration creationConfig) {
+        return new MicrosoftAuthenticationNodeModel(
+                creationConfig.getPortConfig().orElseThrow(IllegalStateException::new), //
+                m_nodeInstanceId);
     }
 
     @Override
@@ -91,7 +105,9 @@ public class MicrosoftAuthenticationNodeFactory extends NodeFactory<MicrosoftAut
     }
 
     @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new MicrosoftAuthenticationNodeDialog(m_nodeInstanceId);
+    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration creationConfig) {
+        return new MicrosoftAuthenticationNodeDialog(
+                creationConfig.getPortConfig().orElseThrow(IllegalStateException::new), //
+                m_nodeInstanceId);
     }
 }

@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.node.auth;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.EnumSet;
 
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -58,6 +59,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
@@ -66,6 +68,9 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
+import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.StorageType;
+import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage.MessageType;
 
 /**
  * Microsoft authentication node. Performs authentication using one of the
@@ -77,14 +82,29 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
 
     private final MicrosoftAuthenticationSettings m_settings;
 
+    private final NodeModelStatusConsumer m_statusConsumer = new NodeModelStatusConsumer(
+            EnumSet.of(MessageType.ERROR, MessageType.WARNING));
+
     /**
      * Creates new instance.
      *
+     * @param portsConfig
      * @param nodeInstanceId
      */
-    MicrosoftAuthenticationNodeModel(final String nodeInstanceId) {
+    MicrosoftAuthenticationNodeModel(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         super(new PortType[] {}, new PortType[] { MicrosoftCredentialPortObject.TYPE });
-        m_settings = new MicrosoftAuthenticationSettings(nodeInstanceId);
+        m_settings = new MicrosoftAuthenticationSettings(portsConfig, nodeInstanceId);
+    }
+
+    @Override
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        if (m_settings.getProviderType() == AuthProviderType.INTERACTIVE) {
+            final InteractiveAuthProvider provider = (InteractiveAuthProvider) m_settings.getCurrentProvider();
+            if (provider.getStorageSettings().getStorageType() == StorageType.FILE) {
+                m_settings.configureFileChoosersInModel(inSpecs, m_statusConsumer);
+            }
+        }
+        return new PortObjectSpec[] { new MicrosoftCredentialPortObjectSpec(null) };
     }
 
     @Override
@@ -92,10 +112,6 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
         return new PortObject[] { new MicrosoftCredentialPortObject(createSpec()) };
     }
 
-    @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        return new PortObjectSpec[] { new MicrosoftCredentialPortObjectSpec(null) };
-    }
 
     private MicrosoftCredentialPortObjectSpec createSpec() throws IOException {
         MicrosoftCredential cred = m_settings.getCurrentProvider().getCredential(getCredentialsProvider());
@@ -116,11 +132,11 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
                 setWarningMessage(
                         "Access token not available anymore. Please reset this node and login in the node dialog again.");
                 break;
+            case FILE:
             case SETTINGS:
                 setWarningMessage(needResetAndRexecuteMsg);
                 break;
             default:
-                // don't display warning for FILE
                 break;
             }
         } else if (m_settings.getProviderType() == AuthProviderType.USERNAME_PASSWORD) {

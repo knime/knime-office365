@@ -54,6 +54,7 @@ import java.util.concurrent.ExecutionException;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
@@ -91,6 +92,17 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
     private final SettingsModelPassword m_password;
     private final SettingsModelBoolean m_useCredentials;
     private final SettingsModelString m_credentialsName;
+
+    /**
+     * Constructor for compatibility with BiFunction<PortsConfiguration,String>. The given
+     * PortsConfiguration is ignored.
+     *
+     * @param portsConfig Ignored argument.
+     * @param nodeInstanceId
+     */
+    public UsernamePasswordAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
+        this(nodeInstanceId);
+    }
 
     /**
      * Creates new instance.

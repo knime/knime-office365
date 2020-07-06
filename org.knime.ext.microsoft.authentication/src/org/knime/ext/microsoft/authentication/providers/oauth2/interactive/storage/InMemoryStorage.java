@@ -53,7 +53,6 @@ import java.io.IOException;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.BaseAccessTokenSupplier;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
@@ -82,7 +81,8 @@ class InMemoryStorage implements StorageProvider {
         m_authority = authority;
     }
 
-    public BaseAccessTokenSupplier createAccessTokenSupplier() {
+    @Override
+    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
         return new MemoryCacheAccessTokenSupplier(m_authority, m_cacheKey);
     }
 

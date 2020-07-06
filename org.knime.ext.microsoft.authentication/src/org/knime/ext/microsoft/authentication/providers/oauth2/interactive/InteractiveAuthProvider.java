@@ -55,6 +55,7 @@ import java.util.concurrent.ExecutionException;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
@@ -78,13 +79,16 @@ public class InteractiveAuthProvider extends OAuth2Provider {
 
     private static final String REDIRECT_URL = "http://localhost:51355/";
 
+    private final PortsConfiguration m_portsConfig;
+
     private final StorageSettings m_storageSettings;
 
     /**
      * Creates new instance.
      */
-    public InteractiveAuthProvider(final String nodeInstanceId) {
-        m_storageSettings = new StorageSettings(nodeInstanceId, getAuthority());
+    public InteractiveAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
+        m_portsConfig = portsConfig;
+        m_storageSettings = new StorageSettings(portsConfig, nodeInstanceId, getAuthority());
     }
 
     /**
@@ -139,7 +143,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
 
     @Override
     public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
-        return new InteractiveAuthProviderEditor(this);
+        return new InteractiveAuthProviderEditor(this, parent);
     }
 
     @Override
@@ -150,7 +154,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
 
     @Override
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        InteractiveAuthProvider temp = new InteractiveAuthProvider("");
+        InteractiveAuthProvider temp = new InteractiveAuthProvider(m_portsConfig, "");
         temp.loadSettingsFrom(settings);
         temp.validate();
     }

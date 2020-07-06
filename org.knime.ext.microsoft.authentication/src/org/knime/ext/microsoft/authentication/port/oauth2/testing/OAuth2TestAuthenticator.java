@@ -57,7 +57,7 @@ import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.Username
 /**
  * This class is part of the testing infrastructure and allows to easily
  * authenticate in order to get an {@link OAuth2Credential}.
- * 
+ *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
 public class OAuth2TestAuthenticator {

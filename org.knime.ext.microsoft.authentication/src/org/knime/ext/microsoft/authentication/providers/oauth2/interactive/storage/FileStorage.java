@@ -49,21 +49,26 @@
 package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
+import java.util.EnumSet;
 
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.core.util.FileUtil;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.BaseAccessTokenSupplier;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.FileAccessTokenSupplier;
-
-import com.microsoft.aad.msal4j.MsalClientException;
+import org.knime.core.node.context.ports.PortsConfiguration;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
+import org.knime.filehandling.core.connections.FSFiles;
+import org.knime.filehandling.core.connections.FSPath;
+import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.FileOverwritePolicy;
+import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.SettingsModelWriterFileChooser;
+import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.WritePathAccessor;
+import org.knime.filehandling.core.defaultnodesettings.filtermode.SettingsModelFilterMode.FilterMode;
+import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage.MessageType;
 
 /**
  * Concrete storage provider that stores an MSAL4J token cache string in a file.
@@ -72,87 +77,134 @@ import com.microsoft.aad.msal4j.MsalClientException;
  */
 class FileStorage implements StorageProvider {
 
-    private static final String KEY_FILE_PATH = "filePath";
+    final static NodeLogger LOG = NodeLogger.getLogger(FileStorage.class);
 
     /**
      * Path to file that stores the token cache, when storing the token cache in a
      * file.
      */
-    private final SettingsModelString m_filePath = new SettingsModelString(KEY_FILE_PATH, "");
+    private final SettingsModelWriterFileChooser m_file;
 
     private final String m_authority;
 
-    public FileStorage(final String authority) {
+    private final String m_cacheKey;
+
+    public FileStorage(final PortsConfiguration portsConfig, final String nodeInstanceId, final String authority) {
         m_authority = authority;
+        m_cacheKey = "file-" + nodeInstanceId;
+        m_file = new SettingsModelWriterFileChooser(
+                "token_cache_file", //
+                portsConfig, //
+                "ignored", //
+                FilterMode.FILE, //
+                FileOverwritePolicy.OVERWRITE, //
+                EnumSet.of(FileOverwritePolicy.OVERWRITE));
     }
 
     /**
      * @return the file path settings model
      */
-    public SettingsModelString getFilePathModel() {
-        return m_filePath;
+    public SettingsModelWriterFileChooser getFileModel() {
+        return m_file;
     }
 
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_filePath.loadSettingsFrom(settings);
+        m_file.loadSettingsFrom(settings);
     }
 
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        m_filePath.saveSettingsTo(settings);
+        m_file.saveSettingsTo(settings);
     }
 
     @Override
     public void validate() throws InvalidSettingsException {
-        if (m_filePath.getStringValue().isEmpty()) {
+        if (m_file.getLocation() == null) {
             throw new InvalidSettingsException("File path is not set");
         }
     }
 
     @Override
     public void writeTokenCache(final String tokenCacheString) throws IOException {
-        // FIXME: Replace with new file handling
-        try {
-            Files.write(FileUtil.resolveToPath(FileUtil.toURL(m_filePath.getStringValue())),
-                    tokenCacheString.getBytes(Charset.forName("utf8")));
-        } catch (InvalidPathException | URISyntaxException ex) {
+        final NodeModelStatusConsumer statusConsumer = new NodeModelStatusConsumer(
+                EnumSet.of(MessageType.ERROR, MessageType.WARNING));
+
+        try (final WritePathAccessor accessor = m_file.createWritePathAccessor()) {
+            final FSPath path = accessor.getOutputPath(statusConsumer);
+            statusConsumer.setWarningsIfRequired(LOG::warn);
+            try (final OutputStream out = FSFiles.newOutputStream(path);) {
+                out.write(tokenCacheString.getBytes(Charset.forName("utf8")));
+            }
+        } catch (InvalidSettingsException ex) {
             throw new IOException(ex.getMessage(), ex);
         }
+
+        MemoryTokenCache.put(m_cacheKey, tokenCacheString);
     }
 
     @Override
     public String readTokenCache() throws IOException {
-        try {
-            // FIXME: Replace with new file handling
-            final Path filePath = FileUtil.resolveToPath(FileUtil.toURL(m_filePath.getStringValue()));
-            if (!Files.exists(filePath)) {
-                return null;
+        final NodeModelStatusConsumer statusConsumer = new NodeModelStatusConsumer(
+                EnumSet.of(MessageType.ERROR, MessageType.WARNING));
+
+        final String tokenCacheString;
+
+        try (final WritePathAccessor accessor = m_file.createWritePathAccessor()) {
+            final FSPath path = accessor.getOutputPath(statusConsumer);
+            statusConsumer.setWarningsIfRequired(LOG::warn);
+
+            try (final InputStream in = FSFiles.newInputStream(path)) {
+                if (in.available() > 1000 * 1000) {
+                    throw new IOException(String.format("File %s is too large to plausibly store a token.",
+                            path.toFSLocation().getPath()));
+                }
+
+                final byte[] tokenCacheBytes = new byte[in.available()];
+                int bytesRead = 0;
+                while (bytesRead < tokenCacheBytes.length) {
+                    bytesRead += in.read(tokenCacheBytes, bytesRead, tokenCacheBytes.length - bytesRead);
+                }
+
+                tokenCacheString = new String(tokenCacheBytes, Charset.forName("utf8"));
             }
 
-            return new String(Files.readAllBytes(filePath), Charset.forName("utf8"));
-        } catch (InvalidPathException | MsalClientException | URISyntaxException ex) {
+            MemoryTokenCache.put(m_cacheKey, tokenCacheString);
+            return tokenCacheString;
+        } catch (InvalidSettingsException ex) {
             throw new IOException(ex.getMessage(), ex);
         }
     }
 
     @Override
-    public BaseAccessTokenSupplier createAccessTokenSupplier() {
-        return new FileAccessTokenSupplier(m_authority, m_filePath.getStringValue());
+    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
+        return new MemoryCacheAccessTokenSupplier(m_authority, m_cacheKey);
     }
 
     @Override
     public void clear() throws IOException {
-        try {
-            final Path file = FileUtil.resolveToPath(FileUtil.toURL(m_filePath.getStringValue()));
-            Files.deleteIfExists(file);
-        } catch (InvalidPathException | URISyntaxException ex) {
+
+        final NodeModelStatusConsumer statusConsumer = new NodeModelStatusConsumer(
+                EnumSet.of(MessageType.ERROR, MessageType.WARNING));
+
+        try (final WritePathAccessor accessor = m_file.createWritePathAccessor()) {
+            final FSPath path = accessor.getOutputPath(statusConsumer);
+            statusConsumer.setWarningsIfRequired(LOG::warn);
+
+            FSFiles.deleteSafely(path);
+
+        } catch (InvalidSettingsException ex) {
             throw new IOException(ex.getMessage(), ex);
         }
     }
 
     @Override
     public void clearMemoryTokenCache() {
-        // nothing to do
+        MemoryTokenCache.remove(m_cacheKey);
+    }
+
+    public void configureFileChooserInModel(final PortObjectSpec[] inSpecs,
+            final NodeModelStatusConsumer statusConsumer) throws InvalidSettingsException {
+        m_file.configureInModel(inSpecs, statusConsumer);
     }
 }

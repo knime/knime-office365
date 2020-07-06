@@ -55,10 +55,14 @@ import java.util.Map.Entry;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
+import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
 
 
 /**
@@ -78,12 +82,12 @@ public class MicrosoftAuthenticationSettings {
      *
      * @param nodeInstanceId
      */
-    public MicrosoftAuthenticationSettings(final String nodeInstanceId) {
+    public MicrosoftAuthenticationSettings(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         m_providerType = new SettingsModelString(KEY_PROVIDER_TYPE, "");
 
         m_providers = new EnumMap<>(AuthProviderType.class);
         for (AuthProviderType type : AuthProviderType.values()) {
-            m_providers.put(type, type.createProvider(nodeInstanceId));
+            m_providers.put(type, type.createProvider(portsConfig, nodeInstanceId));
         }
     }
 
@@ -187,4 +191,16 @@ public class MicrosoftAuthenticationSettings {
         }
     }
 
+    /**
+     * @param inSpecs
+     * @param statusConsumer
+     * @throws InvalidSettingsException
+     */
+    public void configureFileChoosersInModel(final PortObjectSpec[] inSpecs,
+            final NodeModelStatusConsumer statusConsumer) throws InvalidSettingsException {
+        ((InteractiveAuthProvider) getProvider(AuthProviderType.INTERACTIVE))
+                .getStorageSettings()
+                .configureFileChoosersInModel(inSpecs, statusConsumer);
+
+    }
 }
