@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.node.auth;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Consumer;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -62,7 +63,7 @@ import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
-import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 
 
 /**
@@ -193,14 +194,14 @@ public class MicrosoftAuthenticationSettings {
 
     /**
      * @param inSpecs
-     * @param statusConsumer
+     * @param msgConsumer
      * @throws InvalidSettingsException
      */
     public void configureFileChoosersInModel(final PortObjectSpec[] inSpecs,
-            final NodeModelStatusConsumer statusConsumer) throws InvalidSettingsException {
+            final Consumer<StatusMessage> msgConsumer) throws InvalidSettingsException {
         ((InteractiveAuthProvider) getProvider(AuthProviderType.INTERACTIVE))
                 .getStorageSettings()
-                .configureFileChoosersInModel(inSpecs, statusConsumer);
+                .configureFileChoosersInModel(inSpecs, msgConsumer);
 
     }
 }

@@ -65,6 +65,8 @@ import org.knime.filehandling.core.port.FileSystemPortObject;
  */
 public class MicrosoftAuthenticationNodeFactory extends ConfigurableNodeFactory<MicrosoftAuthenticationNodeModel> {
 
+    public static final String FILE_SYSTEM_CONNECTION_PORT_NAME = "File System Connection";
+
     /**
      * This member variable is required to exclusively share a key for a static map
      * between the node model and the node dialog. The key should not be saved in
@@ -76,8 +78,8 @@ public class MicrosoftAuthenticationNodeFactory extends ConfigurableNodeFactory<
     @Override
     protected Optional<PortsConfigurationBuilder> createPortsConfigBuilder() {
         final PortsConfigurationBuilder builder = new PortsConfigurationBuilder();
-        builder.addExtendableInputPortGroup("File System Connection", FileSystemPortObject.TYPE);
-        builder.addFixedOutputPortGroup("credentialPort", MicrosoftCredentialPortObject.TYPE);
+        builder.addOptionalInputPortGroup(FILE_SYSTEM_CONNECTION_PORT_NAME, FileSystemPortObject.TYPE);
+        builder.addFixedOutputPortGroup("Microsoft Credential", MicrosoftCredentialPortObject.TYPE);
         return Optional.of(builder);
     }
 

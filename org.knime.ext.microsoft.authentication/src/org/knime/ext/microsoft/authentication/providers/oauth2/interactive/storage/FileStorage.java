@@ -54,7 +54,9 @@ import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.EnumSet;
+import java.util.function.Consumer;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
@@ -62,6 +64,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 import org.knime.filehandling.core.connections.FSFiles;
 import org.knime.filehandling.core.connections.FSPath;
@@ -70,6 +73,7 @@ import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.Settin
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.WritePathAccessor;
 import org.knime.filehandling.core.defaultnodesettings.filtermode.SettingsModelFilterMode.FilterMode;
 import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage.MessageType;
 
 /**
@@ -97,7 +101,7 @@ class FileStorage implements StorageProvider {
         m_file = new SettingsModelWriterFileChooser(
                 "token_cache_file", //
                 portsConfig, //
-                "ignored", //
+                MicrosoftAuthenticationNodeFactory.FILE_SYSTEM_CONNECTION_PORT_NAME, //
                 FilterMode.FILE, //
                 FileOverwritePolicy.OVERWRITE, //
                 EnumSet.of(FileOverwritePolicy.OVERWRITE));
@@ -156,17 +160,20 @@ class FileStorage implements StorageProvider {
             final FSPath path = accessor.getOutputPath(statusConsumer);
             statusConsumer.setWarningsIfRequired(LOG::warn);
 
-            if (Files.isDirectory(path)) {
+            final BasicFileAttributes attribs = Files.readAttributes(path, BasicFileAttributes.class);
+
+            if (attribs.isDirectory()) {
                 return null;
             }
 
-            try (final InputStream in = FSFiles.newInputStream(path)) {
-                if (in.available() > 1000 * 1000) {
-                    throw new IOException(String.format("File %s is too large to plausibly store a token.",
-                            path.toFSLocation().getPath()));
-                }
+            if (attribs.size() > 1000 * 1000) {
+                throw new IOException(String.format("File %s is too large to plausibly store a token.",
+                        path.toFSLocation().getPath()));
+            }
 
-                final byte[] tokenCacheBytes = new byte[in.available()];
+            try (final InputStream in = FSFiles.newInputStream(path)) {
+
+                final byte[] tokenCacheBytes = new byte[(int) attribs.size()];
                 int bytesRead = 0;
                 while (bytesRead < tokenCacheBytes.length) {
                     bytesRead += in.read(tokenCacheBytes, bytesRead, tokenCacheBytes.length - bytesRead);
@@ -212,7 +219,7 @@ class FileStorage implements StorageProvider {
     }
 
     public void configureFileChooserInModel(final PortObjectSpec[] inSpecs,
-            final NodeModelStatusConsumer statusConsumer) throws InvalidSettingsException {
-        m_file.configureInModel(inSpecs, statusConsumer);
+            final Consumer<StatusMessage> msgConsumer) throws InvalidSettingsException {
+        m_file.configureInModel(inSpecs, msgConsumer);
     }
 }

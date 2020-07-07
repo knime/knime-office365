@@ -61,6 +61,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.ScopesEditComponent;
@@ -251,5 +254,11 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
                 showError(ex);
             }
         }
+    }
+
+    @Override
+    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException {
+        m_storageEditor.loadSettingsFrom(settings, specs);
     }
 }

@@ -61,6 +61,9 @@ import javax.swing.JRadioButton;
 
 import org.knime.core.node.FlowVariableModel;
 import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.filehandling.core.data.location.variable.FSLocationVariableType;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.DialogComponentWriterFileChooser;
@@ -205,5 +208,10 @@ public class StorageEditor extends JPanel {
             m_rbSettings.setSelected(true);
             break;
         }
+    }
+
+    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException {
+        m_fileChooser.loadSettingsFrom(settings, specs);
     }
 }

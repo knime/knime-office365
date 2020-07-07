@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
@@ -65,7 +66,7 @@ import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.LoginStatus;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
-import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 
 /**
  * Class for storing settings in a one of the different locations. Supported
@@ -302,7 +303,7 @@ public class StorageSettings {
     }
 
     public void configureFileChoosersInModel(final PortObjectSpec[] inSpecs,
-            final NodeModelStatusConsumer statusConsumer) throws InvalidSettingsException {
-        m_fileStorage.configureFileChooserInModel(inSpecs, statusConsumer);
+            final Consumer<StatusMessage> msgConsumer) throws InvalidSettingsException {
+        m_fileStorage.configureFileChooserInModel(inSpecs, msgConsumer);
     }
 }

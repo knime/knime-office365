@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.node.auth;
 import java.io.File;
 import java.io.IOException;
 import java.util.EnumSet;
+import java.util.function.Consumer;
 
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -62,7 +63,6 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.port.PortType;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
@@ -70,6 +70,7 @@ import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.StorageType;
 import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage.MessageType;
 
 /**
@@ -79,6 +80,9 @@ import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage.Mess
  * @author Alexander Bondaletov
  */
 public class MicrosoftAuthenticationNodeModel extends NodeModel {
+
+    private static final Consumer<StatusMessage> NOOP_STATUS_CONSUMER = (s) -> {
+    };
 
     private final MicrosoftAuthenticationSettings m_settings;
 
@@ -92,18 +96,32 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
      * @param nodeInstanceId
      */
     MicrosoftAuthenticationNodeModel(final PortsConfiguration portsConfig, final String nodeInstanceId) {
-        super(new PortType[] {}, new PortType[] { MicrosoftCredentialPortObject.TYPE });
+        super(portsConfig.getInputPorts(), portsConfig.getOutputPorts());
         m_settings = new MicrosoftAuthenticationSettings(portsConfig, nodeInstanceId);
     }
 
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+
+        boolean fileStorageSelected = false;
         if (m_settings.getProviderType() == AuthProviderType.INTERACTIVE) {
             final InteractiveAuthProvider provider = (InteractiveAuthProvider) m_settings.getCurrentProvider();
             if (provider.getStorageSettings().getStorageType() == StorageType.FILE) {
-                m_settings.configureFileChoosersInModel(inSpecs, m_statusConsumer);
+                fileStorageSelected = true;
             }
         }
+
+        try {
+            final Consumer<StatusMessage> msgConsumer = fileStorageSelected ? m_statusConsumer : NOOP_STATUS_CONSUMER;
+            m_settings.configureFileChoosersInModel(inSpecs, msgConsumer);
+        } catch (InvalidSettingsException e) {
+            // only rethrow the InvalidSettingsException when we are actually using file
+            // storage
+            if (fileStorageSelected) {
+                throw e;
+            }
+        }
+
         return new PortObjectSpec[] { new MicrosoftCredentialPortObjectSpec(null) };
     }
 
