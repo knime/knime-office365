@@ -53,12 +53,15 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.ButtonGroup;
+import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
 import org.knime.core.node.FlowVariableModel;
 import org.knime.core.node.NodeDialogPane;
+import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.filehandling.core.data.location.variable.FSLocationVariableType;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.DialogComponentWriterFileChooser;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.SettingsModelWriterFileChooser;
@@ -79,6 +82,8 @@ public class StorageEditor extends JPanel {
     private final JRadioButton m_rbMemory;
     private final JRadioButton m_rbFile;
     private final JRadioButton m_rbSettings;
+    private final JButton m_clearCurrent;
+    private final JButton m_clearAll;
 
     public StorageEditor(final StorageSettings settings, final NodeDialogPane nodeDialog) {
         super(new GridBagLayout());
@@ -87,6 +92,12 @@ public class StorageEditor extends JPanel {
         m_rbMemory = createRadioBtn(StorageType.MEMORY);
         m_rbFile = createRadioBtn(StorageType.FILE);
         m_rbSettings = createRadioBtn(StorageType.SETTINGS);
+
+        m_clearCurrent = new JButton("Clear selected");
+        m_clearCurrent.addActionListener((e) -> onClearCurrent());
+
+        m_clearAll = new JButton("Clear all");
+        m_clearAll.addActionListener((e) -> onClearAll());
 
         ButtonGroup group = new ButtonGroup();
         group.add(m_rbMemory);
@@ -101,6 +112,9 @@ public class StorageEditor extends JPanel {
                 "microsoft_auth_token_cache_file",
                 fvm,
                 FilterMode.FILE);
+        m_fileChooser.getComponentPanel()
+                .setBorder((BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(),
+                        "Token file to read/write")));
 
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.HORIZONTAL;
@@ -114,13 +128,60 @@ public class StorageEditor extends JPanel {
         add(m_rbFile, c);
 
         c.gridy += 1;
-        c.insets = new Insets(5, 15, 5, 5);
+        c.insets = new Insets(5, 20, 5, 5);
         add(m_fileChooser.getComponentPanel(), c);
 
         c.gridy += 1;
         c.insets = new Insets(0, 0, 0, 0);
         add(m_rbSettings, c);
+
+        c.gridy += 1;
+        c.insets = new Insets(15, 0, 0, 0);
+        final Box buttonBox = Box.createHorizontalBox();
+        buttonBox.add(m_clearCurrent);
+        buttonBox.add(Box.createHorizontalStrut(5));
+        buttonBox.add(m_clearAll);
+        buttonBox.add(Box.createHorizontalGlue());
+        add(buttonBox, c);
+
         setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Access token storage"));
+    }
+
+    private void onClearCurrent() {
+        m_clearCurrent.setEnabled(false);
+        m_clearAll.setEnabled(false);
+        new SwingWorkerWithContext<Void, Void>() {
+            @Override
+            protected Void doInBackgroundWithContext() throws Exception {
+                m_settings.clearCurrentStorage();
+                return null;
+            }
+
+            @Override
+            protected void doneWithContext() {
+                m_clearCurrent.setEnabled(true);
+                m_clearAll.setEnabled(true);
+            }
+
+        }.execute();
+    }
+
+    private void onClearAll() {
+        m_clearCurrent.setEnabled(false);
+        m_clearAll.setEnabled(false);
+        new SwingWorkerWithContext<Void, Void>() {
+            @Override
+            protected Void doInBackgroundWithContext() throws Exception {
+                m_settings.clearStorage();
+                return null;
+            }
+
+            @Override
+            protected void doneWithContext() {
+                m_clearCurrent.setEnabled(true);
+                m_clearAll.setEnabled(true);
+            }
+        }.execute();
     }
 
     private JRadioButton createRadioBtn(final StorageType location) {

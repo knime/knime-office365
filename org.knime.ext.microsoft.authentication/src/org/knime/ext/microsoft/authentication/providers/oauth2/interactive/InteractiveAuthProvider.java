@@ -113,20 +113,16 @@ public class InteractiveAuthProvider extends OAuth2Provider {
     }
 
     public LoginStatus getLoginStatus() throws IOException {
-        if (!m_storageSettings.isLoggedIn()) {
-            return LoginStatus.NOT_LOGGED_IN;
-        } else {
-            return LoginStatus.parseFromTokenCache(m_storageSettings.readTokenCache());
-        }
+        return m_storageSettings.getLoginStatus();
     }
 
     @Override
     public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
-        if (!m_storageSettings.isLoggedIn()) {
+        final LoginStatus loginStatus = m_storageSettings.getLoginStatus();
+
+        if (loginStatus == LoginStatus.NOT_LOGGED_IN) {
             throw new IOException("Access token not available anymore. Please login in the node dialog again.");
         }
-
-        final LoginStatus loginStatus = LoginStatus.parseFromTokenCache(m_storageSettings.readTokenCache());
 
         return new OAuth2Credential(
                 m_storageSettings.createAccessTokenSupplier(), //

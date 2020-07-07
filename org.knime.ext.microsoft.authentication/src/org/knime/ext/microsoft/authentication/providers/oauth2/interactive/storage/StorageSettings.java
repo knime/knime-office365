@@ -49,6 +49,13 @@
 package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.LinkedList;
+import java.util.List;
+
+import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -56,6 +63,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.LoginStatus;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 import org.knime.filehandling.core.defaultnodesettings.status.NodeModelStatusConsumer;
 
@@ -87,6 +95,8 @@ public class StorageSettings {
 
     private final NodeSettingsStorage m_nodeSettingsStorage;
 
+    private final List<ChangeListener> m_loginStatusChangeListeners;
+
     public StorageSettings(final PortsConfiguration portsConfig, final String nodeInstanceId, final String authority) {
         m_inMemoryStorage = new InMemoryStorage(nodeInstanceId, authority);
         m_nodeSettingsStorage = new NodeSettingsStorage(nodeInstanceId, authority);
@@ -96,6 +106,11 @@ public class StorageSettings {
             m_fileStorage.getFileModel().setEnabled(getStorageType() == StorageType.FILE);
         });
 
+        m_loginStatusChangeListeners = new LinkedList<>();
+    }
+
+    public void addLoginStatusChangeListener(final ChangeListener listener) {
+        m_loginStatusChangeListeners.add(listener);
     }
 
     public SettingsModelString getStorageTypeModel() {
@@ -112,6 +127,7 @@ public class StorageSettings {
     public void setStorageType(final StorageType type) {
         m_storageType.setStringValue(type.name());
     }
+
     /**
      * @return the inMemoryStorage
      */
@@ -134,6 +150,11 @@ public class StorageSettings {
     }
 
     public void clearCurrentStorage() throws IOException {
+        final LoginStatus oldLoginStatus = getLoginStatus();
+        if (!oldLoginStatus.isLoggedIn()) {
+            return;
+        }
+
         switch (getStorageType()) {
         case MEMORY:
             m_inMemoryStorage.clear();
@@ -145,36 +166,46 @@ public class StorageSettings {
             m_nodeSettingsStorage.clear();
             break;
         }
+        fireEventLoginStatusChangedEvent(oldLoginStatus);
     }
 
-    public boolean isLoggedIn() throws IOException {
-        try {
-            final String tokenCacheString;
-
-            switch (getStorageType()) {
-            case MEMORY:
-                tokenCacheString = m_inMemoryStorage.readTokenCache();
-                break;
-            case FILE:
-                tokenCacheString = m_fileStorage.readTokenCache();
-                break;
-            case SETTINGS:
-                tokenCacheString = m_nodeSettingsStorage.readTokenCache();
-                break;
-            default:
-                throw new IllegalStateException();
-            }
-
-            return tokenCacheString != null;
-        } catch (Exception e) {
-            return false;
+    public LoginStatus getLoginStatus() throws IOException {
+        final String tokenCacheString = readTokenCache();
+        if (tokenCacheString == null) {
+            return LoginStatus.NOT_LOGGED_IN;
+        } else {
+            return LoginStatus.parseFromTokenCache(tokenCacheString);
         }
     }
 
     public void clearStorage() throws IOException {
+        final LoginStatus oldLoginStatus = getLoginStatus();
+
         m_inMemoryStorage.clear();
         m_fileStorage.clear();
         m_nodeSettingsStorage.clear();
+
+        fireEventLoginStatusChangedEvent(oldLoginStatus);
+    }
+
+    /**
+     * @param oldLoginStatus
+     * @throws IOException
+     */
+    private void fireEventLoginStatusChangedEvent(final LoginStatus oldLoginStatus) throws IOException {
+        final LoginStatus newLoginStatus = getLoginStatus();
+        if (!newLoginStatus.equals(oldLoginStatus)) {
+            try {
+                SwingUtilities.invokeAndWait(() -> {
+                    final ChangeEvent event = new ChangeEvent(newLoginStatus);
+                    for (ChangeListener listener : m_loginStatusChangeListeners) {
+                        listener.stateChanged(event);
+                    }
+                });
+            } catch (InvocationTargetException | InterruptedException ex) {
+                throw new IOException(ex.getMessage(), ex);
+            }
+        }
     }
 
     /**
@@ -238,7 +269,7 @@ public class StorageSettings {
     }
 
     public void writeTokenCache(final String tokenCacheString) throws IOException {
-        switch(getStorageType()) {
+        switch (getStorageType()) {
         case MEMORY:
             m_inMemoryStorage.writeTokenCache(tokenCacheString);
             break;

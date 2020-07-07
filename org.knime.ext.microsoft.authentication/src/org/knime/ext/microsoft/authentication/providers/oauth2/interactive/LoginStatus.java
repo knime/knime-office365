@@ -112,4 +112,42 @@ public class LoginStatus {
         return new LoginStatus(result.account().username(), result.expiresOnDate().toInstant());
     }
 
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((m_accessTokenExpiry == null) ? 0 : m_accessTokenExpiry.hashCode());
+        result = prime * result + ((m_username == null) ? 0 : m_username.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        LoginStatus other = (LoginStatus) obj;
+        if (m_accessTokenExpiry == null) {
+            if (other.m_accessTokenExpiry != null) {
+                return false;
+            }
+        } else if (!m_accessTokenExpiry.equals(other.m_accessTokenExpiry)) {
+            return false;
+        }
+        if (m_username == null) {
+            if (other.m_username != null) {
+                return false;
+            }
+        } else if (!m_username.equals(other.m_username)) {
+            return false;
+        }
+        return true;
+    }
+
 }

@@ -52,6 +52,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.util.EnumSet;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -154,6 +156,10 @@ class FileStorage implements StorageProvider {
             final FSPath path = accessor.getOutputPath(statusConsumer);
             statusConsumer.setWarningsIfRequired(LOG::warn);
 
+            if (Files.isDirectory(path)) {
+                return null;
+            }
+
             try (final InputStream in = FSFiles.newInputStream(path)) {
                 if (in.available() > 1000 * 1000) {
                     throw new IOException(String.format("File %s is too large to plausibly store a token.",
@@ -173,6 +179,8 @@ class FileStorage implements StorageProvider {
             return tokenCacheString;
         } catch (InvalidSettingsException ex) {
             throw new IOException(ex.getMessage(), ex);
+        } catch (NoSuchFileException e) {
+            return null;
         }
     }
 

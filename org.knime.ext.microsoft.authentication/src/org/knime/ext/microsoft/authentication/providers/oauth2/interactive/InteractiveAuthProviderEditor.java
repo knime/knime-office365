@@ -94,6 +94,8 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     public InteractiveAuthProviderEditor(final InteractiveAuthProvider provider, final NodeDialogPane nodeDialog) {
         super(provider);
         m_parentNodeDialog = nodeDialog;
+        m_provider.getStorageSettings()
+                .addLoginStatusChangeListener((e) -> updateLoginStatus((LoginStatus) e.getSource()));
     }
 
     @Override
