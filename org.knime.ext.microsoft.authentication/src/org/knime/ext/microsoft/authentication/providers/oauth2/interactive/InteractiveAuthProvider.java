@@ -68,6 +68,7 @@ import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.stora
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
 import com.microsoft.aad.msal4j.PublicClientApplication;
+import com.microsoft.aad.msal4j.SystemBrowserOptions;
 
 /**
  * {@link OAuth2Provider} implementation that performs interactive
@@ -102,9 +103,12 @@ public class InteractiveAuthProvider extends OAuth2Provider {
     public LoginStatus performLogin() throws InterruptedException, ExecutionException, IOException {
         final PublicClientApplication app = MSALUtil.createClientApp(getAuthority());
 
+        // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
         final InteractiveRequestParameters params = InteractiveRequestParameters
-                .builder(URI.create(REDIRECT_URL))
-                .scopes(getScopesStringSet()).build();
+                .builder(URI.create(REDIRECT_URL)).scopes(getScopesStringSet())
+                .systemBrowserOptions(
+                        SystemBrowserOptions.builder().openBrowserAction(new CustomOpenBrowserAction()).build())
+                .build();
 
         final IAuthenticationResult result = app.acquireToken(params).get();
 
