@@ -176,7 +176,7 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
     }
 
     @Override
-    public void onProviderSelected() {
+    public void onShown() {
         if (!m_provider.getUseCredentialsModel().getBooleanValue()) {
             rbEnterCreds.setSelected(true);
         } else {

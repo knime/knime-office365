@@ -55,8 +55,16 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.EnumSet;
 import java.util.function.Consumer;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
@@ -64,6 +72,8 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.util.crypto.Encrypter;
+import org.knime.core.util.crypto.IEncrypter;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 import org.knime.filehandling.core.connections.FSFiles;
@@ -84,6 +94,8 @@ import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage.Mess
 class FileStorage implements StorageProvider {
 
     final static NodeLogger LOG = NodeLogger.getLogger(FileStorage.class);
+
+    private static final String TOKEN_CACHE_ENCRYPTION_SECRET = "fu&Fu6aef7Eshoozu^inie6Oz8weeP1iucei6pei";
 
     /**
      * Path to file that stores the token cache, when storing the token cache in a
@@ -136,11 +148,14 @@ class FileStorage implements StorageProvider {
         final NodeModelStatusConsumer statusConsumer = new NodeModelStatusConsumer(
                 EnumSet.of(MessageType.ERROR, MessageType.WARNING));
 
+        final String encrypted = encrypt(tokenCacheString);
+
         try (final WritePathAccessor accessor = m_file.createWritePathAccessor()) {
             final FSPath path = accessor.getOutputPath(statusConsumer);
             statusConsumer.setWarningsIfRequired(LOG::warn);
             try (final OutputStream out = FSFiles.newOutputStream(path);) {
-                out.write(tokenCacheString.getBytes(Charset.forName("utf8")));
+
+                out.write(encrypted.getBytes(Charset.forName("utf8")));
             }
         } catch (InvalidSettingsException ex) {
             throw new IOException(ex.getMessage(), ex);
@@ -149,12 +164,30 @@ class FileStorage implements StorageProvider {
         MemoryTokenCache.put(m_cacheKey, tokenCacheString);
     }
 
+    private static String encrypt(final String plaintextString) throws IOException {
+        try {
+            return createEncrypter().encrypt(plaintextString);
+        } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException
+                | InvalidAlgorithmParameterException ex) {
+            throw new IOException("Failed to encrypt token before saving to file", ex);
+        }
+    }
+
+    private static String decrypt(final String encryptedString) throws IOException {
+        try {
+            return createEncrypter().decrypt(encryptedString);
+        } catch (InvalidKeyException | BadPaddingException | IllegalBlockSizeException
+                | InvalidAlgorithmParameterException ex) {
+            throw new IOException("Failed to encrypt token before saving to file", ex);
+        }
+    }
+
     @Override
     public String readTokenCache() throws IOException {
         final NodeModelStatusConsumer statusConsumer = new NodeModelStatusConsumer(
                 EnumSet.of(MessageType.ERROR, MessageType.WARNING));
 
-        final String tokenCacheString;
+
 
         try (final WritePathAccessor accessor = m_file.createWritePathAccessor()) {
             final FSPath path = accessor.getOutputPath(statusConsumer);
@@ -171,6 +204,8 @@ class FileStorage implements StorageProvider {
                         path.toFSLocation().getPath()));
             }
 
+            final String encryptedTokenCacheString;
+
             try (final InputStream in = FSFiles.newInputStream(path)) {
 
                 final byte[] tokenCacheBytes = new byte[(int) attribs.size()];
@@ -179,11 +214,13 @@ class FileStorage implements StorageProvider {
                     bytesRead += in.read(tokenCacheBytes, bytesRead, tokenCacheBytes.length - bytesRead);
                 }
 
-                tokenCacheString = new String(tokenCacheBytes, Charset.forName("utf8"));
+                encryptedTokenCacheString = new String(tokenCacheBytes, Charset.forName("utf8"));
             }
 
+            final String tokenCacheString = decrypt(encryptedTokenCacheString);
             MemoryTokenCache.put(m_cacheKey, tokenCacheString);
             return tokenCacheString;
+
         } catch (InvalidSettingsException ex) {
             throw new IOException(ex.getMessage(), ex);
         } catch (NoSuchFileException e) {
@@ -222,4 +259,13 @@ class FileStorage implements StorageProvider {
             final Consumer<StatusMessage> msgConsumer) throws InvalidSettingsException {
         m_file.configureInModel(inSpecs, msgConsumer);
     }
+
+    private static IEncrypter createEncrypter() {
+        try {
+            return new Encrypter(TOKEN_CACHE_ENCRYPTION_SECRET);
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeySpecException ex) {
+            throw new RuntimeException("Could not create encrypter: " + ex.getMessage(), ex);
+        }
+    }
+
 }

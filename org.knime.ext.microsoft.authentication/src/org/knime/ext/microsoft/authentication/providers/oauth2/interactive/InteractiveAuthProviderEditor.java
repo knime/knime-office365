@@ -57,10 +57,10 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
@@ -68,8 +68,9 @@ import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.ScopesEditComponent;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.StorageEditor;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
-import com.microsoft.aad.msal4j.MsalInteractionRequiredException;
+import com.microsoft.aad.msal4j.MsalException;
 
 /**
  * Editor component for the {@link InteractiveAuthProvider}.
@@ -77,6 +78,8 @@ import com.microsoft.aad.msal4j.MsalInteractionRequiredException;
  * @author Alexander Bondaletov
  */
 public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<InteractiveAuthProvider> {
+
+    private static final NodeLogger LOG = NodeLogger.getLogger(InteractiveAuthProviderEditor.class);
 
     private final NodeDialogPane m_parentNodeDialog;
 
@@ -97,16 +100,17 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     public InteractiveAuthProviderEditor(final InteractiveAuthProvider provider, final NodeDialogPane nodeDialog) {
         super(provider);
         m_parentNodeDialog = nodeDialog;
-        m_provider.getStorageSettings()
-                .addLoginStatusChangeListener((e) -> updateLoginStatus((LoginStatus) e.getSource()));
     }
 
     @Override
-    public void onProviderSelected() {
+    public void onShown() {
+        triggerLoginStatusWorker();
+        m_storageEditor.onShown();
+    }
+
+    private void triggerLoginStatusWorker() {
         m_worker = new LoginStatusWorker();
         m_worker.execute();
-
-        m_storageEditor.onShown();
     }
 
     @Override
@@ -115,13 +119,10 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         box.add(createButtonsPanel());
         box.add(Box.createVerticalStrut(10));
 
-        m_storageEditor = new StorageEditor(m_provider.getStorageSettings(), m_parentNodeDialog);
+        m_storageEditor = new StorageEditor(m_provider.getStorageSettings(), m_parentNodeDialog,
+                this::triggerLoginStatusWorker);
         box.add(m_storageEditor);
         box.add(Box.createVerticalStrut(10));
-        m_provider.getStorageSettings().getStorageTypeModel().addChangeListener((e) -> {
-            m_worker = new LoginStatusWorker();
-            m_worker.execute();
-        });
 
         box.add(new ScopesEditComponent(m_provider.getScopesModel()));
         box.add(Box.createVerticalGlue());
@@ -148,7 +149,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         panel.add(m_cancelBtn);
         panel.add(m_statusLabel);
 
-        updateLoginStatus(LoginStatus.NOT_LOGGED_IN);
+        updateLoginStatus(LoginStatus.NOT_LOGGED_IN, null);
         return panel;
     }
 
@@ -157,22 +158,11 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         m_worker.execute();
     }
 
-    private void showError(final Exception ex) {
-        String message = ex.getMessage();
-
-        MsalInteractionRequiredException msalEx = extractMsalException(ex);
-        if (msalEx != null) {
-            message = msalEx.getMessage();
-        }
-
-        JOptionPane.showMessageDialog(m_component, message, "Error", JOptionPane.ERROR_MESSAGE);
-    }
-
-    private static MsalInteractionRequiredException extractMsalException(final Exception ex) {
+    private static MsalException extractMsalException(final Throwable ex) {
         Throwable current = ex;
         while (current != null) {
-            if (current instanceof MsalInteractionRequiredException) {
-                return (MsalInteractionRequiredException) current;
+            if (current instanceof MsalException) {
+                return (MsalException) current;
             }
             current = current.getCause();
         }
@@ -191,11 +181,18 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         m_statusLabel.setText("Getting login status...");
     }
 
-    private void updateLoginStatus(final LoginStatus loginStatus) {
+    private void updateLoginStatus(final LoginStatus loginStatus, final Throwable error) {
         if (loginStatus == LoginStatus.NOT_LOGGED_IN) {
             m_loginBtn.setVisible(true);
             m_cancelBtn.setVisible(false);
-            m_statusLabel.setText(String.format("<html><font color=%s>Not logged in</font></html>", "#CC0000"));
+
+            final String msg;
+            if (error == null) {
+                msg = "Not logged in";
+            } else {
+                msg = formatException(error);
+            }
+            m_statusLabel.setText(String.format("<html><font color=%s>%s</font></html>", "#CC0000", msg));
         } else {
             m_loginBtn.setVisible(true);
             m_cancelBtn.setVisible(false);
@@ -203,6 +200,29 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
                     "#007F0E",
                     loginStatus.getUsername()));
         }
+    }
+
+    private String formatException(final Throwable error) {
+        String message = null;
+
+        MsalException msalEx = extractMsalException(error);
+        if (msalEx != null) {
+            message = msalEx.getMessage();
+        }
+
+        if (message == null) {
+            message = ExceptionUtil.getDeepestNIOErrorMessage(error);
+        }
+
+        if (message == null) {
+            message = ExceptionUtil.getDeepestErrorMessage(error, true);
+        }
+
+        if (message == null) {
+            message = String.format("An error occured (%s)", error.getClass().getSimpleName());
+        }
+
+        return message;
     }
 
     private class LoginWorker extends SwingWorkerWithContext<LoginStatus, Void> {
@@ -221,12 +241,12 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         protected void doneWithContext() {
             try {
                 final LoginStatus loginStatus = get();
-                updateLoginStatus(loginStatus);
+                updateLoginStatus(loginStatus, null);
             } catch (InterruptedException ex) {
-                updateLoginStatus(LoginStatus.NOT_LOGGED_IN);
+                updateLoginStatus(LoginStatus.NOT_LOGGED_IN, null);
             } catch (ExecutionException ex) {
-                updateLoginStatus(LoginStatus.NOT_LOGGED_IN);
-                showError(ex);
+                updateLoginStatus(LoginStatus.NOT_LOGGED_IN, ex.getCause());
+                LOG.error(ex.getCause().getMessage(), ex);
             }
         }
     }
@@ -246,12 +266,12 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         protected void doneWithContext() {
             try {
                 final LoginStatus loginStatus = get();
-                updateLoginStatus(loginStatus);
+                updateLoginStatus(loginStatus, null);
             } catch (InterruptedException ex) {
-                updateLoginStatus(LoginStatus.NOT_LOGGED_IN);
+                updateLoginStatus(LoginStatus.NOT_LOGGED_IN, null);
             } catch (ExecutionException ex) {
-                updateLoginStatus(LoginStatus.NOT_LOGGED_IN);
-                showError(ex);
+                updateLoginStatus(LoginStatus.NOT_LOGGED_IN, ex.getCause());
+                LOG.error(ex.getCause().getMessage(), ex);
             }
         }
     }

@@ -107,9 +107,9 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
         m_providerCombo = new JComboBox<>(AuthProviderType.values());
 
         m_providerCombo.addActionListener(e -> {
-            AuthProviderType provider = (AuthProviderType) m_providerCombo.getSelectedItem();
-            m_settings.getProviderTypeModel().setStringValue(provider.name());
-            m_editors.get(m_settings.getProviderType()).onProviderSelected();
+            AuthProviderType newProvider = (AuthProviderType) m_providerCombo.getSelectedItem();
+            m_settings.getProviderTypeModel().setStringValue(newProvider.name());
+            m_editors.get(newProvider).onShown();
         });
 
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -143,8 +143,8 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
 
     @Override
     public void onOpen() {
-        m_providerCombo.setSelectedItem(m_settings.getProviderType());
-        m_editors.get(m_settings.getProviderType()).onProviderSelected();
+        AuthProviderType currProvider = m_settings.getProviderType();
+        m_providerCombo.setSelectedItem(currProvider);
     }
 
     @Override

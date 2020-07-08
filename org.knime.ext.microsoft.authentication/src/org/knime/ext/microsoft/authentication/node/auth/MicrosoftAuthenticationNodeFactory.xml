@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <knimeNode icon="./msauth.png" type="Source"
-	xmlns="http://knime.org/node/v2.10"
+	xmlns="http://knime.org/node/v4.1"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+	xsi:schemaLocation="http://knime.org/node/v4.1 http://knime.org/node/v4.1.xsd">
 	<name>Microsoft Authentication (Labs)</name>
 
 	<shortDescription>
@@ -12,24 +12,24 @@
 	<fullDescription>
 		<intro>
 			<p>
-				This node provides authentication to access Microsoft Office 365
-				cloud services.
+				This node provides authentication to access Microsoft Office 365 cloud services, such as Sharepoint Online.
 			</p>
 			
 			<p>
 				The node supports two authentication modes:
 				<ul>
 					<li>
-						<i>Interactive authentication</i>: Allows to perform an interactive login in the node dialog. The login
-						results in a token being stored in a configurable location. During the interactive login you may be asked
-						to consent to the requested level of access for KNIME Analytics Platform. The resulting token will
-						be valid for a certain amount of time. 
+						<i>Interactive authentication</i>: Allows to perform a interactive, web browser based login by by clicking on <i>Login</i>
+						in the node dialog. In the browser window that pops up, you may be asked to consent to the requested level of access
+						The login results in a token being stored in a configurable location. The token will be valid for a certain amount of time
+						that is defined by your Azure AD settings. 
 					</li>
 					<li>
-						<i>Username/password authentication</i>: Performs a login to obtain a fresh token every time the node executes.
-						This mode is non-interactive and does not allow you to confirm the requested level of access. Hence. this mode
-						requires consent to have been given beforehand, e.g. during a previous interactive login, or by an Azure AD
-						directory admin.
+						<i>Username/password authentication</i>: Performs a non-interactive login to obtain a fresh token every time the node executes.
+						Since this login is non-interactive and you get a fresh token every time, this mode is well-suited for workflows on KNIME Server.
+						However, it also has some limitations: First, you cannot to consent to the requested level of access, hence consent must be 
+						given beforehand, e.g. during a previous interactive login, or by an Azure AD directory admin. Second, accounts that require
+						multi-factor authentication (MFA) will not work.
 					</li>
 				</ul>
 			</p>
@@ -38,28 +38,36 @@
 		<tab name="Interactive authentication">
 
 			<option name="Login">
-				Click <i>Login</i> to open a browser window where you can
-				login with your Microsoft identity and, if necessary, consent to the requested access level (scopes)
-				(see below). The login results in a <i>token</i>
-				being stored in a configurable location (see below).
+				Click <i>Login</i> to open a browser window, where you can login with your Microsoft identity and, if necessary, consent to the
+				requested access level (see below). The login results in a <i>token</i> being stored in a configurable location (see below).
 			</option>
 
-			<option name="Crential storage">
-				Allows to define where the credential obtained during login gets stored:
+			<option name="Token storage">
+				Allows to define where the token obtained during login gets stored:
 				<ul>
 					<li>
-						<i>Memory</i>: The token is temporarily stored in-memory. The token will vanish
+						<b>Memory</b>: The token is temporarily stored in-memory. The token will be removed
 						once the workflow is closed.
 					</li>
 					<li>
-						<i>File</i>: The token is persistently stored in a file. This allows the same
-						token to be used by nodes in different workflows.
+						<b>File</b>: Allows to specify a file where the token will be written to (in encrypted form) upon login, and read from
+						when the node is executed. This allows the same token to be used by nodes in different workflows. Note that the file
+						is (over)written every time you successfully login.
 					</li>
 					<li>
-						<i>Node</i>
-						: The token is persistently stored in the settings of this node.
+						<b>Node</b>: The token is persistently stored (in encrypted form) in the settings of this node and will be saved with
+						the workflow.
 					</li>
 				</ul>
+			</option>
+			
+			<option name="Clear selected">
+				Clears the token from the currently selected storage. Please note that when <b>File</b> is selected as storage, then the
+				specified file will be deleted.
+			</option>
+
+			<option name="Clear all">
+				Clears the token from all selected storages. Please note that any file specified in the <b>File</b> storage option will be deleted.
 			</option>
 
 			<option name="Request access to">
@@ -93,6 +101,9 @@
 	</fullDescription>
 
 	<ports>
+		<dynInPort insert-before="0" name="File System Connection" group-identifier="File System Connection"> 
+			A file system connection to read/write the token, when using <b>File</b> as token storage.
+		</dynInPort>
 		<outPort index="0" name="Microsoft Office 365 Credential">
 			A Microsoft Office 365 credential that uses the logged in Microsoft identity.
 		</outPort>

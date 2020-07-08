@@ -88,9 +88,13 @@ public class StorageEditor extends JPanel {
     private final JButton m_clearCurrent;
     private final JButton m_clearAll;
 
-    public StorageEditor(final StorageSettings settings, final NodeDialogPane nodeDialog) {
+    private final LoginStatusEventHandler m_loginStatusEventHandler;
+
+    public StorageEditor(final StorageSettings settings, final NodeDialogPane nodeDialog,
+            final LoginStatusEventHandler loginStatusEventHandler) {
         super(new GridBagLayout());
         m_settings = settings;
+        m_loginStatusEventHandler = loginStatusEventHandler;
 
         m_rbMemory = createRadioBtn(StorageType.MEMORY);
         m_rbFile = createRadioBtn(StorageType.FILE);
@@ -147,7 +151,7 @@ public class StorageEditor extends JPanel {
         buttonBox.add(Box.createHorizontalGlue());
         add(buttonBox, c);
 
-        setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Access token storage"));
+        setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Token storage"));
     }
 
     private void onClearCurrent() {
@@ -164,6 +168,7 @@ public class StorageEditor extends JPanel {
             protected void doneWithContext() {
                 m_clearCurrent.setEnabled(true);
                 m_clearAll.setEnabled(true);
+                m_loginStatusEventHandler.run();
             }
 
         }.execute();
@@ -183,6 +188,7 @@ public class StorageEditor extends JPanel {
             protected void doneWithContext() {
                 m_clearCurrent.setEnabled(true);
                 m_clearAll.setEnabled(true);
+                m_loginStatusEventHandler.run();
             }
         }.execute();
     }
@@ -192,6 +198,7 @@ public class StorageEditor extends JPanel {
         rb.setSelected(m_settings.getStorageType() == location);
         rb.addActionListener(e -> {
             m_settings.setStorageType(location);
+            m_loginStatusEventHandler.run();
         });
         return rb;
     }

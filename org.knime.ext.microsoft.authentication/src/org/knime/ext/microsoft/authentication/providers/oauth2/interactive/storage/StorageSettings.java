@@ -49,14 +49,7 @@
 package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.function.Consumer;
-
-import javax.swing.SwingUtilities;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -96,8 +89,6 @@ public class StorageSettings {
 
     private final NodeSettingsStorage m_nodeSettingsStorage;
 
-    private final List<ChangeListener> m_loginStatusChangeListeners;
-
     public StorageSettings(final PortsConfiguration portsConfig, final String nodeInstanceId, final String authority) {
         m_inMemoryStorage = new InMemoryStorage(nodeInstanceId, authority);
         m_nodeSettingsStorage = new NodeSettingsStorage(nodeInstanceId, authority);
@@ -106,12 +97,6 @@ public class StorageSettings {
         m_storageType.addChangeListener((e) -> {
             m_fileStorage.getFileModel().setEnabled(getStorageType() == StorageType.FILE);
         });
-
-        m_loginStatusChangeListeners = new LinkedList<>();
-    }
-
-    public void addLoginStatusChangeListener(final ChangeListener listener) {
-        m_loginStatusChangeListeners.add(listener);
     }
 
     public SettingsModelString getStorageTypeModel() {
@@ -167,7 +152,6 @@ public class StorageSettings {
             m_nodeSettingsStorage.clear();
             break;
         }
-        fireEventLoginStatusChangedEvent(oldLoginStatus);
     }
 
     public LoginStatus getLoginStatus() throws IOException {
@@ -186,27 +170,6 @@ public class StorageSettings {
         m_fileStorage.clear();
         m_nodeSettingsStorage.clear();
 
-        fireEventLoginStatusChangedEvent(oldLoginStatus);
-    }
-
-    /**
-     * @param oldLoginStatus
-     * @throws IOException
-     */
-    private void fireEventLoginStatusChangedEvent(final LoginStatus oldLoginStatus) throws IOException {
-        final LoginStatus newLoginStatus = getLoginStatus();
-        if (!newLoginStatus.equals(oldLoginStatus)) {
-            try {
-                SwingUtilities.invokeAndWait(() -> {
-                    final ChangeEvent event = new ChangeEvent(newLoginStatus);
-                    for (ChangeListener listener : m_loginStatusChangeListeners) {
-                        listener.stateChanged(event);
-                    }
-                });
-            } catch (InvocationTargetException | InterruptedException ex) {
-                throw new IOException(ex.getMessage(), ex);
-            }
-        }
     }
 
     /**

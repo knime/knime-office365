@@ -44,40 +44,13 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-28 (Alexander Bondaletov): created
+ *   2020-07-08 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers;
-
-import javax.swing.JComponent;
-
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.port.PortObjectSpec;
+package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage;
 
 /**
- * Base interface for {@link MicrosoftAuthProvider} editor component.
- *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public interface MicrosoftAuthProviderEditor {
-    /**
-     * @return The component
-     */
-    public JComponent getComponent();
+public interface LoginStatusEventHandler extends Runnable {
 
-    public void onShown();
-
-    /**
-     * Performs initialization of the dialog components that should be initialized
-     * with specs or any other actions that should be executed after settings are
-     * loaded.
-     *
-     * @param settings
-     *            The node settings
-     * @param specs
-     *            The input specs.
-     * @throws NotConfigurableException
-     */
-    public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
-            throws NotConfigurableException;
 }
