@@ -6,13 +6,13 @@
 	<name>Microsoft Authentication (Labs)</name>
 
 	<shortDescription>
-        Provides authentication to access against Microsoft Office 365 cloud services, such as Sharepoint Online.
+        Provides authentication to access against Microsoft Office 365 cloud services, such as SharePoint Online.
     </shortDescription>
 
 	<fullDescription>
 		<intro>
 			<p>
-				This node provides authentication to access Microsoft Office 365 cloud services, such as Sharepoint Online.
+				This node provides authentication to access Microsoft Office 365 cloud services, such as SharePoint Online.
 			</p>
 			
 			<p>
