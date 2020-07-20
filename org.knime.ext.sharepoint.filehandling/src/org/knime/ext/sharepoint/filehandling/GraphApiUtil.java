@@ -49,10 +49,14 @@
 package org.knime.ext.sharepoint.filehandling;
 
 import java.io.IOException;
+import java.nio.file.AccessDeniedException;
 
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 
 import com.google.gson.JsonObject;
+import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.http.GraphError;
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.DirectoryObject;
 
 /**
@@ -68,17 +72,35 @@ public class GraphApiUtil {
 
     private static final String PROP_DISPLAY_NAME = "displayName";
     private static final String SEPARATOR_REPLACEMENT = "$_$";
+    private static final String ACCESS_DENIED_CODE = "accessDenied";
 
     /**
-     * Attempts to unwrap and throw underlying {@link IOException}. Iterates through
-     * the whole 'cause-chain' in attempt to find {@link IOException}.
+     *
+     * <p>
+     * Attempts to unwrap provided {@link ClientException}.
+     * </p>
+     * <p>
+     * Firstly, it iterates through the whole 'cause-chain' in attempt to find
+     * {@link IOException} and throws it if one is found.<br>
+     * </p>
+     * <p>
+     * Secondly, if provided exception is instance of {@link GraphServiceException}
+     * then {@link GraphError} code is checked and {@link AccessDeniedException} is
+     * thrown when necessary.<br>
+     * </p>
+     * <p>
+     * Otherwise, returns {@link WrappedGraphException} with user-friendly error
+     * message from {@link GraphServiceException}, or the original exception in case
+     * it is not an instance of {@link GraphServiceException}.<br>
+     * </p>
      *
      * @param ex
      *            The exception.
-     * @return Original exception.
+     * @return {@link WrappedGraphException} instance or the original exception in
+     *         case it is not an instance of {@link GraphServiceException}.
      * @throws IOException
      */
-    public static RuntimeException unwrapIOE(final RuntimeException ex) throws IOException {
+    public static RuntimeException unwrapIOE(final ClientException ex) throws IOException {
         Throwable cause = ex.getCause();
         while (cause != null) {
             if (cause instanceof IOException) {
@@ -86,6 +108,17 @@ public class GraphApiUtil {
             }
             cause = cause.getCause();
         }
+
+        if (ex instanceof GraphServiceException) {
+            GraphError error = ((GraphServiceException) ex).getServiceError();
+            if (ACCESS_DENIED_CODE.equals(error.code)) {
+                AccessDeniedException ade = new AccessDeniedException(error.message);
+                ade.initCause(ex);
+                throw ade;
+            }
+            return new WrappedGraphException((GraphServiceException) ex);
+        }
+
         return ex;
     }
 
@@ -113,5 +146,19 @@ public class GraphApiUtil {
      */
     public static final String escapeDriveName(final String name) {
         return name.replace(SharepointFileSystem.PATH_SEPARATOR, SEPARATOR_REPLACEMENT);
+    }
+
+    /**
+     * Wrapped {@link GraphServiceException} with more user-friendly error message
+     * extracted
+     *
+     * @author Alexander Bondaletov
+     */
+    public static class WrappedGraphException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
+        private WrappedGraphException(final GraphServiceException ex) {
+            super(ex.getServiceError().message, ex);
+        }
     }
 }
