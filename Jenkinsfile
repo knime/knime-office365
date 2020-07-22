@@ -19,7 +19,7 @@ try {
 
     workflowTests.runTests(
         dependencies: [
-            repositories:  []
+            repositories:  ['knime-office365', 'knime-excel', 'knime-js-base']
         ]
     )
 
