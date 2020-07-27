@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.providers.oauth2.interactive;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import org.knime.core.node.InvalidSettingsException;
@@ -86,6 +87,9 @@ public class InteractiveAuthProvider extends OAuth2Provider {
 
     /**
      * Creates new instance.
+     *
+     * @param portsConfig
+     * @param nodeInstanceId
      */
     public InteractiveAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         m_portsConfig = portsConfig;
@@ -96,6 +100,8 @@ public class InteractiveAuthProvider extends OAuth2Provider {
      * Performs login by opening browser window and then stores authentication
      * result.
      *
+     * @return the login status
+     *
      * @throws InterruptedException
      * @throws ExecutionException
      * @throws IOException
@@ -105,17 +111,29 @@ public class InteractiveAuthProvider extends OAuth2Provider {
 
         // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
         final InteractiveRequestParameters params = InteractiveRequestParameters
-                .builder(URI.create(REDIRECT_URL)).scopes(getScopesStringSet())
+                .builder(URI.create(REDIRECT_URL))
+                .scopes(getScopesStringSet())
                 .systemBrowserOptions(
                         SystemBrowserOptions.builder().openBrowserAction(new CustomOpenBrowserAction()).build())
                 .build();
 
-        final IAuthenticationResult result = app.acquireToken(params).get();
-
-        m_storageSettings.writeTokenCache(app.tokenCache().serialize());
-        return LoginStatus.fromAuthenticationResult(result);
+        CompletableFuture<IAuthenticationResult> authResult = app.acquireToken(params);
+        try {
+            final IAuthenticationResult result = authResult.get();
+            m_storageSettings.writeTokenCache(app.tokenCache().serialize());
+            return LoginStatus.fromAuthenticationResult(result);
+        } catch (InterruptedException ex) {
+            authResult.cancel(true);
+            throw ex;
+        }
     }
 
+    /**
+     * Returns the login status.
+     *
+     * @return the login status
+     * @throws IOException
+     */
     public LoginStatus getLoginStatus() throws IOException {
         return m_storageSettings.getLoginStatus();
     }
@@ -171,6 +189,11 @@ public class InteractiveAuthProvider extends OAuth2Provider {
         m_storageSettings.loadSettingsFrom(settings);
     }
 
+    /**
+     * Returns the storage settings.
+     *
+     * @return the storage settings
+     */
     public StorageSettings getStorageSettings() {
         return m_storageSettings;
     }
@@ -179,4 +202,5 @@ public class InteractiveAuthProvider extends OAuth2Provider {
     public void clearMemoryTokenCache() {
         m_storageSettings.clearMemoryTokenCache();
     }
+
 }

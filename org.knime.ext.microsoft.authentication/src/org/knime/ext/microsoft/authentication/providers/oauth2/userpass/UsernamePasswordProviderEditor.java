@@ -183,4 +183,12 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
             rbUseFw.setSelected(true);
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onCancel() {
+        // Do nothing
+    }
 }

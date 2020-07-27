@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.providers.oauth2.interactive;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
 import javax.swing.Box;
@@ -109,6 +110,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     }
 
     private void triggerLoginStatusWorker() {
+        cancelLogin();
         m_worker = new LoginStatusWorker();
         m_worker.execute();
     }
@@ -134,12 +136,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         m_loginBtn.addActionListener(e -> onLogin());
 
         m_cancelBtn = new JButton("Cancel");
-        m_cancelBtn.addActionListener(e -> {
-            if (m_worker != null) {
-                m_worker.cancel(true);
-                m_worker = null;
-            }
-        });
+        m_cancelBtn.addActionListener(e -> cancelLogin());
 
         m_statusLabel = new JLabel();
         m_statusLabel.setMinimumSize(new Dimension(700, 0));
@@ -151,6 +148,13 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
 
         updateLoginStatus(LoginStatus.NOT_LOGGED_IN, null);
         return panel;
+    }
+
+    private void cancelLogin() {
+        if (m_worker != null) {
+            m_worker.cancel(true);
+            m_worker = null;
+        }
     }
 
     private void onLogin() {
@@ -202,7 +206,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         }
     }
 
-    private String formatException(final Throwable error) {
+    private static String formatException(final Throwable error) {
         String message = null;
 
         MsalException msalEx = extractMsalException(error);
@@ -242,13 +246,14 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
             try {
                 final LoginStatus loginStatus = get();
                 updateLoginStatus(loginStatus, null);
-            } catch (InterruptedException ex) {
+            } catch (InterruptedException | CancellationException ex) {
                 updateLoginStatus(LoginStatus.NOT_LOGGED_IN, null);
             } catch (ExecutionException ex) {
                 updateLoginStatus(LoginStatus.NOT_LOGGED_IN, ex.getCause());
                 LOG.error(ex.getCause().getMessage(), ex);
             }
         }
+
     }
 
     private class LoginStatusWorker extends SwingWorkerWithContext<LoginStatus, Void> {
@@ -281,4 +286,13 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
             throws NotConfigurableException {
         m_storageEditor.loadSettingsFrom(settings, specs);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onCancel() {
+        cancelLogin();
+    }
+
 }
