@@ -68,6 +68,11 @@ public interface MicrosoftAuthProviderEditor {
     public void onShown();
 
     /**
+     * Hook called when canceling a dialog.
+     */
+    public void onCancel();
+
+    /**
      * Performs initialization of the dialog components that should be initialized
      * with specs or any other actions that should be executed after settings are
      * loaded.

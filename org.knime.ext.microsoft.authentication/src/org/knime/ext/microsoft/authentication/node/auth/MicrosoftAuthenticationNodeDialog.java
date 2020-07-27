@@ -160,4 +160,26 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
             editor.loadSettingsFrom(settings, specs);
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onCancel() {
+        cancelLogin();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onClose() {
+        cancelLogin();
+    }
+
+    private void cancelLogin() {
+        final AuthProviderType authenticationProvider = (AuthProviderType) m_providerCombo.getSelectedItem();
+        m_editors.get(authenticationProvider).onCancel();
+    }
+
 }
