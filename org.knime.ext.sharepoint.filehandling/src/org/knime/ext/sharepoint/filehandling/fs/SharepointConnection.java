@@ -68,7 +68,7 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
 public class SharepointConnection implements FSConnection {
 
     private final SharepointFileSystem m_filesystem;
-    private final long m_cacheTTL = 60000;
+    private final long m_cacheTTL = 6000;
 
     /**
      * @param authProvider
