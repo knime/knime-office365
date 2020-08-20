@@ -56,6 +56,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.filehandling.core.connections.base.CloseablePathIterator;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.Drive;
@@ -68,7 +69,7 @@ import com.microsoft.graph.requests.extensions.IDriveItemRequestBuilder;
  *
  * @author Alexander Bondaletov
  */
-public abstract class SharepointPathIterator implements Iterator<SharepointPath> {
+public abstract class SharepointPathIterator implements CloseablePathIterator<SharepointPath> {
 
     private final Filter<? super Path> m_filter;
     /**
@@ -118,6 +119,11 @@ public abstract class SharepointPathIterator implements Iterator<SharepointPath>
      */
     protected void init() throws IOException {
         m_nextPath = getNextFilteredPath();
+    }
+
+    @Override
+    public void close() throws IOException {
+        // do nothing
     }
 
     /**

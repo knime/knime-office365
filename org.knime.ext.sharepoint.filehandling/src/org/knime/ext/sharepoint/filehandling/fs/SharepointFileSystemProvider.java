@@ -63,11 +63,11 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.filehandling.core.connections.base.BaseFileSystemProvider;
+import org.knime.filehandling.core.connections.base.CloseablePathIterator;
 import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
 
 import com.microsoft.graph.core.ClientException;
@@ -207,7 +207,8 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      * {@inheritDoc}
      */
     @Override
-    protected Iterator<SharepointPath> createPathIterator(final SharepointPath dir, final Filter<? super Path> filter)
+    protected CloseablePathIterator<SharepointPath> createPathIterator(final SharepointPath dir,
+            final Filter<? super Path> filter)
             throws IOException {
         return SharepointPathIterator.create(dir, filter);
     }
