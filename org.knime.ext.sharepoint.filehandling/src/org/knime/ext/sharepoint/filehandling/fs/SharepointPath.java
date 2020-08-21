@@ -66,7 +66,7 @@ import com.microsoft.graph.requests.extensions.IDriveItemRequestBuilder;
  *
  * @author Alexander Bondaletov
  */
-public class SharepointPath extends UnixStylePath {
+public class SharepointPath extends UnixStylePath<SharepointPath, SharepointFileSystem> {
 
     /**
      * @param fileSystem
@@ -78,22 +78,6 @@ public class SharepointPath extends UnixStylePath {
      */
     public SharepointPath(final SharepointFileSystem fileSystem, final String first, final String[] more) {
         super(fileSystem, first, more);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public SharepointFileSystem getFileSystem() {
-        return (SharepointFileSystem) super.getFileSystem();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public SharepointPath getParent() {
-        return (SharepointPath) super.getParent();
     }
 
     /**
