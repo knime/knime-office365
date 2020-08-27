@@ -53,6 +53,7 @@ import javax.swing.JComponent;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
+import org.knime.ext.microsoft.authentication.port.azure.AzureSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 
 /**
@@ -70,7 +71,11 @@ public abstract class MicrosoftCredential {
         /**
          * Indicates that the credentials are an OAuth2 access token.
          */
-        OAUTH2_ACCESS_TOKEN;
+        OAUTH2_ACCESS_TOKEN,
+        /**
+         * Indicates that the credentials are Azure Storage shared key.
+         */
+        AZURE_SHARED_KEY;
 
         // more credential types will be supported in the future
     }
@@ -119,6 +124,8 @@ public abstract class MicrosoftCredential {
         switch (type) {
         case OAUTH2_ACCESS_TOKEN:
             return OAuth2Credential.loadFromSettings(config);
+        case AZURE_SHARED_KEY:
+            return AzureSharedKeyCredential.loadFromSettings(config);
         default:
             throw new InvalidSettingsException("Unsupported credential type " + type);
         }

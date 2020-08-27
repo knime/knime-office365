@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.providers;
 import java.util.function.BiFunction;
 
 import org.knime.core.node.context.ports.PortsConfiguration;
+import org.knime.ext.microsoft.authentication.providers.azure.sharedkey.AzureSharedKeyAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.UsernamePasswordAuthProvider;
 
@@ -70,7 +71,11 @@ public enum AuthProviderType {
     /**
      * Username and password authentication provider.
      */
-    USERNAME_PASSWORD("Username/password authentication", UsernamePasswordAuthProvider::new);
+    USERNAME_PASSWORD("Username/password authentication", UsernamePasswordAuthProvider::new),
+    /**
+     * Azure Storage shared key authentication provider.
+     */
+    AZURE_SHARED_KEY("Azure Storage shared key authentication", AzureSharedKeyAuthProvider::new);
 
     private String m_title;
     private BiFunction<PortsConfiguration, String, MicrosoftAuthProvider> m_createProvider;
