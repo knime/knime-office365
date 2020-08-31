@@ -188,7 +188,11 @@ public class MicrosoftAuthenticationSettings {
         m_providerType.loadSettingsFrom(settings);
 
         for (Entry<AuthProviderType, MicrosoftAuthProvider> e : m_providers.entrySet()) {
-            e.getValue().loadSettingsFrom(settings.getNodeSettings(e.getKey().name()));
+            final String providerName = e.getKey().name();
+            // auth provider may be newer than the workflow
+            if (settings.containsKey(providerName)) {
+                e.getValue().loadSettingsFrom(settings.getNodeSettings(e.getKey().name()));
+            }
         }
     }
 
