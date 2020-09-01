@@ -44,68 +44,42 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-05 (Alexander Bondaletov): created
+ *   2020-07-03 (bjoern): created
  */
 package org.knime.ext.microsoft.authentication.providers;
 
-import java.util.function.BiFunction;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.knime.core.node.context.ports.PortsConfiguration;
-import org.knime.ext.microsoft.authentication.providers.azure.storage.sas.AzureStorageSasTokenAuthProvider;
-import org.knime.ext.microsoft.authentication.providers.azure.storage.sharedkey.AzureSharedKeyAuthProvider;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
-import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.UsernamePasswordAuthProvider;
-
-
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 
 /**
- * Microsoft auth provider types.
+ * Provides a JVM global in-memory cache for storing sensitive credential fields
+ * (like MSAL4J token cache strings). Main motivation for this class is to avoid
+ * writing any tokens into the {@link MicrosoftCredential} (which is part of the
+ * port object and serialized to disk). Instead, the {@link MicrosoftCredential}
+ * only holds a key for this cache.
  *
- * @author Alexander Bondaletov
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public enum AuthProviderType {
-    /**
-     * Interactive provider.
-     */
-    INTERACTIVE("Interactive authentication", InteractiveAuthProvider::new),
+public class MemoryCredentialCache {
 
-    /**
-     * Username and password authentication provider.
-     */
-    USERNAME_PASSWORD("Username/password authentication", UsernamePasswordAuthProvider::new),
-    /**
-     * Azure Storage shared key authentication provider.
-     */
-    AZURE_STORAGE_SHARED_KEY("Azure Storage shared key authentication", AzureSharedKeyAuthProvider::new),
-    /**
-     * Azure Storage SAS token authentication provider.
-     */
-    AZURE_STORAGE_TOKEN("Azure Storage SAS token authentication", AzureStorageSasTokenAuthProvider::new);
+    private final static Map<String, String> IN_MEMORY_STORAGE = new HashMap<>();
 
-    private String m_title;
-    private BiFunction<PortsConfiguration, String, MicrosoftAuthProvider> m_createProvider;
-
-    private AuthProviderType(final String title,
-            final BiFunction<PortsConfiguration, String, MicrosoftAuthProvider> createProvider) {
-        m_title = title;
-        m_createProvider = createProvider;
-
+    public synchronized static void put(final String key, final String tokenCacheString) {
+        IN_MEMORY_STORAGE.put(key, tokenCacheString);
     }
 
-    @Override
-    public String toString() {
-        return m_title;
+    public synchronized static boolean containsKey(final String key) {
+        return IN_MEMORY_STORAGE.containsKey(key);
     }
 
-    /**
-     * Creates {@link MicrosoftAuthProvider} instance of a current type.
-     *
-     * @param nodeInstanceId
-     *
-     * @return {@link MicrosoftAuthProvider} instance.
-     */
-    public MicrosoftAuthProvider createProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
-        return m_createProvider.apply(portsConfig, nodeInstanceId);
+    public synchronized static String get(final String key) throws IOException {
+        return IN_MEMORY_STORAGE.get(key);
     }
 
+    public synchronized static void remove(final String key) {
+        IN_MEMORY_STORAGE.remove(key);
+    }
 }

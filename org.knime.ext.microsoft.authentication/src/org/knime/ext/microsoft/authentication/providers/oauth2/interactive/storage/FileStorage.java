@@ -75,6 +75,7 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.util.crypto.Encrypter;
 import org.knime.core.util.crypto.IEncrypter;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory;
+import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 import org.knime.filehandling.core.connections.FSFiles;
 import org.knime.filehandling.core.connections.FSPath;
@@ -161,7 +162,7 @@ class FileStorage implements StorageProvider {
             throw new IOException(ex.getMessage(), ex);
         }
 
-        MemoryTokenCache.put(m_cacheKey, tokenCacheString);
+        MemoryCredentialCache.put(m_cacheKey, tokenCacheString);
     }
 
     private static String encrypt(final String plaintextString) throws IOException {
@@ -218,7 +219,7 @@ class FileStorage implements StorageProvider {
             }
 
             final String tokenCacheString = decrypt(encryptedTokenCacheString);
-            MemoryTokenCache.put(m_cacheKey, tokenCacheString);
+            MemoryCredentialCache.put(m_cacheKey, tokenCacheString);
             return tokenCacheString;
 
         } catch (InvalidSettingsException ex) {
@@ -252,7 +253,7 @@ class FileStorage implements StorageProvider {
 
     @Override
     public void clearMemoryTokenCache() {
-        MemoryTokenCache.remove(m_cacheKey);
+        MemoryCredentialCache.remove(m_cacheKey);
     }
 
     public void configureFileChooserInModel(final PortObjectSpec[] inSpecs,

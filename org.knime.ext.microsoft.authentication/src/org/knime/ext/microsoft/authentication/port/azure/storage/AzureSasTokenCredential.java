@@ -44,42 +44,92 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-07-03 (bjoern): created
+ *   2020-08-20 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage;
+package org.knime.ext.microsoft.authentication.port.azure.storage;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.config.ConfigRO;
+import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 
 /**
- * Provides a JVM global in-memory cache for storing MSAL4J token cache strings.
- * Main motivation for this class is to avoid writing any tokens into the
- * {@link MicrosoftCredential} (which is part of the port object and serialized
- * to disk). Instead, the {@link MicrosoftCredential} only holds a key for this
- * cache.
+ * * Subclass of {@link MicrosoftCredential} that provides access to Azure Blob
+ * Storage using SAS Token.
  *
- * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Alexander Bondaletov
  */
-public class MemoryTokenCache {
+public class AzureSasTokenCredential extends MicrosoftCredential {
 
-    private final static Map<String, String> IN_MEMORY_STORAGE = new HashMap<>();
+    private static final String KEY_CACHE_KEY = "cacheKey";
 
-    public synchronized static void put(final String key, final String tokenCacheString) {
-        IN_MEMORY_STORAGE.put(key, tokenCacheString);
+    private String m_cacheKey;
+
+    /**
+     * @param cacheKey
+     *            the memory cache key under which sas url is stored.
+     */
+    public AzureSasTokenCredential(final String cacheKey) {
+        super(Type.AZURE_SAS_TOKEN);
+        m_cacheKey = cacheKey;
     }
 
-    public synchronized static boolean containsKey(final String key) {
-        return IN_MEMORY_STORAGE.containsKey(key);
+    /**
+     * @return the SAS URL
+     * @throws IOException
+     */
+    public String getSasUrl() throws IOException {
+        String url = MemoryCredentialCache.get(m_cacheKey);
+        if (url == null) {
+            throw new IOException("No credentials found. Please re-execute the Microsoft Authentication node.");
+        }
+        return url;
     }
 
-    public synchronized static String get(final String key) throws IOException {
-        return IN_MEMORY_STORAGE.get(key);
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void saveSettings(final ConfigWO config) {
+        super.saveSettings(config);
+        config.addString(KEY_CACHE_KEY, m_cacheKey);
     }
 
-    public synchronized static void remove(final String key) {
-        IN_MEMORY_STORAGE.remove(key);
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public JComponent getView() {
+        JPanel panel = new JPanel();
+        panel.setName("SAS Token credentials");
+        return panel;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getSummary() {
+        return "SAS Token Credentials";
+    }
+
+    /**
+     * Creates new {@link MicrosoftCredential} object restoring it's state from the
+     * provided {@link ConfigRO}.
+     *
+     * @param config
+     *            The config.
+     * @return The credentials.
+     * @throws InvalidSettingsException
+     */
+    public static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
+        String cacheKey = config.getString(KEY_CACHE_KEY);
+        return new AzureSasTokenCredential(cacheKey);
     }
 }

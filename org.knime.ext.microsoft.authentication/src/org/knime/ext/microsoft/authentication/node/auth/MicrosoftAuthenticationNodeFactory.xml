@@ -16,7 +16,7 @@
 			</p>
 			
 			<p>
-				The node supports two authentication modes:
+				The node supports these authentication modes:
 				<ul>
 					<li>
 						<i>Interactive authentication</i>: Allows to perform a interactive, web browser based login by by clicking on <i>Login</i>
@@ -30,6 +30,14 @@
 						However, it also has some limitations: First, you cannot to consent to the requested level of access, hence consent must be 
 						given beforehand, e.g. during a previous interactive login, or by an Azure AD directory admin. Second, accounts that require
 						multi-factor authentication (MFA) will not work.
+					</li>
+					<li>
+						<i>Azure Storage shared key authentication</i>: <b>Specific to Azure Blob Storage</b>. Performs authentication using storage account
+						and the secret key.
+					</li>
+					<li>
+						<i>Azure Storage SAS token authentication</i>: <b>Specific to Azure Blob Storage</b>. Perfroms authentication using shared access signature (SAS) URL.
+						For more details see the <a href="https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview">documentation</a>
 					</li>
 				</ul>
 			</p>
@@ -96,7 +104,31 @@
 				services should be requested during login.
 			</option>
 		</tab>
+		
+		<tab name="Azure Storage shared key authentication">
+			<option name="Account">
+				Azure Storage account name.
+			</option>
+			<option name="Secret Key">
+				The secret key.
+			</option>
+			<option name="Credentials flow variable">
+				Allows to choose a credentials flow variable that provides the account and the secret key (as the username and password respectively) to login with. 
+			</option>
+		</tab>
 
+		<tab name="Azure Storage SAS token authentication">
+			<option name="Blob service SAS URL">
+				URL that provides shared access signature (SAS) access to Azure Blob Storage.
+				Example URL:
+				<tt>
+					https://myaccount.blob.core.windows.net/?sv=2019-02-02&amp;st=2019-04-29T22%3A18%3A26Z&amp;se=2019-04-30T02%3A23%3A26Z&amp;sr=b&amp;sp=rw&amp;sip=168.1.5.60-168.1.5.70&amp;spr=https&amp;sig=Z%2FRHIX5Xcg0Mq2rqI3OlWTjEg2tYkboXr1P9ZUXDtkk%3D
+				</tt>
+			</option>
+			<option name="Credentials flow variable">
+				Allows to choose a credentials flow variable that provides the Blob service SAS URL as the password field. 
+			</option>
+		</tab>
 
 	</fullDescription>
 

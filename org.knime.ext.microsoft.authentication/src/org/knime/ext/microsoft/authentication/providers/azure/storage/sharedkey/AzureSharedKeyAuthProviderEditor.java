@@ -46,7 +46,7 @@
  * History
  *   2020-08-09 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers.azure.sharedkey;
+package org.knime.ext.microsoft.authentication.providers.azure.storage.sharedkey;
 
 import java.awt.Component;
 import java.awt.FlowLayout;

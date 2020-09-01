@@ -58,8 +58,8 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
+import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
 
 import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
@@ -68,7 +68,7 @@ import com.microsoft.aad.msal4j.SilentParameters;
 
 /**
  * Access token supplier that reads the MSAL4J token cache from the JVM global
- * {@link MemoryTokenCache} and uses the contained refresh token to produce a
+ * {@link MemoryCredentialCache} and uses the contained refresh token to produce a
  * fresh access token when needed.
  *
  * @author Bjoern Lohrmann, KNIME GmbH
@@ -129,7 +129,7 @@ public class MemoryCacheAccessTokenSupplier {
     }
 
     protected PublicClientApplication createPublicClientApplication() throws IOException {
-        final String tokenCacheString = MemoryTokenCache.get(m_cacheKey);
+        final String tokenCacheString = MemoryCredentialCache.get(m_cacheKey);
         if (tokenCacheString == null) {
             throw new IOException("No access token found. Please re-execute the Microsoft Authentication node.");
         }

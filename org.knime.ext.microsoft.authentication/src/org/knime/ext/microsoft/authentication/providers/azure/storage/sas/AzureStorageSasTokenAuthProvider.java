@@ -44,12 +44,13 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-04 (Alexander Bondaletov): created
+ *   2020-08-20 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers.oauth2.userpass;
+package org.knime.ext.microsoft.authentication.providers.azure.storage.sas;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -61,84 +62,68 @@ import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.port.azure.storage.AzureSasTokenCredential;
+import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
+import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
-import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
-import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
-
-import com.microsoft.aad.msal4j.IAuthenticationResult;
-import com.microsoft.aad.msal4j.PublicClientApplication;
-import com.microsoft.aad.msal4j.UserNamePasswordParameters;
 
 /**
- * {@link OAuth2Provider} implementation that performs authentication
- * using username and password provided by user.
+ * {@link MicrosoftAuthProvider} implementations that performs authentication
+ * using Azure Storage SAS token.
  *
  * @author Alexander Bondaletov
  */
-public class UsernamePasswordAuthProvider extends OAuth2Provider {
-
-    private static final String KEY_USERNAME = "username";
-    private static final String KEY_PASSWORD = "password";
+public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
+    private static final String KEY_SAS_URL = "sasUrl";
     private static final String KEY_USE_CREDENTIALS = "useCredentials";
     private static final String KEY_CREDENTIALS_NAME = "credentialsName";
-    private static final String ENCRYPTION_KEY = "Z4mJcnXMrtXKW8wp";
+    private static final String ENCRYPTION_KEY = "4fwQI8raq3ODUf3";
 
     private final String m_cacheKey;
 
-    private final SettingsModelString m_username;
-    private final SettingsModelPassword m_password;
+    private final SettingsModelPassword m_sasUrl;
     private final SettingsModelBoolean m_useCredentials;
     private final SettingsModelString m_credentialsName;
 
     /**
-     * Constructor for compatibility with BiFunction<PortsConfiguration,String>. The given
-     * PortsConfiguration is ignored.
+     * Constructor for compatibility with BiFunction<PortsConfiguration,String> in
+     * the {@link AuthProviderType}. The given PortsConfiguration is ignored.
      *
-     * @param portsConfig Ignored argument.
+     * @param portsConfig
+     *            Ignored argument.
      * @param nodeInstanceId
      */
-    public UsernamePasswordAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
+    public AzureStorageSasTokenAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         this(nodeInstanceId);
     }
 
     /**
-     * Creates new instance.
+     * Creates new instance
      *
      * @param nodeInstanceId
      */
-    public UsernamePasswordAuthProvider(final String nodeInstanceId) {
-        super();
-        m_username = new SettingsModelString(KEY_USERNAME, "");
-        m_password = new SettingsModelPassword(KEY_PASSWORD, ENCRYPTION_KEY, "");
+    public AzureStorageSasTokenAuthProvider(final String nodeInstanceId) {
+        m_sasUrl = new SettingsModelPassword(KEY_SAS_URL, ENCRYPTION_KEY, "");
         m_useCredentials = new SettingsModelBoolean(KEY_USE_CREDENTIALS, false);
         m_credentialsName = new SettingsModelString(KEY_CREDENTIALS_NAME, "");
 
         m_credentialsName.setEnabled(false);
         m_useCredentials.addChangeListener(e -> {
             boolean useCreds = m_useCredentials.getBooleanValue();
-            m_username.setEnabled(!useCreds);
-            m_password.setEnabled(!useCreds);
+            m_sasUrl.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
         });
 
-        m_cacheKey = "userpass-" + nodeInstanceId;
+        m_cacheKey = "sas-url-" + nodeInstanceId;
     }
 
     /**
-     * @return the username model
+     * @return the sasUrl model
      */
-    public SettingsModelString getUsernameModel() {
-        return m_username;
-    }
-
-    /**
-     * @return the password model
-     */
-    public SettingsModelPassword getPasswordModel() {
-        return m_password;
+    public SettingsModelPassword getSasUrlModel() {
+        return m_sasUrl;
     }
 
     /**
@@ -155,107 +140,107 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
         return m_credentialsName;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public OAuth2Credential getCredential(
-            final CredentialsProvider credentialsProvider)
-            throws IOException {
-        String username;
-        String password;
-
+    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
+        String sasUrl;
         if (m_useCredentials.getBooleanValue()) {
             ICredentials creds = credentialsProvider.get(m_credentialsName.getStringValue());
-            username = creds.getLogin();
-            password = creds.getPassword();
+            sasUrl = creds.getPassword();
 
-            if (password == null || password.isEmpty()) {
+            if (sasUrl == null || sasUrl.isEmpty()) {
                 throw new IOException("The selected credentials flow variable does not provide a password");
             }
         } else {
-            username = m_username.getStringValue();
-            password = m_password.getStringValue();
+            sasUrl = m_sasUrl.getStringValue();
         }
 
-        PublicClientApplication app = MSALUtil.createClientApp(getAuthority());
-
-        try {
-            final IAuthenticationResult result = app.acquireToken(
-                    UserNamePasswordParameters.builder(getScopesStringSet(), username, password.toCharArray()).build())
-                    .get();
-
-            MemoryCredentialCache.put(m_cacheKey, app.tokenCache().serialize());
-
-            final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(getAuthority(),
-                    m_cacheKey);
-
-            return new OAuth2Credential(tokenSupplier, //
-                    result.account().username(), //
-                    result.expiresOnDate().toInstant(), //
-                    getScopesEnumSet(), //
-                    getAuthority());
-        } catch (InterruptedException | ExecutionException ex) {
-            throw new IOException(ex);
-        }
+        MemoryCredentialCache.put(m_cacheKey, sasUrl);
+        return new AzureSasTokenCredential(m_cacheKey);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
-        return new UsernamePasswordProviderEditor(this, parent);
+        return new AzureStorageSasTokenAuthProviderEditor(this, parent);
     }
 
-    @Override
-    protected String getAuthority() {
-        return MSALUtil.ORGANIZATIONS_AUTHORITY;
-    }
-
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        super.saveSettingsTo(settings);
-        m_username.saveSettingsTo(settings);
-        m_password.saveSettingsTo(settings);
+        m_sasUrl.saveSettingsTo(settings);
         m_useCredentials.saveSettingsTo(settings);
         m_credentialsName.saveSettingsTo(settings);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_username.validateSettings(settings);
-        m_password.validateSettings(settings);
+        m_sasUrl.validateSettings(settings);
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        UsernamePasswordAuthProvider temp = new UsernamePasswordAuthProvider("");
+        AzureStorageSasTokenAuthProvider temp = new AzureStorageSasTokenAuthProvider("");
         temp.loadSettingsFrom(settings);
         temp.validate();
     }
 
-    @Override
+    /**
+     * Validates consistency of the current settings.
+     *
+     * @throws InvalidSettingsException
+     */
     public void validate() throws InvalidSettingsException {
-        super.validate();
         if (!m_useCredentials.getBooleanValue()) {
-            if (m_username.getStringValue().isEmpty()) {
-                throw new InvalidSettingsException("Username cannot be empty");
-            }
-            if (m_password.getStringValue().isEmpty()) {
-                throw new InvalidSettingsException("Password cannot be empty");
+            if (m_sasUrl.getStringValue().isEmpty()) {
+                throw new InvalidSettingsException("SAS URL cannot be empty");
             }
         } else {
             if (m_credentialsName.getStringValue().isEmpty()) {
                 throw new InvalidSettingsException("Credentials are not selected");
             }
         }
+
+        try {
+            URL url = new URL(m_sasUrl.getStringValue());
+
+            if(!url.getProtocol().equals("https")) {
+                throw new InvalidSettingsException("Invalid protocol: " + url.getProtocol() + ". Expected 'https'.");
+            }
+
+            String query = url.getQuery();
+            if (query == null || query.isEmpty()) {
+                throw new InvalidSettingsException("Query part of the URL is missing");
+            }
+        } catch (MalformedURLException ex) {
+            throw new InvalidSettingsException(ex.getMessage(), ex);
+        }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        super.loadSettingsFrom(settings);
-        m_username.loadSettingsFrom(settings);
-        m_password.loadSettingsFrom(settings);
+        m_sasUrl.loadSettingsFrom(settings);
         m_credentialsName.loadSettingsFrom(settings);
         m_useCredentials.loadSettingsFrom(settings);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void clearMemoryTokenCache() {
         MemoryCredentialCache.remove(m_cacheKey);
     }
+
 }

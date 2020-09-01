@@ -60,9 +60,9 @@ import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
+import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 
 
@@ -131,7 +131,7 @@ public class MicrosoftAuthenticationSettings {
     }
 
     /**
-     * Clears any tokens that the providers have put into {@link MemoryTokenCache}.
+     * Clears any tokens that the providers have put into {@link MemoryCredentialCache}.
      * Typically, this should be called when the node is reset or the workflow is
      * disposed.
      */

@@ -53,11 +53,12 @@ import java.io.IOException;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
  * Concrete storage provider that stores an MSAL4J token cache string in the
- * global {@link MemoryTokenCache}.
+ * global {@link MemoryCredentialCache}.
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
@@ -107,21 +108,21 @@ class InMemoryStorage implements StorageProvider {
 
     @Override
     public void writeTokenCache(final String tokenCacheString) throws IOException {
-        MemoryTokenCache.put(getMemoryCacheKey(), tokenCacheString);
+        MemoryCredentialCache.put(getMemoryCacheKey(), tokenCacheString);
     }
 
     @Override
     public String readTokenCache() throws IOException {
-        return MemoryTokenCache.get(getMemoryCacheKey());
+        return MemoryCredentialCache.get(getMemoryCacheKey());
     }
 
     @Override
     public void clear() throws IOException {
-        MemoryTokenCache.remove(getMemoryCacheKey());
+        MemoryCredentialCache.remove(getMemoryCacheKey());
     }
 
     @Override
     public void clearMemoryTokenCache() {
-        MemoryTokenCache.remove(getMemoryCacheKey());
+        MemoryCredentialCache.remove(getMemoryCacheKey());
     }
 }

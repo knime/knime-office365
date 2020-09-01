@@ -55,6 +55,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
@@ -99,7 +100,7 @@ class NodeSettingsStorage implements StorageProvider {
         if (!m_tokenCache.getStringValue().isEmpty()) {
             // we need to put the token cache into the MemoryTokenCache because
             // the port object must not save the actual token cache.
-            MemoryTokenCache.put(m_cacheKey, m_tokenCache.getStringValue());
+            MemoryCredentialCache.put(m_cacheKey, m_tokenCache.getStringValue());
         }
     }
 
@@ -135,11 +136,11 @@ class NodeSettingsStorage implements StorageProvider {
     @Override
     public void clear() throws IOException {
         m_tokenCache.setStringValue("");
-        MemoryTokenCache.remove(m_cacheKey);
+        MemoryCredentialCache.remove(m_cacheKey);
     }
 
     @Override
     public void clearMemoryTokenCache() {
-        MemoryTokenCache.remove(m_cacheKey);
+        MemoryCredentialCache.remove(m_cacheKey);
     }
 }

@@ -53,7 +53,8 @@ import javax.swing.JComponent;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
-import org.knime.ext.microsoft.authentication.port.azure.AzureSharedKeyCredential;
+import org.knime.ext.microsoft.authentication.port.azure.storage.AzureSasTokenCredential;
+import org.knime.ext.microsoft.authentication.port.azure.storage.AzureSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 
 /**
@@ -75,7 +76,11 @@ public abstract class MicrosoftCredential {
         /**
          * Indicates that the credentials are Azure Storage shared key.
          */
-        AZURE_SHARED_KEY;
+        AZURE_SHARED_KEY,
+        /**
+         * Indicates that the credentials are Azure Storage SAS token.
+         */
+        AZURE_SAS_TOKEN;
 
         // more credential types will be supported in the future
     }
@@ -126,6 +131,8 @@ public abstract class MicrosoftCredential {
             return OAuth2Credential.loadFromSettings(config);
         case AZURE_SHARED_KEY:
             return AzureSharedKeyCredential.loadFromSettings(config);
+        case AZURE_SAS_TOKEN:
+            return AzureSasTokenCredential.loadFromSettings(config);
         default:
             throw new InvalidSettingsException("Unsupported credential type " + type);
         }

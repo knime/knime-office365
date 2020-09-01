@@ -46,7 +46,7 @@
  * History
  *   2020-08-09 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.port.azure;
+package org.knime.ext.microsoft.authentication.port.azure.storage;
 
 import java.awt.Component;
 import java.io.IOException;
@@ -61,7 +61,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
+import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 
 /**
  * Subclass of {@link MicrosoftCredential} that provides access to Azure Blob
@@ -102,7 +102,7 @@ public class AzureSharedKeyCredential extends MicrosoftCredential {
      * @throws IOException
      */
     public String getSecretKey() throws IOException {
-        return MemoryTokenCache.get(m_cacheKey);
+        return MemoryCredentialCache.get(m_cacheKey);
     }
 
     /**

@@ -56,7 +56,6 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
 
 /**
  * Base interface for auth providers implementing different authentication
@@ -116,7 +115,7 @@ public interface MicrosoftAuthProvider {
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException;
 
     /**
-     * Clears any tokens that this provider has put into {@link MemoryTokenCache}.
+     * Clears any tokens that this provider has put into {@link MemoryCredentialCache}.
      */
     public void clearMemoryTokenCache();
 }

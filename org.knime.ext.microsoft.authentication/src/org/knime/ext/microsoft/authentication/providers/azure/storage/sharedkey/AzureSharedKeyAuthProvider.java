@@ -46,7 +46,7 @@
  * History
  *   2020-08-09 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.providers.azure.sharedkey;
+package org.knime.ext.microsoft.authentication.providers.azure.storage.sharedkey;
 
 import java.io.IOException;
 
@@ -61,11 +61,11 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.azure.AzureSharedKeyCredential;
+import org.knime.ext.microsoft.authentication.port.azure.storage.AzureSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
+import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
-import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.MemoryTokenCache;
 
 /**
  * {@link MicrosoftAuthProvider} implementations that performs authentication
@@ -170,7 +170,7 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
             secretKey = m_secretKey.getStringValue();
         }
 
-        MemoryTokenCache.put(m_cacheKey, secretKey);
+        MemoryCredentialCache.put(m_cacheKey, secretKey);
         return new AzureSharedKeyCredential(account, m_cacheKey);
     }
 
@@ -244,7 +244,7 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
      */
     @Override
     public void clearMemoryTokenCache() {
-        MemoryTokenCache.remove(m_cacheKey);
+        MemoryCredentialCache.remove(m_cacheKey);
     }
 
 }
