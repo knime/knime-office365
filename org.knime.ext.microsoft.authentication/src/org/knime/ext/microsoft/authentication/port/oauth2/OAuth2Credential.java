@@ -56,10 +56,8 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -72,6 +70,8 @@ import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
+
+import com.microsoft.aad.msal4j.IAuthenticationResult;
 
 /**
  * Subclass of {@link MicrosoftCredential} that provides access to an OAuth2
@@ -98,7 +98,7 @@ public class OAuth2Credential extends MicrosoftCredential {
     private MemoryCacheAccessTokenSupplier m_tokenSupplier;
     private String m_username;
     private Instant m_accessTokenExpiresAt;
-    private EnumSet<Scope> m_scopes;
+    private Set<String> m_scopes;
     private String m_authority;
 
     /**
@@ -117,7 +117,7 @@ public class OAuth2Credential extends MicrosoftCredential {
             final MemoryCacheAccessTokenSupplier tokenSupplier, //
             final String username, //
             final Instant accessTokenExpiresAt, //
-            final EnumSet<Scope> scopes, //
+            final Set<String> scopes, //
             final String authority) {
 
         super(Type.OAUTH2_ACCESS_TOKEN);
@@ -129,11 +129,15 @@ public class OAuth2Credential extends MicrosoftCredential {
     }
 
     /**
+     * Fetches access token and updates token expire time.
+     *
      * @return the access token
      * @throws IOException
      */
     public String getAccessToken() throws IOException {
-        return m_tokenSupplier.getAccessToken(m_scopes);
+        IAuthenticationResult result = m_tokenSupplier.getAuthenticationResult(m_scopes);
+        m_accessTokenExpiresAt = result.expiresOnDate().toInstant();
+        return result.accessToken();
     }
 
     /**
@@ -153,7 +157,7 @@ public class OAuth2Credential extends MicrosoftCredential {
     /**
      * @return the scopes
      */
-    public EnumSet<Scope> getScopes() {
+    public Set<String> getScopes() {
         return m_scopes;
     }
 
@@ -171,7 +175,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         config.addLong(KEY_TOKEN_EXPIRY, m_accessTokenExpiresAt.toEpochMilli());
         config.addString(KEY_AUTHORITY, m_authority);
 
-        final String[] scopes = m_scopes.stream().map(Objects::toString).toArray(String[]::new);
+        final String[] scopes = m_scopes.toArray(new String[] {});
         config.addStringArray(KEY_SCOPES, scopes);
         m_tokenSupplier.saveSettings(config.addConfig(KEY_TOKEN));
     }
@@ -181,10 +185,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         final Instant tokenExpiry = Instant.ofEpochMilli(config.getLong(KEY_TOKEN_EXPIRY));
         final String authority = config.getString(KEY_AUTHORITY);
 
-        final List<Scope> scopeList = Arrays.stream(config.getStringArray(KEY_SCOPES)) //
-                .<Scope>map(Scope::valueOf) //
-                .collect(Collectors.toList());
-        final EnumSet<Scope> scopes = EnumSet.copyOf(scopeList);
+        final Set<String> scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
 
         final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(authority);
         tokenSupplier.loadSettings(config.getConfig(KEY_TOKEN));
@@ -211,7 +212,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         final Box valueBox = new Box(BoxLayout.Y_AXIS);
         valueBox.add(createLabel(m_username));
         valueBox.add(createLabel(m_authority));
-        valueBox.add(createLabel(String.join(", ", m_scopes.stream().map((s) -> s.getScope()).toArray(String[]::new))));
+        valueBox.add(createLabel(String.join(", ", m_scopes.toArray(new String[] {}))));
         valueBox.add(Box.createVerticalGlue());
         panel.add(valueBox);
 

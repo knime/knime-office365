@@ -50,7 +50,6 @@ package org.knime.ext.microsoft.authentication.providers.oauth2;
 
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -58,6 +57,7 @@ import java.util.stream.Collectors;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
 import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
@@ -72,7 +72,13 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
 
     private static final String KEY_SCOPES = "scopes";
 
+    /**
+     * Added with KNIME AP 4.3 to support OAuth2 with Azure Blob Storage.
+     */
+    private static final String KEY_BLOB_STORAGE_ACCOUNT = "blobStorageAccount";
+
     private final SettingsModelStringArray m_scopes;
+    private final SettingsModelString m_blobStorageAccount;
 
     /**
      * Creates new instance.
@@ -81,6 +87,8 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     public OAuth2Provider() {
         m_scopes = new SettingsModelStringArray(KEY_SCOPES,
                 new String[] { Scope.SITES_READ_WRITE.getScope() });
+        m_blobStorageAccount = new SettingsModelString(KEY_BLOB_STORAGE_ACCOUNT, "");
+        m_blobStorageAccount.setEnabled(false);
     }
 
     /**
@@ -90,14 +98,39 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         return m_scopes;
     }
 
-    public Set<String> getScopesStringSet() {
-        return new HashSet<>(Arrays.asList(m_scopes.getStringArrayValue()));
+    /**
+     * @return the model for the storage account required for
+     *         {@link Scope#AZURE_BLOB_STORAGE}.
+     */
+    public SettingsModelString getBlobStorageAccountModel() {
+        return m_blobStorageAccount;
     }
 
     /**
-     * @return the scopes
+     * Returns the scopes as a set of strings. This method must be called if you
+     * need the proper scope as a string, because it enriches the scope string for
+     * {@link Scope#AZURE_BLOB_STORAGE} with the necessary storage account.
+     *
+     * @return the scopes as a set of strings.
      */
-    public EnumSet<Scope> getScopesEnumSet() {
+    public Set<String> getScopesStringSet() {
+        return getScopesEnumSet().stream().map(scope -> {
+            if (scope == Scope.AZURE_BLOB_STORAGE) {
+                return String.format(scope.getScope(), m_blobStorageAccount.getStringValue());
+            }
+            return scope.getScope();
+        }).collect(Collectors.toSet());
+    }
+
+    /**
+     * Returns the scopes as a set of enums. Note that when you need the proper
+     * scope as a string, then you should call {@link #getScopesStringSet()},
+     * because it enriches the scope string for {@link Scope#AZURE_BLOB_STORAGE}
+     * with the necessary storage account.
+     *
+     * @return the scopes as a set of enums.
+     */
+    public Set<Scope> getScopesEnumSet() {
         final List<Scope> scopeList = Arrays.stream(m_scopes.getStringArrayValue()) //
                 .<Scope>map(
                         Scope::fromScope) //
@@ -116,6 +149,7 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
         m_scopes.saveSettingsTo(settings);
+        m_blobStorageAccount.saveSettingsTo(settings);
     }
 
     /**
@@ -128,10 +162,19 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         if (scopes == null || scopes.length == 0) {
             throw new InvalidSettingsException("Scopes cannot be empty");
         }
+
+        if (getScopesEnumSet().contains(Scope.AZURE_BLOB_STORAGE) && m_blobStorageAccount.getStringValue().isEmpty()) {
+            throw new InvalidSettingsException("Storage account cannot be empty");
+        }
     }
 
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_scopes.loadSettingsFrom(settings);
+
+        // Added with KNIME AP 4.3 to support OAuth2 with Azure Blob Storage.
+        if (settings.containsKey(m_blobStorageAccount.getKey())) {
+            m_blobStorageAccount.loadSettingsFrom(settings);
+        }
     }
 }

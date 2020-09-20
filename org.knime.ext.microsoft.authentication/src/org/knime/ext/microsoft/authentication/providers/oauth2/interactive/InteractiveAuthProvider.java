@@ -150,7 +150,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
                 m_storageSettings.createAccessTokenSupplier(), //
                 loginStatus.getUsername(), //
                 loginStatus.getAccessTokenExpiry(), //
-                getScopesEnumSet(), //
+                getScopesStringSet(), //
                 getAuthority());
     }
 

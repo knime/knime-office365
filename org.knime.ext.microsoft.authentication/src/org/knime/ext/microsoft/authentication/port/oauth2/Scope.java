@@ -70,7 +70,12 @@ public enum Scope {
     /**
      * Directory.Read.All scope.
      */
-    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>", "Directory.Read.All");
+    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>",
+            "Directory.Read.All"),
+    /**
+     * Azure Blob storage scope
+     */
+    AZURE_BLOB_STORAGE("Azure Blob Storage", "https://%s.blob.core.windows.net/user_impersonation");
 
     private static final Map<String, Scope> SCOPES = new HashMap<>();
     static {

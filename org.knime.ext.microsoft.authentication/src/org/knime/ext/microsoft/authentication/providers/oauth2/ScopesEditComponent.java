@@ -48,6 +48,7 @@
  */
 package org.knime.ext.microsoft.authentication.providers.oauth2;
 
+import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.util.Arrays;
@@ -61,6 +62,8 @@ import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 
+import org.knime.core.node.defaultnodesettings.DialogComponentString;
+import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
 import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 
@@ -74,6 +77,7 @@ public class ScopesEditComponent extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private SettingsModelStringArray m_scopes;
+    private SettingsModelString m_blobStorageAccount;
     private Map<Scope, JCheckBox> m_checkboxes;
 
     /**
@@ -81,9 +85,12 @@ public class ScopesEditComponent extends JPanel {
      *
      * @param scopes
      *            Settings model to store settings.
+     * @param blobStorageAccount
+     *            Settings model to store blob storage account.
      */
-    public ScopesEditComponent(final SettingsModelStringArray scopes) {
+    public ScopesEditComponent(final SettingsModelStringArray scopes, final SettingsModelString blobStorageAccount) {
         m_scopes = scopes;
+        m_blobStorageAccount = blobStorageAccount;
         m_checkboxes = new EnumMap<>(Scope.class);
         initUI();
 
@@ -92,6 +99,10 @@ public class ScopesEditComponent extends JPanel {
     }
 
     private void initUI() {
+        DialogComponentString blobStorageAcc = new DialogComponentString(m_blobStorageAccount, "Storage account:");
+        blobStorageAcc.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
+        blobStorageAcc.getComponentPanel().setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
+
         setLayout(new GridBagLayout());
 
         GridBagConstraints c = new GridBagConstraints();
@@ -103,6 +114,11 @@ public class ScopesEditComponent extends JPanel {
         for (Scope scope : Scope.values()) {
             add(createCheckbox(scope), c);
             c.gridy += 1;
+
+            if (scope == Scope.AZURE_BLOB_STORAGE) {
+                add(blobStorageAcc.getComponentPanel(), c);
+                c.gridy += 1;
+            }
         }
 
         setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Request access to"));
@@ -121,6 +137,12 @@ public class ScopesEditComponent extends JPanel {
         Set<String> scopes = toSet(m_scopes);
 
         if (selected) {
+            if (scope == Scope.AZURE_BLOB_STORAGE) {
+                scopes.clear();
+            } else {
+                scopes.remove(Scope.AZURE_BLOB_STORAGE.getScope());
+            }
+
             scopes.add(scope.getScope());
         } else {
             scopes.remove(scope.getScope());
@@ -134,6 +156,8 @@ public class ScopesEditComponent extends JPanel {
         for (Entry<Scope, JCheckBox> entry : m_checkboxes.entrySet()) {
             entry.getValue().setSelected(set.contains(entry.getKey().getScope()));
         }
+
+        m_blobStorageAccount.setEnabled(set.contains(Scope.AZURE_BLOB_STORAGE.getScope()));
     }
 
     private static Set<String> toSet(final SettingsModelStringArray settings) {

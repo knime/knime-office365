@@ -190,7 +190,7 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
             return new OAuth2Credential(tokenSupplier, //
                     result.account().username(), //
                     result.expiresOnDate().toInstant(), //
-                    getScopesEnumSet(), //
+                    getScopesStringSet(), //
                     getAuthority());
         } catch (InterruptedException | ExecutionException ex) {
             throw new IOException(ex);

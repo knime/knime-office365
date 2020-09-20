@@ -49,15 +49,12 @@
 package org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier;
 
 import java.io.IOException;
-import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 
@@ -98,18 +95,15 @@ public class MemoryCacheAccessTokenSupplier {
         return m_authority;
     }
 
-    public final String getAccessToken(final EnumSet<Scope> scopes) throws IOException {
+    public final IAuthenticationResult getAuthenticationResult(final Set<String> scopes) throws IOException {
         final PublicClientApplication app = createPublicClientApplication();
 
         try {
             IAccount account = app.getAccounts().get().iterator().next();
 
-            final Set<String> scopeStrings = new HashSet<>();
-            scopes.stream().map((s) -> s.getScope()).forEach(scopeStrings::add);
-
             IAuthenticationResult result = app
-                    .acquireTokenSilently(SilentParameters.builder(scopeStrings, account).build()).get();
-            return result.accessToken();
+                    .acquireTokenSilently(SilentParameters.builder(scopes, account).build()).get();
+            return result;
         } catch (InterruptedException e) {
             throw new IOException("Canceled while acquiring access token", e);
         } catch (ExecutionException ex) {
