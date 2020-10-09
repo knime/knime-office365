@@ -200,7 +200,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
             throw new UnsupportedOperationException("Unsupported credential type: " + connection.getType());
         }
 
-        final String accessToken = ((OAuth2Credential) connection).getAccessToken();
+        final String accessToken = ((OAuth2Credential) connection).getAccessToken().getToken();
 
         return new GraphApiAuthenticationProvider(accessToken);
     }

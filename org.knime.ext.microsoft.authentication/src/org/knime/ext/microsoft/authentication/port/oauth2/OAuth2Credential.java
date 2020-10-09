@@ -71,8 +71,6 @@ import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
-import com.microsoft.aad.msal4j.IAuthenticationResult;
-
 /**
  * Subclass of {@link MicrosoftCredential} that provides access to an OAuth2
  * access token.
@@ -92,12 +90,10 @@ public class OAuth2Credential extends MicrosoftCredential {
     private static final String KEY_TOKEN = "token";
     private static final String KEY_AUTHORITY = "authority";
     private static final String KEY_USERNAME = "username";
-    private static final String KEY_TOKEN_EXPIRY = "tokenExpiry";
     private static final String KEY_SCOPES = "scopes";
 
     private MemoryCacheAccessTokenSupplier m_tokenSupplier;
     private String m_username;
-    private Instant m_accessTokenExpiresAt;
     private Set<String> m_scopes;
     private String m_authority;
 
@@ -106,7 +102,6 @@ public class OAuth2Credential extends MicrosoftCredential {
      *
      * @param tokenSupplier
      *            The access token supplier.
-     * @param accessTokenExpiresAt
      * @param username
      * @param scopes
      *            The scopes
@@ -116,14 +111,12 @@ public class OAuth2Credential extends MicrosoftCredential {
     public OAuth2Credential(
             final MemoryCacheAccessTokenSupplier tokenSupplier, //
             final String username, //
-            final Instant accessTokenExpiresAt, //
             final Set<String> scopes, //
             final String authority) {
 
         super(Type.OAUTH2_ACCESS_TOKEN);
         m_tokenSupplier = tokenSupplier;
         m_username = username;
-        m_accessTokenExpiresAt = accessTokenExpiresAt;
         m_scopes = scopes;
         m_authority = authority;
     }
@@ -134,10 +127,8 @@ public class OAuth2Credential extends MicrosoftCredential {
      * @return the access token
      * @throws IOException
      */
-    public String getAccessToken() throws IOException {
-        IAuthenticationResult result = m_tokenSupplier.getAuthenticationResult(m_scopes);
-        m_accessTokenExpiresAt = result.expiresOnDate().toInstant();
-        return result.accessToken();
+    public OAuth2AccessToken getAccessToken() throws IOException {
+        return m_tokenSupplier.getAuthenticationResult(m_scopes);
     }
 
     /**
@@ -145,13 +136,6 @@ public class OAuth2Credential extends MicrosoftCredential {
      */
     public String getUsername() {
         return m_username;
-    }
-
-    /**
-     * @return the instant after which the access token expires
-     */
-    public Instant getAccessTokenExpiresAt() {
-        return m_accessTokenExpiresAt;
     }
 
     /**
@@ -172,7 +156,6 @@ public class OAuth2Credential extends MicrosoftCredential {
     public void saveSettings(final ConfigWO config) {
         super.saveSettings(config);
         config.addString(KEY_USERNAME, m_username);
-        config.addLong(KEY_TOKEN_EXPIRY, m_accessTokenExpiresAt.toEpochMilli());
         config.addString(KEY_AUTHORITY, m_authority);
 
         final String[] scopes = m_scopes.toArray(new String[] {});
@@ -182,7 +165,6 @@ public class OAuth2Credential extends MicrosoftCredential {
 
     public static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
         final String username = config.getString(KEY_USERNAME);
-        final Instant tokenExpiry = Instant.ofEpochMilli(config.getLong(KEY_TOKEN_EXPIRY));
         final String authority = config.getString(KEY_AUTHORITY);
 
         final Set<String> scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
@@ -190,7 +172,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(authority);
         tokenSupplier.loadSettings(config.getConfig(KEY_TOKEN));
 
-        return new OAuth2Credential(tokenSupplier, username, tokenExpiry, scopes, authority);
+        return new OAuth2Credential(tokenSupplier, username, scopes, authority);
     }
 
     @Override

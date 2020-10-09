@@ -55,6 +55,7 @@ import java.util.concurrent.ExecutionException;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2AccessToken;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 
@@ -95,7 +96,7 @@ public class MemoryCacheAccessTokenSupplier {
         return m_authority;
     }
 
-    public final IAuthenticationResult getAuthenticationResult(final Set<String> scopes) throws IOException {
+    public final OAuth2AccessToken getAuthenticationResult(final Set<String> scopes) throws IOException {
         final PublicClientApplication app = createPublicClientApplication();
 
         try {
@@ -103,7 +104,8 @@ public class MemoryCacheAccessTokenSupplier {
 
             IAuthenticationResult result = app
                     .acquireTokenSilently(SilentParameters.builder(scopes, account).build()).get();
-            return result;
+
+            return new OAuth2AccessToken(result.accessToken(), result.expiresOnDate().toInstant());
         } catch (InterruptedException e) {
             throw new IOException("Canceled while acquiring access token", e);
         } catch (ExecutionException ex) {

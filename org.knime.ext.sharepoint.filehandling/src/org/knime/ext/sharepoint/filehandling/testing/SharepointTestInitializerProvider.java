@@ -103,7 +103,7 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
 
         final OAuth2Credential credential = OAuth2TestAuthenticator
                 .authenticateWithUsernamePassword(config.get("username"), config.get("password"));
-        return new GraphApiAuthenticationProvider(credential.getAccessToken());
+        return new GraphApiAuthenticationProvider(credential.getAccessToken().getToken());
     }
 
     @Override
