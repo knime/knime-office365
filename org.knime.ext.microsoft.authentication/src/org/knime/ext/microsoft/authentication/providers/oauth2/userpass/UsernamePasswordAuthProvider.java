@@ -67,6 +67,7 @@ import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEdi
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.PublicClientApplication;
@@ -191,8 +192,11 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
                     result.account().username(), //
                     getScopesStringSet(), //
                     getAuthority());
-        } catch (InterruptedException | ExecutionException ex) {
+        } catch (InterruptedException ex) { // NOSONAR we are rethrowing by attaching as cause to an IOE
             throw new IOException(ex);
+        } catch (ExecutionException ex) { // NOSONAR this exception is being handled
+            final Throwable cause = ex.getCause();
+            throw new IOException(ExceptionUtil.getDeepestErrorMessage(cause, false), cause);
         }
     }
 
