@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.providers.oauth2;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -60,6 +61,7 @@ import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
@@ -78,6 +80,8 @@ public class ScopesEditComponent extends JPanel {
 
     private SettingsModelStringArray m_scopes;
     private SettingsModelString m_blobStorageAccount;
+
+    private JLabel m_blobStorageAccountLabel;
     private Map<Scope, JCheckBox> m_checkboxes;
 
     /**
@@ -99,7 +103,8 @@ public class ScopesEditComponent extends JPanel {
     }
 
     private void initUI() {
-        DialogComponentString blobStorageAcc = new DialogComponentString(m_blobStorageAccount, "Storage account:");
+        m_blobStorageAccountLabel = new JLabel("Storage account:");
+        DialogComponentString blobStorageAcc = new DialogComponentString(m_blobStorageAccount, "");
         blobStorageAcc.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
         blobStorageAcc.getComponentPanel().setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
 
@@ -108,6 +113,7 @@ public class ScopesEditComponent extends JPanel {
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 0.5;
+        c.gridwidth = 2;
         c.gridx = 0;
         c.gridy = 0;
 
@@ -116,7 +122,19 @@ public class ScopesEditComponent extends JPanel {
             c.gridy += 1;
 
             if (scope == Scope.AZURE_BLOB_STORAGE) {
+                c.weightx = 0;
+                c.gridwidth = 1;
+                c.insets = new Insets(0, 20, 0, 5);
+                add(m_blobStorageAccountLabel, c);
+
+                c.insets = new Insets(0, 15, 0, 5);
+                c.gridx = 1;
+                c.weightx = 0.5;
+                c.insets = new Insets(0, 0, 0, 0);
                 add(blobStorageAcc.getComponentPanel(), c);
+
+                c.gridx = 0;
+                c.gridwidth = 2;
                 c.gridy += 1;
             }
         }
@@ -158,6 +176,7 @@ public class ScopesEditComponent extends JPanel {
         }
 
         m_blobStorageAccount.setEnabled(set.contains(Scope.AZURE_BLOB_STORAGE.getScope()));
+        m_blobStorageAccountLabel.setEnabled(set.contains(Scope.AZURE_BLOB_STORAGE.getScope()));
     }
 
     private static Set<String> toSet(final SettingsModelStringArray settings) {
