@@ -141,7 +141,7 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
 
-        final String needResetAndRexecuteMsg = "Access token not available anymore. Please re-execute this node.";
+        final String needResetAndRexecuteMsg = "Credentials not available anymore. Please re-execute this node.";
 
         if (m_settings.getProviderType() == AuthProviderType.INTERACTIVE) {
             final InteractiveAuthProvider provider = (InteractiveAuthProvider) m_settings.getCurrentProvider();
@@ -157,7 +157,8 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
             default:
                 break;
             }
-        } else if (m_settings.getProviderType() == AuthProviderType.USERNAME_PASSWORD) {
+        } else {
+            // USERNAME_PASSWORD, AZURE_STORAGE_SHARED_KEY, and AZURE_STORAGE_TOKEN
             setWarningMessage(needResetAndRexecuteMsg);
         }
     }

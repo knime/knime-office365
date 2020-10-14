@@ -49,6 +49,7 @@
 package org.knime.ext.microsoft.authentication.port.azure.storage;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -85,11 +86,9 @@ public class AzureSasTokenCredential extends MicrosoftCredential {
      * @throws IOException
      */
     public String getSasUrl() throws IOException {
-        String url = MemoryCredentialCache.get(m_cacheKey);
-        if (url == null) {
-            throw new IOException("No credentials found. Please re-execute the Microsoft Authentication node.");
-        }
-        return url;
+        return Optional.ofNullable(MemoryCredentialCache.get(m_cacheKey)) //
+                .orElseThrow(() -> new IOException(
+                        "SAS token not available anymore. Please re-execute the Microsoft Authentication node."));
     }
 
     /**

@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.port.azure.storage;
 
 import java.awt.Component;
 import java.io.IOException;
+import java.util.Optional;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -102,7 +103,9 @@ public class AzureSharedKeyCredential extends MicrosoftCredential {
      * @throws IOException
      */
     public String getSecretKey() throws IOException {
-        return MemoryCredentialCache.get(m_cacheKey);
+        return Optional.ofNullable(MemoryCredentialCache.get(m_cacheKey)) //
+                .orElseThrow(() -> new IOException(
+                        "Storage account key not available anymore. Please re-execute the Microsoft Authentication node."));
     }
 
     /**
