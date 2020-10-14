@@ -6,20 +6,20 @@
 	<name>Microsoft Authentication (Labs)</name>
 
 	<shortDescription>
-        Provides authentication to access against Microsoft Office 365 cloud services, such as SharePoint Online.
+        Provides authentication to access Microsoft Azure and Office 365 cloud services.
     </shortDescription>
 
 	<fullDescription>
 		<intro>
 			<p>
-				This node provides authentication to access Microsoft Office 365 cloud services, such as SharePoint Online.
+				This node provides authentication to access Microsoft Azure and Office 365 cloud services.
 			</p>
 			
 			<p>
-				The node supports these authentication modes:
+				It supports these authentication modes:
 				<ul>
 					<li>
-						<i>Interactive authentication</i>: Allows to perform a interactive, web browser based login by by clicking on <i>Login</i>
+						<i>Interactive authentication</i>: Performs an interactive, web browser based login by by clicking on <i>Login</i>
 						in the node dialog. In the browser window that pops up, you may be asked to consent to the requested level of access
 						The login results in a token being stored in a configurable location. The token will be valid for a certain amount of time
 						that is defined by your Azure AD settings. 
@@ -32,12 +32,12 @@
 						multi-factor authentication (MFA) will not work.
 					</li>
 					<li>
-						<i>Azure Storage shared key authentication</i>: <b>Specific to Azure Blob Storage</b>. Performs authentication using storage account
-						and the secret key.
+						<i>Shared key authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage</b>. Performs authentication using an Azure storage account
+						and its secret key.
 					</li>
 					<li>
-						<i>Azure Storage SAS token authentication</i>: <b>Specific to Azure Blob Storage</b>. Perfroms authentication using shared access signature (SAS) URL.
-						For more details see the <a href="https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview">documentation</a>
+						<i>Shared access signature (SAS) authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage</b>. Performs authentication using shared access signature (SAS).
+						For more details on shared access signatures see the <a href="https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview">Azure storage documentation.</a>
 					</li>
 				</ul>
 			</p>
@@ -105,25 +105,27 @@
 			</option>
 		</tab>
 		
-		<tab name="Azure Storage shared key authentication">
+		<tab name="Shared key authentication (Azure Storage only)">
 			<option name="Account">
 				Azure Storage account name.
 			</option>
 			<option name="Secret Key">
-				The secret key.
+				The secret key. <i>Warning:</i> The secret key will be stored in weakly encrypted form as part of the node settings in the workflow.
 			</option>
 			<option name="Credentials flow variable">
 				Allows to choose a credentials flow variable that provides the account and the secret key (as the username and password respectively) to login with. 
 			</option>
 		</tab>
 
-		<tab name="Azure Storage SAS token authentication">
+		<tab name="Shared access signature (SAS) authentication (Azure Storage only)">
 			<option name="Blob service SAS URL">
-				URL that provides shared access signature (SAS) access to Azure Blob Storage.
+				URL that provides shared access signature (SAS) access to Azure Blob Storage. <i>Warning:</i> The secret key will be stored in weakly encrypted form as part of the node settings in the workflow.
+				<p>
 				Example URL:
 				<tt>
-					https://myaccount.blob.core.windows.net/?sv=2019-02-02&amp;st=2019-04-29T22%3A18%3A26Z&amp;se=2019-04-30T02%3A23%3A26Z&amp;sr=b&amp;sp=rw&amp;sip=168.1.5.60-168.1.5.70&amp;spr=https&amp;sig=Z%2FRHIX5Xcg0Mq2rqI3OlWTjEg2tYkboXr1P9ZUXDtkk%3D
+					https://myaccount.blob.core.windows.net/?sv=2019-02-02&amp;st=...
 				</tt>
+				</p>
 			</option>
 			<option name="Credentials flow variable">
 				Allows to choose a credentials flow variable that provides the Blob service SAS URL as the password field. 

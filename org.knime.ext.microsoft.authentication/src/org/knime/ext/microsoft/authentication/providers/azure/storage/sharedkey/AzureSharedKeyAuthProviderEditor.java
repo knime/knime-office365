@@ -106,7 +106,7 @@ public class AzureSharedKeyAuthProviderEditor implements MicrosoftAuthProviderEd
         JRadioButton rbEnterCreds = new JRadioButton("Account/Secret Key");
         rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
 
-        JRadioButton rbUseFw = new JRadioButton("Credential flow variable");
+        JRadioButton rbUseFw = new JRadioButton("Credentials flow variable");
         rbUseFw.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(true));
 
         ButtonGroup group = new ButtonGroup();

@@ -76,11 +76,12 @@ public enum AuthProviderType {
     /**
      * Azure Storage shared key authentication provider.
      */
-    AZURE_STORAGE_SHARED_KEY("Azure Storage shared key authentication", AzureSharedKeyAuthProvider::new),
+    AZURE_STORAGE_SHARED_KEY("Shared key authentication (Azure Storage only)", AzureSharedKeyAuthProvider::new),
     /**
      * Azure Storage SAS token authentication provider.
      */
-    AZURE_STORAGE_TOKEN("Azure Storage SAS token authentication", AzureStorageSasTokenAuthProvider::new);
+    AZURE_STORAGE_SAS("Shared access signature (SAS) authentication (Azure Storage only)",
+            AzureStorageSasTokenAuthProvider::new);
 
     private String m_title;
     private BiFunction<PortsConfiguration, String, MicrosoftAuthProvider> m_createProvider;
