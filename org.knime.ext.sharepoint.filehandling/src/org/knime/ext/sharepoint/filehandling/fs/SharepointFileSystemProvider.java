@@ -57,6 +57,7 @@ import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.DirectoryStream.Filter;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
@@ -71,6 +72,7 @@ import org.knime.filehandling.core.connections.base.BaseFileSystemProvider;
 import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
 
 import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.DriveItem;
 import com.microsoft.graph.models.extensions.Folder;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
@@ -233,6 +235,12 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
                 if (resultItem != null) {
                     getFileSystemInternal().addToAttributeCache(dir, new SharepointFileAttributes(dir, resultItem));
                 }
+            } catch (GraphServiceException e) {
+                if (e.getServiceError() != null
+                        && GraphApiUtil.NAME_ALREADY_EXISTS_CODE.equals(e.getServiceError().code)) {
+                    throw new FileAlreadyExistsException(dir.toString());
+                }
+                throw GraphApiUtil.unwrapIOE(e);
             } catch (ClientException e) {
                 throw GraphApiUtil.unwrapIOE(e);
             }
