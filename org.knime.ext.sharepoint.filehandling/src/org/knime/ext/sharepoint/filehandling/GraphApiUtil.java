@@ -69,6 +69,11 @@ public class GraphApiUtil {
      * oDataType corresponds to a Group
      */
     public static final String GROUP_DATA_TYPE = "#microsoft.graph.group";
+    /**
+     * Error code of the <code>nameAlreadyExists</code>
+     * {@link GraphServiceException}.
+     */
+    public static final String NAME_ALREADY_EXISTS_CODE = "nameAlreadyExists";
 
     private static final String PROP_DISPLAY_NAME = "displayName";
     private static final String SEPARATOR_REPLACEMENT = "$_$";
