@@ -249,34 +249,22 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected boolean exists(final SharepointPath path) throws IOException {
-        if (path.getDriveName() == null) {// Virtual root
-            return true;
+    protected BaseFileAttributes fetchAttributesInternal(final SharepointPath path, final Class<?> type)
+            throws IOException {
+
+        if (path.isRoot()) {
+            return new SharepointFileAttributes(path, null);
+        } else if (path.getNameCount() == 1 && path.getDriveId() != null) {
+            return new SharepointFileAttributes(path, null);
+        } else {
+            final DriveItem item = path.fetchDriveItem();
+            if (item != null) {
+                return new SharepointFileAttributes(path, item);
+            }
         }
 
-        if (path.getItemPath() == null) {
-            // Drive exists if present in drives cache
-            return path.getDriveId() != null;
-        }
-
-        return path.fetchDriveItem() != null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected BaseFileAttributes fetchAttributesInternal(final SharepointPath path, final Class<?> type) throws IOException {
-        DriveItem item = null;
-        if (path.getNameCount() > 0) {
-            item = path.fetchDriveItem();
-        }
-        return new SharepointFileAttributes(path, item);
-
+        throw new NoSuchFileException(path.toString());
     }
 
     /**
@@ -285,7 +273,6 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
     @Override
     protected void checkAccessInternal(final SharepointPath path, final AccessMode... modes) throws IOException {
         // TODO Auto-generated method stub
-
     }
 
     /**

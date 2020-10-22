@@ -116,7 +116,7 @@ public class SharepointTestInitializer extends DefaultFSTestInitializer<Sharepoi
         final SharepointPath scratchDir = getTestCaseScratchDir();
 
         if (!m_workingDirExists) {
-            Files.createDirectory(scratchDir.getParent());
+            Files.createDirectories(scratchDir.getParent());
             m_workingDirExists = true;
         }
 
