@@ -203,25 +203,26 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
             if (m_sasUrl.getStringValue().isEmpty()) {
                 throw new InvalidSettingsException("SAS URL cannot be empty");
             }
+
+            try {
+                URL url = new URL(m_sasUrl.getStringValue());
+
+                if (!url.getProtocol().equals("https")) {
+                    throw new InvalidSettingsException(
+                            "Invalid protocol: " + url.getProtocol() + ". Expected 'https'.");
+                }
+
+                String query = url.getQuery();
+                if (query == null || query.isEmpty()) {
+                    throw new InvalidSettingsException("Query part of the URL is missing");
+                }
+            } catch (MalformedURLException ex) {
+                throw new InvalidSettingsException(ex.getMessage(), ex);
+            }
         } else {
             if (m_credentialsName.getStringValue().isEmpty()) {
                 throw new InvalidSettingsException("Credentials are not selected");
             }
-        }
-
-        try {
-            URL url = new URL(m_sasUrl.getStringValue());
-
-            if(!url.getProtocol().equals("https")) {
-                throw new InvalidSettingsException("Invalid protocol: " + url.getProtocol() + ". Expected 'https'.");
-            }
-
-            String query = url.getQuery();
-            if (query == null || query.isEmpty()) {
-                throw new InvalidSettingsException("Query part of the URL is missing");
-            }
-        } catch (MalformedURLException ex) {
-            throw new InvalidSettingsException(ex.getMessage(), ex);
         }
     }
 
