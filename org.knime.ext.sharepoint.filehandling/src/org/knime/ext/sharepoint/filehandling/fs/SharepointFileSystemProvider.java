@@ -299,14 +299,6 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
      * {@inheritDoc}
      */
     @Override
-    public String getScheme() {
-        return SharepointFileSystem.FS_TYPE;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public boolean isHidden(final Path path) throws IOException {
         return false;
     }

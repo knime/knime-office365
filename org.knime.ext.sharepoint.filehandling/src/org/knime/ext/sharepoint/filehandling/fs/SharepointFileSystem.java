@@ -248,22 +248,6 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      * {@inheritDoc}
      */
     @Override
-    public String getSchemeString() {
-        return provider().getScheme();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getHostString() {
-        return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public SharepointPath getPath(final String first, final String... more) {
         return new SharepointPath(this, first, more);
     }
