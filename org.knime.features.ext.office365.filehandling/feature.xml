@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
       id="org.knime.features.ext.office365.filehandling"
-      label="KNIME SharePoint Online Connector (Labs)"
+      label="KNIME Office 365 Connectors"
       version="4.3.0.qualifier"
       provider-name="KNIME AG, Zurich, Switzerland">
 
    <description>
-      Provides the SharePoint Online Connector (Labs) node.
+      Provides nodes to connect to cloud-based Office 365 services, such as SharePoint Online.
    </description>
 
    <copyright>

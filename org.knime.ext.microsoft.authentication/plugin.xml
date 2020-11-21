@@ -4,7 +4,7 @@
    <extension
          point="org.knime.workbench.repository.nodes">
       <node
-            category-path="/labs/file-handling-prototype"
+            category-path="/io/connectors"
             factory-class="org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory">
       </node>
    </extension>
