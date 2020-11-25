@@ -196,4 +196,13 @@ public class AzureStorageSasTokenAuthProviderEditor implements MicrosoftAuthProv
         // nothing to do
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onClose() {
+        // nothing to do
+
+    }
+
 }

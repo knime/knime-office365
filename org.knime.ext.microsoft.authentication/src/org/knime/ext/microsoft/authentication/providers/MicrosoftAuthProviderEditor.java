@@ -73,6 +73,11 @@ public interface MicrosoftAuthProviderEditor {
     public void onCancel();
 
     /**
+     * Method which should be called in the onClose() method of a node dialog.
+     */
+    public void onClose();
+
+    /**
      * Performs initialization of the dialog components that should be initialized
      * with specs or any other actions that should be executed after settings are
      * loaded.

@@ -215,4 +215,13 @@ public class AzureSharedKeyAuthProviderEditor implements MicrosoftAuthProviderEd
         // nothing to do
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onClose() {
+        // nothing to do
+
+    }
+
 }

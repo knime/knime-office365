@@ -295,4 +295,12 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         cancelLogin();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onClose() {
+        m_storageEditor.onClose();
+    }
+
 }

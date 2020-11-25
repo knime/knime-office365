@@ -221,4 +221,11 @@ public class StorageEditor extends JPanel {
             throws NotConfigurableException {
         m_fileChooser.loadSettingsFrom(settings, specs);
     }
+
+    /**
+     * Method which should be called in the onClose method of the node dialog.
+     */
+    public void onClose() {
+        m_fileChooser.onClose();
+    }
 }

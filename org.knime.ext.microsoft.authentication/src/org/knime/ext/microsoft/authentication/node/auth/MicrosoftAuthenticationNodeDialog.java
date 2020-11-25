@@ -174,6 +174,9 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
      */
     @Override
     public void onClose() {
+        for (MicrosoftAuthProviderEditor editor : m_editors.values()) {
+            editor.onClose();
+        }
         cancelLogin();
     }
 

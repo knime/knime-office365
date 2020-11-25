@@ -191,4 +191,13 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
     public void onCancel() {
         // Do nothing
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onClose() {
+        // nothing to do
+
+    }
 }
