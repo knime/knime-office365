@@ -99,7 +99,7 @@ public class AzureStorageSasTokenAuthProviderEditor implements MicrosoftAuthProv
     }
 
     private void initUI() {
-        JRadioButton rbEnterCreds = new JRadioButton("Blob service SAS URL");
+        JRadioButton rbEnterCreds = new JRadioButton("Service SAS URL");
         rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
 
         JRadioButton rbUseFw = new JRadioButton("Credential flow variable");
