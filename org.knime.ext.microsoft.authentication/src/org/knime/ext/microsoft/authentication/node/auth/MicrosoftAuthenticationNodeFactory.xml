@@ -32,11 +32,11 @@
 						multi-factor authentication (MFA) will not work.
 					</li>
 					<li>
-						<i>Shared key authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage</b>. Performs authentication using an Azure storage account
+						<i>Shared key authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage and Azure Data Lake Storage Gen2</b>. Performs authentication using an Azure storage account
 						and its secret key.
 					</li>
 					<li>
-						<i>Shared access signature (SAS) authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage</b>. Performs authentication using shared access signature (SAS).
+						<i>Shared access signature (SAS) authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage and Azure Data Lake Storage Gen2</b>. Performs authentication using shared access signature (SAS).
 						For more details on shared access signatures see the <a href="https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview">Azure storage documentation.</a>
 					</li>
 				</ul>
@@ -118,8 +118,8 @@
 		</tab>
 
 		<tab name="Shared access signature (SAS) authentication (Azure Storage only)">
-			<option name="Blob service SAS URL">
-				URL that provides shared access signature (SAS) access to Azure Blob Storage. <i>Warning:</i> The secret key will be stored in weakly encrypted form as part of the node settings in the workflow.
+			<option name="Service SAS URL">
+				URL that provides shared access signature (SAS) access to Azure Blob Storage or Azure Data Lake Storage Gen2. <i>Warning:</i> The secret key will be stored in weakly encrypted form as part of the node settings in the workflow.
 				<p>
 				Example URL:
 				<tt>
@@ -128,7 +128,7 @@
 				</p>
 			</option>
 			<option name="Credentials flow variable">
-				Allows to choose a credentials flow variable that provides the Blob service SAS URL as the password field. 
+				Allows to choose a credentials flow variable that provides the storage service SAS URL as the password field. 
 			</option>
 		</tab>
 
