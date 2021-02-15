@@ -78,6 +78,8 @@ import org.knime.filehandling.core.defaultnodesettings.filtermode.SettingsModelF
  */
 public class StorageEditor extends JPanel {
 
+    private static final long serialVersionUID = 1L;
+
     private final StorageSettings m_settings;
 
     private final DialogComponentWriterFileChooser m_fileChooser;
@@ -90,6 +92,13 @@ public class StorageEditor extends JPanel {
 
     private final LoginStatusEventHandler m_loginStatusEventHandler;
 
+    /**
+     * Constructor.
+     *
+     * @param settings
+     * @param nodeDialog
+     * @param loginStatusEventHandler
+     */
     public StorageEditor(final StorageSettings settings, final NodeDialogPane nodeDialog,
             final LoginStatusEventHandler loginStatusEventHandler) {
         super(new GridBagLayout());
@@ -115,14 +124,15 @@ public class StorageEditor extends JPanel {
         final FlowVariableModel fvm = nodeDialog //
                 .createFlowVariableModel(fileModel.getKeysForFSLocation(), //
                         FSLocationVariableType.INSTANCE);
-        m_fileChooser = new DialogComponentWriterFileChooser(fileModel,
-                "microsoft_auth_token_cache_file",
-                fvm,
+        m_fileChooser = new DialogComponentWriterFileChooser(fileModel, "microsoft_auth_token_cache_file", fvm,
                 FilterMode.FILE);
-        m_fileChooser.getComponentPanel()
-                .setBorder((BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(),
-                        "Token file to read/write")));
+        m_fileChooser.getComponentPanel().setBorder(
+                (BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Token file to read/write")));
 
+        initLayout(); // NOSONAR
+    }
+
+    private void initLayout() {
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 0.5;
