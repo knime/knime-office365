@@ -225,7 +225,7 @@ class FileStorage implements StorageProvider {
         } catch (InvalidSettingsException ex) {
             throw new IOException(ex.getMessage(), ex);
         } catch (NoSuchFileException e) {
-            return null;
+            return null; // NOSONAR we are intentionally returning null here and not rethrowing.
         }
     }
 
