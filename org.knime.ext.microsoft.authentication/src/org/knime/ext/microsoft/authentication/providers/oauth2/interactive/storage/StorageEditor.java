@@ -68,7 +68,6 @@ import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.filehandling.core.data.location.variable.FSLocationVariableType;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.DialogComponentWriterFileChooser;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.SettingsModelWriterFileChooser;
-import org.knime.filehandling.core.defaultnodesettings.filtermode.SettingsModelFilterMode.FilterMode;
 
 /**
  * Dialog panel that allows the user to choose between the different ways of
@@ -124,8 +123,7 @@ public class StorageEditor extends JPanel {
         final FlowVariableModel fvm = nodeDialog //
                 .createFlowVariableModel(fileModel.getKeysForFSLocation(), //
                         FSLocationVariableType.INSTANCE);
-        m_fileChooser = new DialogComponentWriterFileChooser(fileModel, "microsoft_auth_token_cache_file", fvm,
-                FilterMode.FILE);
+        m_fileChooser = new DialogComponentWriterFileChooser(fileModel, "microsoft_auth_token_cache_file", fvm);
         m_fileChooser.getComponentPanel().setBorder(
                 (BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Token file to read/write")));
 

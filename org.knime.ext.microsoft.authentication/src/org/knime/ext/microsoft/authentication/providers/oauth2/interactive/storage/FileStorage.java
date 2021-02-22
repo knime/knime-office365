@@ -79,6 +79,7 @@ import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 import org.knime.filehandling.core.connections.FSFiles;
 import org.knime.filehandling.core.connections.FSPath;
+import org.knime.filehandling.core.defaultnodesettings.EnumConfig;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.FileOverwritePolicy;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.SettingsModelWriterFileChooser;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.WritePathAccessor;
@@ -115,9 +116,8 @@ class FileStorage implements StorageProvider {
                 "token_cache_file", //
                 portsConfig, //
                 MicrosoftAuthenticationNodeFactory.FILE_SYSTEM_CONNECTION_PORT_NAME, //
-                FilterMode.FILE, //
-                FileOverwritePolicy.OVERWRITE, //
-                EnumSet.of(FileOverwritePolicy.OVERWRITE));
+                EnumConfig.create(FilterMode.FILE), //
+                EnumConfig.create(FileOverwritePolicy.OVERWRITE));
     }
 
     /**
