@@ -23,4 +23,5 @@ Export-Package: org.knime.ext.microsoft.authentication.port,
  org.knime.ext.microsoft.authentication.port.azure.storage,
  org.knime.ext.microsoft.authentication.port.oauth2,
  org.knime.ext.microsoft.authentication.port.oauth2.testing
+Automatic-Module-Name: org.knime.ext.microsoft.authentication
 
