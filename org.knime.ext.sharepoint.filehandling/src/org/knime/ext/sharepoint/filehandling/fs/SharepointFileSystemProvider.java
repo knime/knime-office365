@@ -48,6 +48,7 @@
  */
 package org.knime.ext.sharepoint.filehandling.fs;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -190,7 +191,11 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
         }
 
         try {
-            return client.drives(path.getDriveId()).items(item.id).content().buildRequest().get();
+            InputStream stream = client.drives(path.getDriveId()).items(item.id).content().buildRequest().get();
+
+            // graph api returns null for an empty files, so we return an empty stream
+            // instead
+            return stream != null ? stream : new ByteArrayInputStream(new byte[0]);
         } catch (ClientException ex) {
             throw GraphApiUtil.unwrapIOE(ex);
         }
