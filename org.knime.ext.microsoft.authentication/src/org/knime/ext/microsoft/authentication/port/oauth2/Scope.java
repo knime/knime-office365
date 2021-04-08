@@ -75,7 +75,8 @@ public enum Scope {
     /**
      * Azure Blob storage scope
      */
-    AZURE_BLOB_STORAGE("Azure Blob Storage", "https://%s.blob.core.windows.net/user_impersonation");
+    AZURE_BLOB_STORAGE("Azure Blob Storage/Azure Data Lake Storage Gen2",
+            "https://%s.blob.core.windows.net/user_impersonation");
 
     private static final Map<String, Scope> SCOPES = new HashMap<>();
     static {
