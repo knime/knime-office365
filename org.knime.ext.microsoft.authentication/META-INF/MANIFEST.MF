@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Microsoft authentication extension for KNIME Workbench
 Bundle-SymbolicName: org.knime.ext.microsoft.authentication; singleton:=true
-Bundle-Version: 4.3.1.qualifier
+Bundle-Version: 4.3.3.qualifier
 Bundle-Vendor: 
 Require-Bundle: org.knime.workbench.repository;bundle-version="[4.2.0,5.0.0)",
  org.knime.core;bundle-version="[4.2.0,5.0.0]",
@@ -15,7 +15,7 @@ Require-Bundle: org.knime.workbench.repository;bundle-version="[4.2.0,5.0.0)",
  com.sun.jersey.client;bundle-version="[1.19.0,2.0.0)",
  org.json;bundle-version="20140107.0.0",
  com.fasterxml.jackson.core.jackson-databind;bundle-version="2.11.0",
- org.knime.filehandling.core;bundle-version="[4.2.0,5.0.0)"
+ org.knime.filehandling.core;bundle-version="[4.3.3,5.0.0)"
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Bundle-Activator: org.knime.ext.microsoft.authentication.MicrosoftAuthenticationPlugin
