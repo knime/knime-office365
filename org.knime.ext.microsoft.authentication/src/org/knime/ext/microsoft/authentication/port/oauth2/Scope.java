@@ -76,7 +76,13 @@ public enum Scope {
      * Azure Blob storage scope
      */
     AZURE_BLOB_STORAGE("Azure Blob Storage/Azure Data Lake Storage Gen2",
-            "https://%s.blob.core.windows.net/user_impersonation");
+            "https://%s.blob.core.windows.net/user_impersonation"),
+
+    /**
+     * Power BI
+     */
+    POWER_BI("Power BI", "https://analysis.windows.net/powerbi/api/Dataset.ReadWrite.All "
+            + "https://analysis.windows.net/powerbi/api/Workspace.Read.All");
 
     private static final Map<String, Scope> SCOPES = new HashMap<>();
     static {
