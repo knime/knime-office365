@@ -52,7 +52,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointPath;
 import org.knime.filehandling.core.connections.FSConnection;
@@ -81,7 +81,7 @@ public class SharepointTestInitializer extends DefaultFSTestInitializer<Sharepoi
      * @param fsConnection
      *            {@link FSConnection} object.
      */
-    public SharepointTestInitializer(final SharepointConnection fsConnection) {
+    public SharepointTestInitializer(final SharepointFSConnection fsConnection) {
         super(fsConnection);
         m_client = getFileSystem().getClient();
     }

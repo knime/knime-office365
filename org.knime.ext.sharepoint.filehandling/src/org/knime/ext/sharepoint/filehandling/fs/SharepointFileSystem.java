@@ -50,7 +50,6 @@ package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -61,13 +60,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings;
-import org.knime.filehandling.core.connections.DefaultFSLocationSpec;
-import org.knime.filehandling.core.connections.FSCategory;
-import org.knime.filehandling.core.connections.FSLocationSpec;
 import org.knime.filehandling.core.connections.base.BaseFileSystem;
 
-import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.core.DefaultConnectionConfig;
 import com.microsoft.graph.core.IConnectionConfig;
@@ -80,6 +74,7 @@ import com.microsoft.graph.models.extensions.Drive;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.requests.extensions.GraphServiceClient;
 import com.microsoft.graph.requests.extensions.IDriveCollectionPage;
+import com.microsoft.graph.requests.extensions.ISiteRequestBuilder;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -92,66 +87,48 @@ import okhttp3.Request;
 public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
     /**
-     * Sharepoint URI scheme.
-     */
-    public static final String FS_TYPE = "microsoft-sharepoint";
-
-    /**
      * Character to use as path separator
      */
     public static final String PATH_SEPARATOR = "/";
+    private static final String ROOT_SITE = "root";
 
     private final IGraphServiceClient m_client;
     private final String m_siteId;
     private final Map<String, Drive> m_drives;
-
+    private final SharepointFSConnectionConfig m_config;
 
     /**
-     * @param fileSystemProvider
-     *            The {@link SharepointFileSystemProvider}
-     * @param uri
-     *            The URI
+     * @param config
+     *            Connection configuration
      * @param cacheTTL
      *            The time to live for cached elements in milliseconds.
-     * @param authProvider
-     *            The authentication provider
-     * @param settings
-     *            Connection settings.
      * @throws IOException
      */
-    public SharepointFileSystem(
-            final URI uri,
-            final long cacheTTL, final IAuthenticationProvider authProvider,
-            final SharepointConnectionSettings settings) throws IOException {
-        super(new SharepointFileSystemProvider(), uri, cacheTTL, settings.getWorkingDirectory(PATH_SEPARATOR),
-                createFSLocationSpec());
+
+    public SharepointFileSystem(final SharepointFSConnectionConfig config, final long cacheTTL) throws IOException {
+        super(new SharepointFileSystemProvider(), cacheTTL, config.getWorkingDirectory(),
+                SharepointFSDescriptorProvider.FS_LOCATION_SPEC);
 
         DefaultLogger logger = new DefaultLogger();
         logger.setLoggingLevel(LoggerLevel.ERROR);
-
+        m_config = config;
         try {
-            m_client = GraphServiceClient.builder().authenticationProvider(authProvider).logger(logger).buildClient();
+            m_client = GraphServiceClient.builder().authenticationProvider(m_config.getAuthenticationProvider())
+                    .logger(logger).buildClient();
             IConnectionConfig connConfig = new DefaultConnectionConfig();
-            connConfig.setReadTimeout(settings.getReadTimeout() * 1000);
-            connConfig.setConnectTimeout(settings.getConnectionTimeout() * 1000);
+            connConfig.setReadTimeout(Math.toIntExact(m_config.getReadTimeOut().toMillis()));
+            connConfig.setConnectTimeout(Math.toIntExact(m_config.getConnectionTimeOut().toMillis()));
             m_client.getHttpProvider().setConnectionConfig(connConfig);
 
             patchHttpProvider();
 
-            m_siteId = settings.getSiteId(m_client);
+            m_siteId = getTargetSiteId(m_client);
         } catch (ClientException ex) {
             throw GraphApiUtil.unwrapIOE(ex);
         }
 
         m_drives = new HashMap<>();
         fetchDrives();
-    }
-
-    /**
-     * @return the {@link FSLocationSpec} for a Sharepoint file system.
-     */
-    public static DefaultFSLocationSpec createFSLocationSpec() {
-        return new DefaultFSLocationSpec(FSCategory.CONNECTED, SharepointFileSystem.FS_TYPE);
     }
 
     /**
@@ -236,36 +213,70 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
         return m_client;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void prepareClose() {
         m_client.shutdown();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public SharepointPath getPath(final String first, final String... more) {
         return new SharepointPath(this, first, more);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getSeparator() {
         return PATH_SEPARATOR;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Iterable<Path> getRootDirectories() {
         return Collections.singletonList(getPath(PATH_SEPARATOR));
     }
 
+    /**
+     * Returns the selected site or subsite id.
+     *
+     * @param client
+     *            The client.
+     * @return The site id.
+     * @throws IOException
+     */
+    public String getTargetSiteId(final IGraphServiceClient client) throws IOException {
+        if (m_config.getSubsite() != null) {
+            return m_config.getSubsite();
+        }
+
+        return getParentSiteId(client);
+    }
+
+    /**
+     * The selected site id.
+     *
+     * @param client
+     *            The client
+     * @return The site id.
+     * @throws IOException
+     */
+    @SuppressWarnings("null")
+    public String getParentSiteId(final IGraphServiceClient client) throws IOException {
+        ISiteRequestBuilder req = null;
+
+        switch (m_config.getMode()) {
+        case ROOT:
+            req = client.sites(ROOT_SITE);
+            break;
+        case WEB_URL:
+            req = client.sites(GraphApiUtil.getSiteIdFromSharepointSiteWebURL(m_config.getWebURL()));
+            break;
+        case GROUP:
+            req = client.groups(m_config.getGroup()).sites(ROOT_SITE);
+            break;
+        }
+
+        try {
+            return req.buildRequest().get().id;
+        } catch (ClientException e) {
+            throw GraphApiUtil.unwrapIOE(e);
+        }
+    }
 }

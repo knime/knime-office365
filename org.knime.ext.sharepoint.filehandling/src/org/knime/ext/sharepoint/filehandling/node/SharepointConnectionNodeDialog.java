@@ -69,20 +69,21 @@ import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
 
 /**
- * Sharepoint Connection node dialog.
+ * Node dialog for the Sharepoint Connector node.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnectionNodeDialog extends NodeDialogPane {
+final class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
 
-    private final SiteSettingsPanel m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
+    private final SiteSettingsPanel m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings(),
+            this::createFSConnection);
 
     private final WorkingDirectoryChooser m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir",
             this::createFSConnection);
@@ -92,11 +93,10 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
     /**
      * Creates new instance.
      */
-    public SharepointConnectionNodeDialog() {
+    SharepointConnectionNodeDialog() {
         addTab("Settings", createSettingsPanel());
         addTab("Advanced", createTimeoutsPanel());
     }
-
 
     private Box createSettingsPanel() {
         m_workingDirChooser.setBorder(BorderFactory.createTitledBorder("File system settings"));
@@ -107,18 +107,15 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         return box;
     }
 
-
     private FSConnection createFSConnection() throws IOException {
         final SharepointConnectionSettings clonedSettings = m_settings.clone();
-        return new SharepointConnection(SharepointConnectionNodeModel.createGraphAuthProvider(m_connection),
-                clonedSettings);
+        return new SharepointFSConnection(clonedSettings
+                .toFSConnectionConfig(SharepointConnectionNodeModel.createGraphAuthProvider(m_connection)));
     }
 
     private JComponent createTimeoutsPanel() {
         final DialogComponentNumber connectionTimeout = new DialogComponentNumber(
-                m_settings.getConnectionTimeoutModel(),
-                "",
-                1);
+                m_settings.getConnectionTimeoutModel(), "", 1);
         connectionTimeout.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
         final DialogComponentNumber readTimeout = new DialogComponentNumber(m_settings.getReadTimeoutModel(), "", 1);
         readTimeout.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
@@ -161,9 +158,6 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         m_workingDirChooser.addCurrentSelectionToHistory();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
         validateSettingsBeforeSave();
@@ -181,9 +175,6 @@ public class SharepointConnectionNodeDialog extends NodeDialogPane {
         m_workingDirChooser.onClose();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {

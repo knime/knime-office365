@@ -72,7 +72,7 @@ import com.microsoft.graph.models.extensions.UploadSession;
  *
  * @author Alexander Bondaletov
  */
-public class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<SharepointPath> {
+class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<SharepointPath> {
 
     private static final int SIMPLE_UPLOAD_LIMIT = 4 * 1024 * 1024;
 
@@ -93,17 +93,11 @@ public class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<S
         super(file, options);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void copyFromRemote(final SharepointPath remoteFile, final Path tempFile) throws IOException {
         Files.copy(remoteFile, tempFile);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void copyToRemote(final SharepointPath remoteFile, final Path tempFile) throws IOException {
         if (Files.size(tempFile) < SIMPLE_UPLOAD_LIMIT) {

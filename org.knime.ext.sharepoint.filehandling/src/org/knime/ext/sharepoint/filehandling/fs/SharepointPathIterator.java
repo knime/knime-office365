@@ -68,7 +68,7 @@ import com.microsoft.graph.requests.extensions.IDriveItemRequestBuilder;
  *
  * @author Alexander Bondaletov
  */
-public abstract class SharepointPathIterator implements Iterator<SharepointPath> {
+abstract class SharepointPathIterator implements Iterator<SharepointPath> {
 
     private final Filter<? super Path> m_filter;
     /**
@@ -88,7 +88,7 @@ public abstract class SharepointPathIterator implements Iterator<SharepointPath>
      * @return The iterator.
      * @throws IOException
      */
-    public static SharepointPathIterator create(final SharepointPath path, final Filter<? super Path> filter)
+    static SharepointPathIterator create(final SharepointPath path, final Filter<? super Path> filter)
             throws IOException {
         if (path.getNameCount() == 0) {
             return new DriveIterator(path, filter);
@@ -120,17 +120,11 @@ public abstract class SharepointPathIterator implements Iterator<SharepointPath>
         m_nextPath = getNextFilteredPath();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean hasNext() {
         return m_nextPath != null;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public SharepointPath next() {
         if (!hasNext()) {
@@ -188,9 +182,6 @@ public abstract class SharepointPathIterator implements Iterator<SharepointPath>
             return path;
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         protected SharepointPath getNextPath() {
             if (m_iterator.hasNext()) {
@@ -235,7 +226,6 @@ public abstract class SharepointPathIterator implements Iterator<SharepointPath>
         }
 
         /**
-         * {@inheritDoc}
          *
          * @throws IOException
          */

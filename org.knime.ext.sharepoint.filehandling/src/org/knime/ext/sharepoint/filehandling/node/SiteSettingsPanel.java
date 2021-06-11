@@ -68,9 +68,13 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig.SiteMode;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.node.LoadedItemsSelector.IdComboboxItem;
-import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteMode;
 import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteSettings;
+import org.knime.filehandling.core.connections.FSConnection;
+import org.knime.filehandling.core.util.CheckedExceptionSupplier;
+import org.knime.filehandling.core.util.IOESupplier;
 
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
@@ -84,7 +88,8 @@ import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
  *
  * @author Alexander Bondaletov
  */
-public class SiteSettingsPanel extends JPanel {
+final class SiteSettingsPanel extends JPanel {
+
     private static final long serialVersionUID = 1L;
 
     private final SiteSettings m_settings;
@@ -94,15 +99,15 @@ public class SiteSettingsPanel extends JPanel {
     private LoadedItemsSelector m_groupSelector;
     private LoadedItemsSelector m_subsiteSelector;
 
+    private CheckedExceptionSupplier<FSConnection, IOException> m_fsConnectionSupplier;
 
     /**
      * @param settings
-     *            The settings.
-     *
+     * @param connectionSupplier
      */
-    public SiteSettingsPanel(final SiteSettings settings) {
+    SiteSettingsPanel(final SiteSettings settings, final IOESupplier<FSConnection> connectionSupplier) {
         m_settings = settings;
-
+        m_fsConnectionSupplier = connectionSupplier;
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         add(createRadioSelectorPanel());
         add(createCardsPanel());
@@ -113,11 +118,11 @@ public class SiteSettingsPanel extends JPanel {
     /**
      * Should be called by the parent dialog after settings are loaded.
      *
-     * @param connection
-     *            The Microsoft connection object.
+     * @param credentials
+     *            The Microsoft Credential object.
      */
-    public void settingsLoaded(final MicrosoftCredential connection) {
-        m_connection = connection;
+    void settingsLoaded(final MicrosoftCredential credentials) {
+        m_connection = credentials;
 
         m_subsiteSelector.onSettingsLoaded();
         m_groupSelector.onSettingsLoaded();
@@ -169,8 +174,8 @@ public class SiteSettingsPanel extends JPanel {
         DialogComponentString siteInput = new DialogComponentString(m_settings.getWebURLModel(), "URL:", false, 50);
         siteInput.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
 
-        m_groupSelector = new LoadedItemsSelector(m_settings.getGroupModel(), m_settings.getGroupNameModel(),
-                "Group:", null) {
+        m_groupSelector = new LoadedItemsSelector(m_settings.getGroupModel(), m_settings.getGroupNameModel(), "Group:",
+                null) {
             private static final long serialVersionUID = 1L;
 
             @Override
@@ -235,14 +240,24 @@ public class SiteSettingsPanel extends JPanel {
         }
     }
 
+    @SuppressWarnings("resource")
     private List<IdComboboxItem> fetchSubsites() throws InvalidSettingsException, IOException {
         m_settings.validateParentSiteSettings();
         IGraphServiceClient client = createClient();
-
+        FSConnection connection = null;
+        SharepointFileSystem fileSystem = null;
         try {
-            return listSubsites(m_settings.getParentSiteId(client), client, "");
+            connection = m_fsConnectionSupplier.get();
+            fileSystem = (SharepointFileSystem) connection.getFileSystem();
+            return listSubsites(fileSystem.getParentSiteId(client), client, "");
         } finally {
             client.shutdown();
+            if (fileSystem != null) {
+                fileSystem.close();
+            }
+            if (connection != null) {
+                connection.close();
+            }
         }
     }
 

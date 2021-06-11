@@ -44,45 +44,50 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-02 (Alexander Bondaletov): created
+ *   2021-06-04 (modithahewasinghage): created
  */
-package org.knime.ext.sharepoint.filehandling.node;
+package org.knime.ext.sharepoint.filehandling.fs;
 
-import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import org.knime.ext.sharepoint.filehandling.testing.SharepointTestInitializerProvider;
+import org.knime.filehandling.core.connections.DefaultFSLocationSpec;
+import org.knime.filehandling.core.connections.FSCategory;
+import org.knime.filehandling.core.connections.FSLocationSpec;
+import org.knime.filehandling.core.connections.meta.FSDescriptorProvider;
+import org.knime.filehandling.core.connections.meta.FSType;
+import org.knime.filehandling.core.connections.meta.FSTypeRegistry;
+import org.knime.filehandling.core.connections.meta.base.BaseFSDescriptor;
+import org.knime.filehandling.core.connections.meta.base.BaseFSDescriptorProvider;
+import org.knime.filehandling.core.connections.uriexport.URIExporterIDs;
+import org.knime.filehandling.core.connections.uriexport.base.PathURIExporterFactory;
 
 /**
- * Factory class for Sharepoing Connection Node.
+ * {@link FSDescriptorProvider} implementation for the Sharepoint file system.
  *
- * @author Alexander Bondaletov
+ * @author modithahewasinghage
  */
-public class SharepointConnectionNodeFactory extends NodeFactory<SharepointConnectionNodeModel> {
+public class SharepointFSDescriptorProvider extends BaseFSDescriptorProvider {
 
-    @Override
-    public SharepointConnectionNodeModel createNodeModel() {
-        return new SharepointConnectionNodeModel();
+    /**
+     * Sharepoint FS Type.
+     */
+    public static final FSType FS_TYPE = FSTypeRegistry.getOrCreateFSType("microsoft-sharepoint",
+            "Microsoft Sharepoint");
+
+    /**
+     * Sharepoint {@link FSLocationSpec}.
+     */
+    public static final FSLocationSpec FS_LOCATION_SPEC = new DefaultFSLocationSpec(FSCategory.CONNECTED,
+            FS_TYPE.getTypeId());
+
+    /**
+     * Constructor.
+     */
+    public SharepointFSDescriptorProvider() {
+        super(FS_TYPE, //
+                new BaseFSDescriptor.Builder() //
+                        .withConnectionFactory(SharepointFSConnection::new) //
+                        .withURIExporterFactory(URIExporterIDs.DEFAULT, PathURIExporterFactory.getInstance()) //
+                        .withTestInitializerProvider(new SharepointTestInitializerProvider()) //
+                        .build());
     }
-
-    @Override
-    protected int getNrNodeViews() {
-        return 0;
-    }
-
-    @Override
-    public NodeView<SharepointConnectionNodeModel> createNodeView(final int viewIndex,
-            final SharepointConnectionNodeModel nodeModel) {
-        return null;
-    }
-
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new SharepointConnectionNodeDialog();
-    }
-
 }

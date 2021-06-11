@@ -49,60 +49,37 @@
 package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 import org.knime.core.node.util.FileSystemBrowser;
-import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.FSFileSystem;
 import org.knime.filehandling.core.filechooser.NioFileSystemBrowser;
-
-import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
  * Sharepoint implementation of {@link FSConnection} interface.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnection implements FSConnection {
+public class SharepointFSConnection implements FSConnection {
 
     private final SharepointFileSystem m_filesystem;
     private final long m_cacheTTL = 6000;
 
     /**
-     * @param authProvider
-     *            Authentication provider
-     * @param settings
-     *            Connection settings.
+     * @param config
+     *            Connection configuration
      * @throws IOException
      *
      */
-    public SharepointConnection(final IAuthenticationProvider authProvider,
-            final SharepointConnectionSettings settings)
-            throws IOException {
-
-        URI uri = null;
-        try {
-            uri = new URI(SharepointFileSystem.FS_TYPE, "sharepoint", null, null);
-        } catch (URISyntaxException ex) {
-            // never happens
-        }
-
-        m_filesystem = new SharepointFileSystem(uri, m_cacheTTL, authProvider, settings);
+    public SharepointFSConnection(final SharepointFSConnectionConfig config) throws IOException {
+        m_filesystem = new SharepointFileSystem(config, m_cacheTTL);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public FSFileSystem<?> getFileSystem() {
         return m_filesystem;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public FileSystemBrowser getFileSystemBrowser() {
         return new NioFileSystemBrowser(this);

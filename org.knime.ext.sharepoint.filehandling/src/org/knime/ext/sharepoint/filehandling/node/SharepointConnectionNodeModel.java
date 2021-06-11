@@ -67,8 +67,8 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSDescriptorProvider;
 import org.knime.filehandling.core.connections.FSConnectionRegistry;
 import org.knime.filehandling.core.port.FileSystemPortObject;
 import org.knime.filehandling.core.port.FileSystemPortObjectSpec;
@@ -76,32 +76,32 @@ import org.knime.filehandling.core.port.FileSystemPortObjectSpec;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
- * Sharepoint Connection node.
+ * Node model for the Sharepoint Connector node.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnectionNodeModel extends NodeModel {
+@SuppressWarnings("deprecation")
+final class SharepointConnectionNodeModel extends NodeModel {
 
     private static final String FILE_SYSTEM_NAME = "Sharepoint Online";
 
     private String m_fsId;
-    private SharepointConnection m_fsConnection;
+    private SharepointFSConnection m_fsConnection;
 
     private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
 
     /**
      * Creates new instance.
      */
-    protected SharepointConnectionNodeModel() {
+    SharepointConnectionNodeModel() {
         super(new PortType[] { MicrosoftCredentialPortObject.TYPE }, new PortType[] { FileSystemPortObject.TYPE });
     }
 
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        MicrosoftCredential connection = ((MicrosoftCredentialPortObjectSpec) inObjects[0]
-                .getSpec())
+        MicrosoftCredential connection = ((MicrosoftCredentialPortObjectSpec) inObjects[0].getSpec())
                 .getMicrosoftCredential();
-        m_fsConnection = new SharepointConnection(createGraphAuthProvider(connection), m_settings);
+        m_fsConnection = new SharepointFSConnection(m_settings.toFSConnectionConfig(createGraphAuthProvider(connection)));
         FSConnectionRegistry.getInstance().register(m_fsId, m_fsConnection);
         return new PortObject[] { new FileSystemPortObject(createSpec()) };
     }
@@ -117,23 +117,15 @@ public class SharepointConnectionNodeModel extends NodeModel {
     }
 
     private FileSystemPortObjectSpec createSpec() {
-        return new FileSystemPortObjectSpec(FILE_SYSTEM_NAME, m_fsId, SharepointFileSystem.createFSLocationSpec());
+        return new FileSystemPortObjectSpec(FILE_SYSTEM_NAME, m_fsId, SharepointFSDescriptorProvider.FS_LOCATION_SPEC);
     }
 
-
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
         setWarningMessage("Sharepoint connection no longer available. Please re-execute the node.");
-
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
@@ -141,25 +133,16 @@ public class SharepointConnectionNodeModel extends NodeModel {
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
         m_settings.saveSettingsTo(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_settings.validateSettings(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_settings.loadSettingsFrom(settings);
@@ -171,9 +154,6 @@ public class SharepointConnectionNodeModel extends NodeModel {
         reset();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void reset() {
         if (m_fsConnection != null) {
@@ -192,9 +172,7 @@ public class SharepointConnectionNodeModel extends NodeModel {
      * @return The {@link IAuthenticationProvider} instance.
      * @throws MalformedURLException
      */
-    public static IAuthenticationProvider createGraphAuthProvider(
-            final MicrosoftCredential connection)
-            throws IOException {
+    static IAuthenticationProvider createGraphAuthProvider(final MicrosoftCredential connection) throws IOException {
 
         if (!(connection instanceof OAuth2Credential)) {
             throw new UnsupportedOperationException("Unsupported credential type: " + connection.getType());

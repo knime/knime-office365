@@ -49,17 +49,20 @@
 package org.knime.ext.sharepoint.filehandling.testing;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Map;
 
 import org.knime.core.node.util.CheckUtils;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 import org.knime.ext.microsoft.authentication.port.oauth2.testing.OAuth2TestAuthenticator;
 import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointConnection;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig.SiteMode;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSDescriptorProvider;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
-import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings;
-import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteMode;
 import org.knime.filehandling.core.connections.FSLocationSpec;
+import org.knime.filehandling.core.connections.meta.FSType;
 import org.knime.filehandling.core.testing.DefaultFSTestInitializerProvider;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
@@ -69,8 +72,10 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
  *
  * @author Alexander Bondaletov
  */
+@SuppressWarnings("deprecation")
 public class SharepointTestInitializerProvider extends DefaultFSTestInitializerProvider {
 
+    @SuppressWarnings("resource")
     @Override
     public SharepointTestInitializer setup(final Map<String, String> configuration) throws IOException {
 
@@ -81,12 +86,13 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         final String workingDir = generateRandomizedWorkingDir(configuration.get("workingDirPrefix"),
                 SharepointFileSystem.PATH_SEPARATOR);
 
-        final SharepointConnectionSettings settings = new SharepointConnectionSettings();
-        settings.getSiteSettings().getModeModel().setStringValue(SiteMode.WEB_URL.toString());
-        settings.getSiteSettings().getWebURLModel().setStringValue(configuration.get("siteWebURL"));
-        settings.getWorkingDirectoryModel().setStringValue(workingDir);
+        final SharepointFSConnectionConfig fsConfig = new SharepointFSConnectionConfig(workingDir, authProvider);
+        fsConfig.setMode(SiteMode.WEB_URL);
+        fsConfig.setWebURL(getParameter(configuration, "siteWebURL"));
+        fsConfig.setConnectionTimeOut(Duration.ofSeconds(SharepointFSConnectionConfig.DEFAULT_TIMEOUT));
+        fsConfig.setReadTimeOut(Duration.ofSeconds(SharepointFSConnectionConfig.DEFAULT_TIMEOUT));
 
-        final SharepointConnection fsConnection = new SharepointConnection(authProvider, settings);
+        final SharepointFSConnection fsConnection = new SharepointFSConnection(fsConfig);
 
         return new SharepointTestInitializer(fsConnection);
     }
@@ -98,22 +104,22 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         CheckUtils.checkArgumentNotNull(configuration.get("password"), "password must be specified.");
     }
 
-    private static IAuthenticationProvider authenticate(final Map<String, String> config)
-            throws IOException {
+    private IAuthenticationProvider authenticate(final Map<String, String> config) throws IOException {
 
-        final OAuth2Credential credential = OAuth2TestAuthenticator
-                .authenticateWithUsernamePassword(config.get("username"), config.get("password"));
+        final OAuth2Credential credential = OAuth2TestAuthenticator.authenticateWithUsernamePassword(
+                getParameter(config, "username"), //
+                getParameter(config, "password"));
         return new GraphApiAuthenticationProvider(credential.getAccessToken().getToken());
     }
 
     @Override
-    public String getFSType() {
-        return SharepointFileSystem.FS_TYPE;
+    public FSType getFSType() {
+        return SharepointFSDescriptorProvider.FS_TYPE;
     }
 
     @Override
     public FSLocationSpec createFSLocationSpec(final Map<String, String> configuration) {
         validateConfiguration(configuration);
-        return SharepointFileSystem.createFSLocationSpec();
+        return SharepointFSDescriptorProvider.FS_LOCATION_SPEC;
     }
 }

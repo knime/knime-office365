@@ -63,7 +63,7 @@ import com.microsoft.graph.models.extensions.DriveItem;
  *
  * @author Alexander Bondaletov
  */
-public class SharepointFileAttributes extends BaseFileAttributes {
+class SharepointFileAttributes extends BaseFileAttributes {
 
     private final DriveItem m_driveItem;
 

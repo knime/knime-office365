@@ -48,9 +48,8 @@
  */
 package org.knime.ext.sharepoint.filehandling.node;
 
-import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.time.Duration;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
@@ -60,41 +59,38 @@ import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig.SiteMode;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.filehandling.core.connections.meta.FSConnectionConfig;
 
-import com.microsoft.graph.core.ClientException;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.requests.extensions.ISiteRequestBuilder;
+import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
- * Settings for {@link SharepointConnectionNodeModel}.
+ * Node settings for the Sharepoint Connector node.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointConnectionSettings implements Cloneable {
+@SuppressWarnings("deprecation")
+class SharepointConnectionSettings implements Cloneable {
 
     private static final String KEY_WORKING_DIRECTORY = "workingDirectory";
     private static final String KEY_CONNECTION_TIMEOUT = "connectionTimeout";
     private static final String KEY_READ_TIMEOUT = "readTimeout";
     private static final String KEY_SITE_SITTINGS = "site";
 
-    private static final int DEFAULT_TIMEOUT = 20;
-
     private final SiteSettings m_siteSettings;
     private final SettingsModelString m_workingDirectory;
     private final SettingsModelIntegerBounded m_connectionTimeout;
     private final SettingsModelIntegerBounded m_readTimeout;
 
-    /**
-     *
-     */
-    public SharepointConnectionSettings() {
+    SharepointConnectionSettings() {
         m_siteSettings = new SiteSettings();
 
         m_workingDirectory = new SettingsModelString(KEY_WORKING_DIRECTORY, SharepointFileSystem.PATH_SEPARATOR);
-        m_connectionTimeout = new SettingsModelIntegerBounded(KEY_CONNECTION_TIMEOUT, DEFAULT_TIMEOUT, 0,
+        m_connectionTimeout = new SettingsModelIntegerBounded(KEY_CONNECTION_TIMEOUT, SharepointFSConnectionConfig.DEFAULT_TIMEOUT, 0,
                 Integer.MAX_VALUE);
-        m_readTimeout = new SettingsModelIntegerBounded(KEY_READ_TIMEOUT, DEFAULT_TIMEOUT, 0, Integer.MAX_VALUE);
+        m_readTimeout = new SettingsModelIntegerBounded(KEY_READ_TIMEOUT, SharepointFSConnectionConfig.DEFAULT_TIMEOUT, 0, Integer.MAX_VALUE);
     }
 
     /**
@@ -217,19 +213,6 @@ public class SharepointConnectionSettings implements Cloneable {
         return m_readTimeout.getIntValue();
     }
 
-    /**
-     * Returns the selected site or subsite id.
-     *
-     * @param client
-     *            The client instance.
-     * @return The site id.
-     * @throws IOException
-     */
-    public String getSiteId(final IGraphServiceClient client) throws IOException {
-        return m_siteSettings.getTargetSiteId(client);
-
-    }
-
     @Override
     public SharepointConnectionSettings clone() {
         NodeSettings transferSettings = new NodeSettings("ignored");
@@ -257,8 +240,6 @@ public class SharepointConnectionSettings implements Cloneable {
         private static final String KEY_SUBSITE = "subsite";
         private static final String KEY_SUBSITE_NAME = "subsiteName";
         private static final String KEY_CONNECT_TO_SUBSITE = "connectToSubsite";
-
-        private static final String ROOT_SITE = "root";
 
         private final SettingsModelString m_webURL;
         private final SettingsModelString m_group;
@@ -342,7 +323,6 @@ public class SharepointConnectionSettings implements Cloneable {
          *
          * @throws InvalidSettingsException
          */
-        @SuppressWarnings("unused")
         public void validateParentSiteSettings() throws InvalidSettingsException {
             SiteMode mode = getMode();
             if (mode == SiteMode.GROUP && m_group.getStringValue().isEmpty()) {
@@ -353,7 +333,7 @@ public class SharepointConnectionSettings implements Cloneable {
                     throw new InvalidSettingsException("Web URL is not specified.");
                 }
                 try {
-                    getPathFromURL(m_webURL.getStringValue());
+                    GraphApiUtil.getSiteIdFromSharepointSiteWebURL(m_webURL.getStringValue());
                 } catch (MalformedURLException ex) {
                     throw new InvalidSettingsException(ex.getMessage());
                 }
@@ -436,83 +416,26 @@ public class SharepointConnectionSettings implements Cloneable {
         public SettingsModelBoolean getConnectToSubsiteModel() {
             return m_connectToSubsite;
         }
-
-        /**
-         * Returns the selected site or subsite id.
-         *
-         * @param client
-         *            The client.
-         * @return The site id.
-         * @throws IOException
-         */
-        public String getTargetSiteId(final IGraphServiceClient client) throws IOException {
-            if (m_connectToSubsite.getBooleanValue() && !m_subsite.getStringValue().isEmpty()) {
-                return m_subsite.getStringValue();
-            }
-
-            return getParentSiteId(client);
-        }
-
-        /**
-         * The selected site id.
-         *
-         * @param client
-         *            The client
-         * @return The site id.
-         * @throws IOException
-         */
-        @SuppressWarnings("null")
-        public String getParentSiteId(final IGraphServiceClient client) throws IOException {
-            SiteMode m = getMode();
-            ISiteRequestBuilder req = null;
-
-            switch (m) {
-            case ROOT:
-                req = client.sites(ROOT_SITE);
-                break;
-            case WEB_URL:
-                req = client.sites(getPathFromURL(m_webURL.getStringValue()));
-                break;
-            case GROUP:
-                req = client.groups(m_group.getStringValue()).sites(ROOT_SITE);
-                break;
-            }
-
-            try {
-                return req.buildRequest().get().id;
-            } catch (ClientException e) {
-                throw GraphApiUtil.unwrapIOE(e);
-            }
-        }
-
-        private static String getPathFromURL(final String str) throws MalformedURLException {
-            URL url = new URL(str);
-            String result = url.getHost();
-
-            if (url.getPath() != null && !url.getPath().isEmpty()) {
-                result += ":" + url.getPath();
-            }
-
-            return result;
-        }
     }
 
-    public enum SiteMode {
-        ROOT("Root site"), //
-        WEB_URL("Web URL"), //
-        GROUP("Group site");
-
-        private String m_selectorLabel;
-
-        private SiteMode(final String selectorLable) {
-            m_selectorLabel = selectorLable;
+    /**
+     *
+     * @param authProvider
+     *            The authentication provider.
+     * @return The {@link FSConnectionConfig} for Sharepoint
+     */
+    public SharepointFSConnectionConfig toFSConnectionConfig(final IAuthenticationProvider authProvider) {
+        final SharepointFSConnectionConfig config = new SharepointFSConnectionConfig(
+                getWorkingDirectory(SharepointFileSystem.PATH_SEPARATOR), authProvider);
+        config.setReadTimeOut(Duration.ofSeconds(getReadTimeout()));
+        config.setConnectionTimeOut(Duration.ofSeconds(getConnectionTimeout()));
+        config.setMode(m_siteSettings.getMode());
+        config.setGroup(m_siteSettings.getGroupModel().getStringValue());
+        config.setWebURL(m_siteSettings.getWebURLModel().getStringValue());
+        if (m_siteSettings.getConnectToSubsiteModel().getBooleanValue()
+                && !m_siteSettings.getSubsiteModel().getStringValue().isEmpty()) {
+            config.setSubsite(m_siteSettings.getSubsiteModel().getStringValue());
         }
-
-        /**
-         * @return the selectorLabel
-         */
-        public String getSelectorLabel() {
-            return m_selectorLabel;
-        }
+        return config;
     }
 }

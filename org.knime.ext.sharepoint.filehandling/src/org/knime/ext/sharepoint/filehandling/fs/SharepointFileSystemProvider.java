@@ -84,20 +84,14 @@ import com.microsoft.graph.models.extensions.ItemReference;
  *
  * @author Alexander Bondaletov
  */
-public class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath, SharepointFileSystem> {
+class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath, SharepointFileSystem> {
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected SeekableByteChannel newByteChannelInternal(final SharepointPath path, final Set<? extends OpenOption> options,
-            final FileAttribute<?>... attrs) throws IOException {
+    protected SeekableByteChannel newByteChannelInternal(final SharepointPath path,
+            final Set<? extends OpenOption> options, final FileAttribute<?>... attrs) throws IOException {
         return new SharepointSeekableByteChannel(path, options);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @SuppressWarnings("resource")
     @Override
     protected void moveInternal(final SharepointPath source, final SharepointPath target, final CopyOption... options)
@@ -142,9 +136,6 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @SuppressWarnings("resource")
     @Override
     protected void copyInternal(final SharepointPath source, final SharepointPath target, final CopyOption... options)
@@ -170,19 +161,16 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
         String name = target.getFileName().toString();
 
         try {
-            client.drives(source.getDriveId()).items(sourceItem.id).copy(name, parentRef)
-                    .buildRequest().post();
+            client.drives(source.getDriveId()).items(sourceItem.id).copy(name, parentRef).buildRequest().post();
         } catch (ClientException ex) {
             throw GraphApiUtil.unwrapIOE(ex);
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @SuppressWarnings("resource")
     @Override
-    protected InputStream newInputStreamInternal(final SharepointPath path, final OpenOption... options) throws IOException {
+    protected InputStream newInputStreamInternal(final SharepointPath path, final OpenOption... options)
+            throws IOException {
         IGraphServiceClient client = path.getFileSystem().getClient();
         DriveItem item = path.getDriveItem();
 
@@ -201,30 +189,24 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @SuppressWarnings("resource")
     @Override
-    protected OutputStream newOutputStreamInternal(final SharepointPath path, final OpenOption... options) throws IOException {
+    protected OutputStream newOutputStreamInternal(final SharepointPath path, final OpenOption... options)
+            throws IOException {
         final Set<OpenOption> opts = new HashSet<>(Arrays.asList(options));
         return Channels.newOutputStream(newByteChannel(path, opts));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected Iterator<SharepointPath> createPathIterator(final SharepointPath dir, final Filter<? super Path> filter)
             throws IOException {
         return SharepointPathIterator.create(dir, filter);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @SuppressWarnings("resource")
     @Override
-    protected void createDirectoryInternal(final SharepointPath dir, final FileAttribute<?>... attrs) throws IOException {
+    protected void createDirectoryInternal(final SharepointPath dir, final FileAttribute<?>... attrs)
+            throws IOException {
         IGraphServiceClient client = dir.getFileSystem().getClient();
         if (dir.getItemPath() != null) {
             String parentId = dir.getParent().getDriveItem().id;
@@ -272,17 +254,11 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
         throw new NoSuchFileException(path.toString());
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void checkAccessInternal(final SharepointPath path, final AccessMode... modes) throws IOException {
-        // TODO Auto-generated method stub
+        // nothing to do here
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @SuppressWarnings("resource")
     @Override
     protected void deleteInternal(final SharepointPath path) throws IOException {
@@ -300,9 +276,6 @@ public class SharepointFileSystemProvider extends BaseFileSystemProvider<Sharepo
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isHidden(final Path path) throws IOException {
         return false;

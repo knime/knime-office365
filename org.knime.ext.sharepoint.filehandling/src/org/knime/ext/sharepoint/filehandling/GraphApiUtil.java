@@ -49,6 +49,8 @@
 package org.knime.ext.sharepoint.filehandling;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.AccessDeniedException;
 
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
@@ -165,5 +167,23 @@ public class GraphApiUtil {
         private WrappedGraphException(final GraphServiceException ex) {
             super(ex.getServiceError().message, ex);
         }
+    }
+
+    /**
+     *
+     * @param urlString
+     *            Web URL that a user entered, which points to a Sharepoint site.
+     * @return the site ID as a string.
+     * @throws MalformedURLException
+     */
+    public static String getSiteIdFromSharepointSiteWebURL(final String urlString) throws MalformedURLException {
+        URL url = new URL(urlString);
+        String result = url.getHost();
+
+        if (url.getPath() != null && !url.getPath().isEmpty()) {
+            result += ":" + url.getPath();
+        }
+
+        return result;
     }
 }
