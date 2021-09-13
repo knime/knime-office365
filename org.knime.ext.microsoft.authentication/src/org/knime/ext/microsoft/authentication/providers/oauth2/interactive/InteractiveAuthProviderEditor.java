@@ -59,6 +59,7 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.event.ChangeListener;
 
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeLogger;
@@ -90,6 +91,8 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     private StorageEditor m_storageEditor;
     private SwingWorkerWithContext<?, ?> m_worker;
 
+    private final ChangeListener m_scopesListener;
+
     /**
      * Creates new instance.
      *
@@ -101,6 +104,8 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     public InteractiveAuthProviderEditor(final InteractiveAuthProvider provider, final NodeDialogPane nodeDialog) {
         super(provider);
         m_parentNodeDialog = nodeDialog;
+
+        m_scopesListener = e -> m_storageEditor.clearAll();
     }
 
     @Override
@@ -285,6 +290,8 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
         m_storageEditor.loadSettingsFrom(settings, specs);
+
+        m_provider.getScopesModel().addChangeListener(m_scopesListener);
     }
 
     /**
@@ -301,6 +308,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     @Override
     public void onClose() {
         m_storageEditor.onClose();
+        m_provider.getScopesModel().removeChangeListener(m_scopesListener);
     }
 
 }

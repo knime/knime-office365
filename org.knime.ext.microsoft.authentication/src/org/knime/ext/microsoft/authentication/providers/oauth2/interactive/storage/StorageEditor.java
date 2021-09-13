@@ -112,7 +112,7 @@ public class StorageEditor extends JPanel {
         m_clearCurrent.addActionListener((e) -> onClearCurrent());
 
         m_clearAll = new JButton("Clear all");
-        m_clearAll.addActionListener((e) -> onClearAll());
+        m_clearAll.addActionListener((e) -> clearAll());
 
         ButtonGroup group = new ButtonGroup();
         group.add(m_rbMemory);
@@ -120,6 +120,7 @@ public class StorageEditor extends JPanel {
         group.add(m_rbSettings);
 
         final SettingsModelWriterFileChooser fileModel = m_settings.getFileStorage().getFileModel();
+        fileModel.addChangeListener(e -> m_loginStatusEventHandler.run());
         final FlowVariableModel fvm = nodeDialog //
                 .createFlowVariableModel(fileModel.getKeysForFSLocation(), //
                         FSLocationVariableType.INSTANCE);
@@ -182,7 +183,10 @@ public class StorageEditor extends JPanel {
         }.execute();
     }
 
-    private void onClearAll() {
+    /**
+     * Clears all of the storages.
+     */
+    public void clearAll() {
         m_clearCurrent.setEnabled(false);
         m_clearAll.setEnabled(false);
         new SwingWorkerWithContext<Void, Void>() {
