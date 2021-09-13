@@ -141,17 +141,7 @@ public class StorageSettings {
             return;
         }
 
-        switch (getStorageType()) {
-        case MEMORY:
-            m_inMemoryStorage.clear();
-            break;
-        case FILE:
-            m_fileStorage.clear();
-            break;
-        case SETTINGS:
-            m_nodeSettingsStorage.clear();
-            break;
-        }
+        getCurrentStorageProvider().clear();
     }
 
     public LoginStatus getLoginStatus() throws IOException {
@@ -206,54 +196,29 @@ public class StorageSettings {
      * @throws InvalidSettingsException
      */
     public void validate() throws InvalidSettingsException {
-        switch (getStorageType()) {
-        case MEMORY:
-            m_inMemoryStorage.validate();
-            break;
-        case FILE:
-            m_fileStorage.validate();
-            break;
-        case SETTINGS:
-            m_nodeSettingsStorage.validate();
-            break;
-        }
+        getCurrentStorageProvider().validate();
     }
 
     public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
-        switch (getStorageType()) {
-        case MEMORY:
-            return m_inMemoryStorage.createAccessTokenSupplier();
-        case FILE:
-            return m_fileStorage.createAccessTokenSupplier();
-        case SETTINGS:
-            return m_nodeSettingsStorage.createAccessTokenSupplier();
-        default:
-            throw new IllegalStateException();
-        }
+        return getCurrentStorageProvider().createAccessTokenSupplier();
     }
 
     public void writeTokenCache(final String tokenCacheString) throws IOException {
-        switch (getStorageType()) {
-        case MEMORY:
-            m_inMemoryStorage.writeTokenCache(tokenCacheString);
-            break;
-        case FILE:
-            m_fileStorage.writeTokenCache(tokenCacheString);
-            break;
-        case SETTINGS:
-            m_nodeSettingsStorage.writeTokenCache(tokenCacheString);
-            break;
-        }
+        getCurrentStorageProvider().writeTokenCache(tokenCacheString);
     }
 
     public String readTokenCache() throws IOException {
+        return getCurrentStorageProvider().readTokenCache();
+    }
+
+    private StorageProvider getCurrentStorageProvider() {
         switch (getStorageType()) {
         case MEMORY:
-            return m_inMemoryStorage.readTokenCache();
+            return m_inMemoryStorage;
         case FILE:
-            return m_fileStorage.readTokenCache();
+            return m_fileStorage;
         case SETTINGS:
-            return m_nodeSettingsStorage.readTokenCache();
+            return m_nodeSettingsStorage;
         default:
             throw new IllegalStateException();
         }

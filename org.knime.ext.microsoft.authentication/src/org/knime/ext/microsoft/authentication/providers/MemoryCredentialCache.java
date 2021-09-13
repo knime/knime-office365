@@ -48,7 +48,6 @@
  */
 package org.knime.ext.microsoft.authentication.providers;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -75,7 +74,7 @@ public class MemoryCredentialCache {
         return IN_MEMORY_STORAGE.containsKey(key);
     }
 
-    public synchronized static String get(final String key) throws IOException {
+    public synchronized static String get(final String key) {
         return IN_MEMORY_STORAGE.get(key);
     }
 
