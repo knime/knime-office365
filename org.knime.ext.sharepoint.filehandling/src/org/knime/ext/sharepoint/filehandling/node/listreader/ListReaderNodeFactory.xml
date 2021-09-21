@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./file_system_connector.png"
+	type="Source"
+	xmlns="http://knime.org/node/v4.1"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://knime.org/node/v4.1 http://knime.org/node/v4.1.xsd">
+
+    <name>Sharepoint List Reader</name>
+    
+    <shortDescription>
+        Connects to a SharePoint Online site in order to read/write files in downstream nodes.
+    </shortDescription>
+    
+    <fullDescription>
+         <intro>
+            <p>This node connects to a SharePoint Online site. The resulting output port allows downstream nodes to access
+            the <i>document libraries</i> of the site as a file system, e.g. to read or write files and folders,
+            or to perform other file system operations (browse/list files, copy, move, ...).
+            </p>
+            
+            <p><b>Path syntax:</b> Paths for SharePoint are specified with a UNIX-like syntax, /mylibrary/myfolder/myfile. An absolute
+            for SharePoint consists of:
+                <ol>
+                    <li>A leading slash ("/").</li>
+                    <li>Followed by the name of a <i>document library</i> ("mylibrary" in the above example), followed by a slash.</li>
+                    <li>Followed by the path to the file ("myfolder/myfile" in the above example).</li>
+                </ol>
+            </p>
+        </intro>
+        
+        <tab name="Settings">
+	        <option name="SharePoint site">
+	            There are three ways to specify SharePoint site:
+	            <ul>
+	                <li>
+	           			<i>Root site:</i>Connect to the root site of the domain of the current user (see "Microsoft Connection" input port).
+	           		</li>
+	          		<li>
+	           			<i>Web URL:</i>Specify the web URL of a SharePoint site, for example <i>https://mycompany.sharepoint.com</i>.
+	           			
+	           		</li>
+	           		<li>
+	           			<i>Group site:</i> Connect to the team site of a particular Office 365 group.
+	           		</li>
+	           	</ul>
+	        </option>
+	        <option name="Subsite">
+	            If checked, then connect to a (nested) subsite of the SharePoint site specified above. Use the "Refresh" button to list all available subsites
+	            of the chosen SharePoint site. Note that this allows you only to access the document libraries of the subsite, not those of the parent site(s).
+	        </option>
+		    <option name="Working directory">
+		        Specify the <i>working directory</i> of the resulting file system connection, using the <b>Path syntax</b> explained above. The working
+		        directory must be specified as an absolute path. A working directory allows downstream nodes to access files/folders using <i>relative</i>
+		        paths, i.e. paths that do not have a leading slash. The default working directory is the virtual root "/", under which all the
+		        document libraries are located.
+		    </option>
+	    </tab>
+	    
+        <tab name="Advanced">
+		    <option name="Connection timeout in seconds">
+		        Timeout in seconds to establish a connection or 0 for an infinite timeout. 
+		    </option>
+		    <option name="Read timeout in seconds">
+		        Timeout in seconds to read data from an established connection or 0 for an infinite timeout.
+		    </option>
+		</tab>
+	    
+    </fullDescription>
+
+    <ports>
+    	<inPort index="0" name="Microsoft Connection">
+    		Microsoft Connection that provides user authentication.
+    	</inPort>
+   		<outPort index="0" name="SharePoint File System Connection">
+   			SharePoint Online File System Connection.
+   		</outPort>
+    </ports>    
+</knimeNode>
