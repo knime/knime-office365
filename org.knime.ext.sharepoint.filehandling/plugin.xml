@@ -9,7 +9,7 @@
             id="org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionNodeFactory"/>
       <node
             category-path="/io/connectors"
-            factory-class="org.knime.ext.sharepoint.filehandling.node.listreader.ListReaderNodeFactory"
+            factory-class="org.knime.ext.sharepoint.filehandling.node.listreaderold.ListReaderNodeFactory"
             id="org.knime.ext.sharepoint.filehandling.node.listreader.ListReaderNodeFactory"/>
    </extension>
    <extension

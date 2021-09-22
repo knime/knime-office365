@@ -46,7 +46,7 @@
  * History
  *   2020-05-02 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreaderold;
 
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;

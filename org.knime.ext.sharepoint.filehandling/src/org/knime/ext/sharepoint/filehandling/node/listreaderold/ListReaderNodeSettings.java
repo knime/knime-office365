@@ -46,7 +46,7 @@
  * History
  *   2020-05-17 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreaderold;
 
 import java.net.MalformedURLException;
 import java.time.Duration;

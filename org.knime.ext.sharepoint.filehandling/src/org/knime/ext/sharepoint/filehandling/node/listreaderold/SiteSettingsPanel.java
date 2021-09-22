@@ -46,7 +46,7 @@
  * History
  *   2020-05-17 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreaderold;
 
 import static java.util.stream.Collectors.toList;
 
@@ -69,9 +69,9 @@ import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig.SiteMode;
+import org.knime.ext.sharepoint.filehandling.node.listreaderold.ListReaderNodeSettings.SiteSettings;
+import org.knime.ext.sharepoint.filehandling.node.listreaderold.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
-import org.knime.ext.sharepoint.filehandling.node.listreader.ListReaderNodeSettings.SiteSettings;
-import org.knime.ext.sharepoint.filehandling.node.listreader.LoadedItemsSelector.IdComboboxItem;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.util.CheckedExceptionSupplier;
 import org.knime.filehandling.core.util.IOESupplier;

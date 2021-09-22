@@ -44,45 +44,38 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-02 (Alexander Bondaletov): created
+ *   Jun 28, 2021 (Moditha Hewasinghage, KNIME GmbH, Berlin, Germany): created
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
-import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
+import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
+import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
+import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
 
 /**
- * Factory class for Sharepoing Connection Node.
+ * {@link MultiTableReadConfig} for the Example CSV reader.
  *
- * @author Alexander Bondaletov
+ * @author Moditha Hewasinghage, KNIME GmbH, Berlin, Germany
  */
-public class ListReaderNodeFactory extends NodeFactory<ListReaderNodeModel> {
+final class SharepointListReaderMultiTableReadConfig extends
+        AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, Class<?>, SharepointListReaderMultiTableReadConfig> {
 
-    @Override
-    public ListReaderNodeModel createNodeModel() {
-        return new ListReaderNodeModel();
+    SharepointListReaderMultiTableReadConfig() {
+        super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()),
+                SharepointListReaderTableReadConfigSerializer.INSTANCE, SharepointListReaderTableReadConfigSerializer.INSTANCE);
+
+        final DefaultTableReadConfig<SharepointListReaderConfig> config = this.getTableReadConfig();
+        // You can change the default table read values here
+        // This is true by default
+        config.setUseColumnHeaderIdx(false);
+        // By default this is set to true. We are reading 1 row in the example
+        config.setLimitRowsForSpec(false);
     }
 
     @Override
-    protected int getNrNodeViews() {
-        return 0;
-    }
-
-    @Override
-    public NodeView<ListReaderNodeModel> createNodeView(final int viewIndex,
-            final ListReaderNodeModel nodeModel) {
-        return null;
-    }
-
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new ListReaderNodeDialog();
+    protected SharepointListReaderMultiTableReadConfig getThis() {
+        return this;
     }
 
 }
