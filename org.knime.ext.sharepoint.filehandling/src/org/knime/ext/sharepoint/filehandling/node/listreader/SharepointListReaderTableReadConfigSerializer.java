@@ -63,10 +63,11 @@ import org.knime.filehandling.core.node.table.reader.config.tablespec.NodeSettin
 import org.knime.filehandling.core.util.SettingsUtils;
 
 /**
- * The {@link ConfigSerializer} for the example CSV reader node. This class
- * serializes the settings for the reader node.
- * 
- * @author Moditha Hewasinghage, KNIME GmbH, Berlin, Germany
+ * The {@link ConfigSerializer} for the “SharePoint List Reader” node. This
+ * class serializes the settings for the reader node.
+ *
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 enum SharepointListReaderTableReadConfigSerializer
         implements ConfigSerializer<SharepointListReaderMultiTableReadConfig>, ConfigIDFactory<SharepointListReaderMultiTableReadConfig> {
@@ -76,7 +77,7 @@ enum SharepointListReaderTableReadConfigSerializer
      */
     INSTANCE;
 
-    private static final String KEY = "example_csv_reader";
+    private static final String KEY = "sharepoint_list_reader";
 
     private static final String CFG_COL_HEADER_PREFIX = "col_header_prefix";
 
@@ -90,9 +91,9 @@ enum SharepointListReaderTableReadConfigSerializer
 
     private static final String CFG_NUMBER_OF_ROWS_TO_SKIP = "skip_rows";
 
-    private static final String CFG_APPEND_PATH_COLUMN = "append_path_column" + SettingsModel.CFGKEY_INTERNAL;
+    private static final String CFG_APPEND_ITEM_ID_COLUMN = "append_item_id_column" + SettingsModel.CFGKEY_INTERNAL;
 
-    private static final String CFG_PATH_COLUMN_NAME = "path_column_name" + SettingsModel.CFGKEY_INTERNAL;
+    private static final String CFG_ITEM_ID_COLUMN_NAME = "item_id_column_name" + SettingsModel.CFGKEY_INTERNAL;
 
     @Override
     public void loadInDialog(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings,
@@ -107,9 +108,9 @@ enum SharepointListReaderTableReadConfigSerializer
         csvReaderCfg.setColumnHeaderPrefix(settings.getString(CFG_COL_HEADER_PREFIX, "Column"));
 
         config.setAppendItemIdentifierColumn(
-                settings.getBoolean(CFG_APPEND_PATH_COLUMN, config.appendItemIdentifierColumn()));
+                settings.getBoolean(CFG_APPEND_ITEM_ID_COLUMN, config.appendItemIdentifierColumn()));
         config.setItemIdentifierColumnName(
-                settings.getString(CFG_PATH_COLUMN_NAME, config.getItemIdentifierColumnName()));
+                settings.getString(CFG_ITEM_ID_COLUMN_NAME, config.getItemIdentifierColumnName()));
 
     }
 
@@ -134,8 +135,8 @@ enum SharepointListReaderTableReadConfigSerializer
         final SharepointListReaderConfig csvReaderCfg = config.getReaderSpecificConfig();
         csvReaderCfg.setColumnHeaderPrefix(settings.getString(CFG_COL_HEADER_PREFIX, "Column"));
 
-        config.setAppendItemIdentifierColumn(settings.getBoolean(CFG_APPEND_PATH_COLUMN));
-        config.setItemIdentifierColumnName(settings.getString(CFG_PATH_COLUMN_NAME));
+        config.setAppendItemIdentifierColumn(settings.getBoolean(CFG_APPEND_ITEM_ID_COLUMN));
+        config.setItemIdentifierColumnName(settings.getString(CFG_ITEM_ID_COLUMN_NAME));
     }
 
     private static void loadLimitRowsTabInModel(final SharepointListReaderMultiTableReadConfig config,
@@ -157,8 +158,8 @@ enum SharepointListReaderTableReadConfigSerializer
         final SharepointListReaderConfig exampleReaderCfg = config.getReaderSpecificConfig();
         settings.addString(CFG_COL_HEADER_PREFIX, exampleReaderCfg.getColumnHeaderPrefix());
 
-        settings.addBoolean(CFG_APPEND_PATH_COLUMN, config.appendItemIdentifierColumn());
-        settings.addString(CFG_PATH_COLUMN_NAME, config.getItemIdentifierColumnName());
+        settings.addBoolean(CFG_APPEND_ITEM_ID_COLUMN, config.appendItemIdentifierColumn());
+        settings.addString(CFG_ITEM_ID_COLUMN_NAME, config.getItemIdentifierColumnName());
     }
 
     private static void saveLimitRowsTab(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsWO settings) {
@@ -184,8 +185,8 @@ enum SharepointListReaderTableReadConfigSerializer
 
     public static void validateSettingsTab(final NodeSettingsRO settings) throws InvalidSettingsException {
         settings.getString(CFG_COL_HEADER_PREFIX);
-        settings.getBoolean(CFG_APPEND_PATH_COLUMN);
-        settings.getString(CFG_PATH_COLUMN_NAME);
+        settings.getBoolean(CFG_APPEND_ITEM_ID_COLUMN);
+        settings.getString(CFG_ITEM_ID_COLUMN_NAME);
     }
 
     private static void validateLimitRowsTab(final NodeSettingsRO settings) throws InvalidSettingsException {

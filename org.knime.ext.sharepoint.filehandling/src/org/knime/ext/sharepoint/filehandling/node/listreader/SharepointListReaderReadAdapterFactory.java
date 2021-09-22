@@ -6,13 +6,14 @@ import org.knime.core.data.convert.map.ProducerRegistry;
 import org.knime.core.data.convert.map.SimpleCellValueProducerFactory;
 import org.knime.core.data.def.StringCell;
 import org.knime.filehandling.core.node.table.reader.ReadAdapter;
-import org.knime.filehandling.core.node.table.reader.ReadAdapterFactory;
 import org.knime.filehandling.core.node.table.reader.ReadAdapter.ReadAdapterParams;
+import org.knime.filehandling.core.node.table.reader.ReadAdapterFactory;
 
 /**
- * Factory for ExampleCSVReadAdapter objects.
- * 
- * @author modithahewasinghage
+ * Factory for {@link SharepointListReaderReadAdapter} objects.
+ *
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  *
  */
 public enum SharepointListReaderReadAdapterFactory implements ReadAdapterFactory<Class<?>, String> {
@@ -47,7 +48,7 @@ public enum SharepointListReaderReadAdapterFactory implements ReadAdapterFactory
     }
 
     @Override
-    public DataType getDefaultType(Class<?> type) {
+    public DataType getDefaultType(final Class<?> type) {
         return StringCell.TYPE;
     }
 

@@ -48,40 +48,26 @@
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.OptionalLong;
 
-import org.knime.core.node.NodeLogger;
-import org.knime.filehandling.core.connections.FSPath;
+import javax.json.JsonObject;
+
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
-import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessibleUtils;
 import org.knime.filehandling.core.node.table.reader.read.Read;
-import org.knime.filehandling.core.util.BomEncodingUtils;
-import org.knime.filehandling.core.util.CompressionAwareCountingInputStream;
 
 /**
  * Class for the example csv reader which implements {@link Read}. We read as
  * {@link String} tokens.
  *
- * @author Moditha Hewasinghage, KNIME GmbH, Berlin, Germany
- * 
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ *
  */
 final class SharepointListRead implements Read<String> {
 
-    private static final String COLUMN_DELIMITER = ",";
-
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListRead.class);
-
-    private final BufferedReader m_reader;
-
-    private final CompressionAwareCountingInputStream m_compressionAwareStream;
-
-    private final long m_size;
 
     /**
      * Constructor.
@@ -92,14 +78,9 @@ final class SharepointListRead implements Read<String> {
      *            the {@link TableReadConfig} of the node
      * @throws IOException
      */
-    SharepointListRead(final FSPath path, final TableReadConfig<SharepointListReaderConfig> config) throws IOException { //NOSONAR not using config yet
+    SharepointListRead(final JsonObject path, final TableReadConfig<SharepointListReaderConfig> config)
+            throws IOException { // NOSONAR not using config yet
 
-        m_size = Files.size(path);
-
-        m_compressionAwareStream = new CompressionAwareCountingInputStream(path);
-
-        final Charset charset = Charset.defaultCharset();
-        m_reader = BomEncodingUtils.createBufferedReader(m_compressionAwareStream, charset);
     }
 
     /**
@@ -107,33 +88,21 @@ final class SharepointListRead implements Read<String> {
      */
     @Override
     public RandomAccessible<String> next() throws IOException {
-        final String line = m_reader.readLine();
-        if (line == null) {
-            // no more lines to read
-            return null;
-        } else {
-            return RandomAccessibleUtils.createFromArray(line.split(COLUMN_DELIMITER));
-        }
+        return null;
     }
 
     @Override
     public void close() throws IOException {
-        try {
-            m_reader.close();
-        } catch (IOException e) {
-            LOGGER.error("Something went wrong while closing the BufferedReader. "
-                    + "For further details please have a look into the log.", e);
-        }
-        m_compressionAwareStream.close();
+        // nothing to do
     }
 
     @Override
     public OptionalLong getMaxProgress() {
-        return OptionalLong.of(m_size);
+        return OptionalLong.of(42L);
     }
 
     @Override
     public long getProgress() {
-        return m_compressionAwareStream.getCount();
+        return 21;
     }
 }

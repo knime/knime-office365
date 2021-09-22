@@ -51,9 +51,11 @@ package org.knime.ext.sharepoint.filehandling.node.listreaderold;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Random;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataCellFactory;
@@ -89,9 +91,12 @@ import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.models.extensions.FieldValueSet;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.models.extensions.ListItem;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.extensions.GraphServiceClient;
@@ -133,21 +138,45 @@ final class ListReaderNodeModel extends NodeModel {
     }
 
     private void fillTable(final BufferedDataContainer container, final ExecutionContext exec,
-            final IGraphServiceClient client, final DataTableSpec spec) throws ClientException, IOException {
+            final IGraphServiceClient client, final DataTableSpec spec)
+            throws ClientException, IOException, InterruptedException {
 
         final LinkedList<Option> requestOptions = new LinkedList<Option>();
         requestOptions.add(new QueryOption("expand", "fields"));
         final IListItemCollectionPage items = client.sites("root").lists("07540548-5b44-4430-a1ab-9de37a102e79").items()
                 .buildRequest(requestOptions).get();
 
+        final var r = new Random();
+
+        for (var i = 0L; i < 1_000_000; i++) {
+            System.out.println("Created " + i);
+            final var li = new ListItem();
+            final var fvs = new FieldValueSet();
+            fvs.additionalDataManager().put("Title", new JsonPrimitive(Long.toString(i)));
+            fvs.additionalDataManager().put("MultiTextCol", new JsonPrimitive("Hi\nHow\nAre\nYou? " + r.nextLong()));
+            fvs.additionalDataManager().put("NumberCol", new JsonPrimitive(r.nextLong()));
+            fvs.additionalDataManager().put("YesNoCol", new JsonPrimitive(r.nextBoolean()));
+            fvs.additionalDataManager().put("PersonColLookupId", new JsonPrimitive(r.nextInt(22)));
+            fvs.additionalDataManager().put("DateTimeCol",
+                    new JsonPrimitive(Instant.ofEpochSecond(r.nextInt()).toString()));
+            fvs.additionalDataManager().put("ChoiceCol", new JsonPrimitive("Choice " + (r.nextInt(3) + 1)));
+            li.fields = fvs;
+            client.sites("root").lists("07540548-5b44-4430-a1ab-9de37a102e79").items().buildRequest(requestOptions)
+                    .post(li);
+
+            Thread.sleep(10);
+
+        }
+
         final Iterator<JsonElement> valueIterator = items.getRawObject().getAsJsonArray("value").iterator();
 
-        long i = 0;
-        while (valueIterator.hasNext()) {
-            final JsonObject fields = ((JsonObject) valueIterator.next()).getAsJsonObject("fields");
-            container.addRowToTable(fillCells(spec, fields, exec, i));
-            i++;
-        }
+        // long i = 0;
+        // while (valueIterator.hasNext()) {
+        // final JsonObject fields = ((JsonObject)
+        // valueIterator.next()).getAsJsonObject("fields");
+        // container.addRowToTable(fillCells(spec, fields, exec, i));
+        // i++;
+        // }
 
         container.close();
 

@@ -50,53 +50,44 @@ package org.knime.ext.sharepoint.filehandling.node.listreader;
 
 import java.awt.GridBagLayout;
 import java.awt.event.ActionListener;
-import java.util.Arrays;
-import java.util.stream.Stream;
 
+import javax.json.JsonObject;
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
-import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
-import org.knime.core.node.FlowVariableModel;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.filehandling.core.connections.FSPath;
-import org.knime.filehandling.core.data.location.variable.FSLocationSpecVariableType;
-import org.knime.filehandling.core.defaultnodesettings.filechooser.reader.DialogComponentReaderFileChooser;
-import org.knime.filehandling.core.defaultnodesettings.filechooser.reader.ReadPathAccessor;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.reader.SettingsModelReaderFileChooser;
 import org.knime.filehandling.core.node.table.reader.MultiTableReadFactory;
 import org.knime.filehandling.core.node.table.reader.ProductionPathProvider;
 import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
 import org.knime.filehandling.core.node.table.reader.dialog.SourceIdentifierColumnPanel;
-import org.knime.filehandling.core.node.table.reader.preview.dialog.AbstractPathTableReaderNodeDialog;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.AbstractTableReaderNodeDialog;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.GenericItemAccessor;
 import org.knime.filehandling.core.util.GBCBuilder;
-import org.knime.filehandling.core.util.SettingsUtils;
 
 /**
- * Node dialog of the example CSV reader node.
- * 
- * {@link Class} is used to identify external types
+ * The dialog for the “SharePoint List Reader” node
  *
- * This displays a simple dialog with a file browser for CSV files which reads
- * and displays the preview using the table reader framework.
- * 
- * @author Moditha Hewasinghage, KNIME GmbH, Berlin, Germany
- * 
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ *
  *
  */
-final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDialog<SharepointListReaderConfig, Class<?>> {
+final class SharepointListReaderNodeDialog
+        extends AbstractTableReaderNodeDialog<JsonObject, SharepointListReaderConfig, Class<?>> {
 
     private static final Long ROW_START = Long.valueOf(0);
 
@@ -104,13 +95,7 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
 
     private static final Long INIT_LIMIT = Long.valueOf(50);
 
-    private final DialogComponentReaderFileChooser m_sourceFilePanel;
-
     private final SharepointListReaderMultiTableReadConfig m_config;
-
-    private final SettingsModelReaderFileChooser m_settingsModelReaderFileChooser;
-
-    private final JTextField m_columnHeaderPrefix = new JTextField("######", 6);
 
     private final JCheckBox m_limitRowsChecker = new JCheckBox();
 
@@ -131,28 +116,20 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
      *            the {@link SettingsModelReaderFileChooser}
      * @param config
      *            the {@link DefaultMultiTableReadConfig}
+     * @param creationConfig
+     *            the {@link NodeCreationConfiguration}
      * @param multiReader
      *            the {@link MultiTableReadFactory}
      * @param productionPathProvider
      *            the {@link ProductionPathProvider}
      */
-    SharepointListReaderNodeDialog(final SettingsModelReaderFileChooser settingsModelFileChooser,
-            final SharepointListReaderMultiTableReadConfig config,
-            final MultiTableReadFactory<FSPath, SharepointListReaderConfig, Class<?>> multiReader,
+    SharepointListReaderNodeDialog(final SharepointListReaderMultiTableReadConfig config,
+            final NodeCreationConfiguration creationConfig,
+            final MultiTableReadFactory<JsonObject, SharepointListReaderConfig, Class<?>> multiReader,
             final ProductionPathProvider<Class<?>> productionPathProvider) {
         super(multiReader, productionPathProvider, true);
 
-        m_settingsModelReaderFileChooser = settingsModelFileChooser;
-
-        final FlowVariableModel sourceFvm = createFlowVariableModel(
-                Stream.concat(Stream.of(SettingsUtils.CFG_SETTINGS_TAB),
-                        Arrays.stream(m_settingsModelReaderFileChooser.getKeysForFSLocation())).toArray(String[]::new),
-                FSLocationSpecVariableType.INSTANCE);
-
         m_config = config;
-
-        m_sourceFilePanel = new DialogComponentReaderFileChooser(m_settingsModelReaderFileChooser, "source_chooser",
-                sourceFvm);
 
         registerPreviewChangeListeners();
 
@@ -192,8 +169,6 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
             }
         };
 
-        m_sourceFilePanel.getModel().addChangeListener(changeListener);
-        m_columnHeaderPrefix.getDocument().addDocumentListener(documentListener);
         m_limitRowsChecker.getModel().addActionListener(actionListener);
         m_limitRowsSpinner.getModel().addChangeListener(changeListener);
         m_skipRowsChecker.getModel().addActionListener(actionListener);
@@ -242,7 +217,6 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
         final JPanel sourcePanel = new JPanel(new GridBagLayout());
         sourcePanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Input location"));
         GBCBuilder gbc = createGBCBuilder().setWeightX(1);
-        sourcePanel.add(m_sourceFilePanel.getComponentPanel(), gbc.build());
         return sourcePanel;
     }
 
@@ -255,7 +229,6 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
         final JPanel colHeaderPanel = new JPanel(new GridBagLayout());
         GBCBuilder gbc = createGBCBuilder().fillHorizontal();
         colHeaderPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Column Header"));
-        colHeaderPanel.add(m_columnHeaderPrefix, gbc.build());
         colHeaderPanel.add(new JPanel(), gbc.incX().setWeightX(1.0).build());
         return colHeaderPanel;
     }
@@ -299,7 +272,6 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        m_sourceFilePanel.saveSettingsTo(SettingsUtils.getOrAdd(settings, SettingsUtils.CFG_SETTINGS_TAB));
         getConfig().saveInDialog(settings);
     }
 
@@ -312,23 +284,15 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
         return m_config;
     }
 
-    private void saveExampleReaderSettings(SharepointListReaderConfig config) {
-        config.setColumnHeaderPrefix(m_columnHeaderPrefix.getText());
+    private void saveExampleReaderSettings(final SharepointListReaderConfig config) {
     }
 
     @Override
-    protected ReadPathAccessor createReadPathAccessor() {
-        return m_settingsModelReaderFileChooser.createReadPathAccessor();
-    }
-
-    @Override
-    protected SharepointListReaderMultiTableReadConfig loadSettings(final NodeSettingsRO settings, final PortObjectSpec[] specs)
-            throws NotConfigurableException {
-        m_sourceFilePanel.loadSettingsFrom(SettingsUtils.getOrEmpty(settings, SettingsUtils.CFG_SETTINGS_TAB), specs);
+    protected SharepointListReaderMultiTableReadConfig loadSettings(final NodeSettingsRO settings,
+            final PortObjectSpec[] specs) throws NotConfigurableException {
         m_config.loadInDialog(settings, specs);
 
         final SharepointListReaderConfig exampleReaderConfig = m_config.getReaderSpecificConfig();
-        m_columnHeaderPrefix.setText(exampleReaderConfig.getColumnHeaderPrefix());
 
         final TableReadConfig<SharepointListReaderConfig> exampleCSVReaderConfig = m_config.getTableReadConfig();
         m_limitRowsChecker.setSelected(exampleCSVReaderConfig.limitRows());
@@ -346,7 +310,7 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
 
     /**
      * Saves the {@link DefaultTableReadConfig}. We do not use the column header
-     * 
+     *
      * @param config
      *            the {@link DefaultTableReadConfig}
      */
@@ -360,7 +324,15 @@ final class SharepointListReaderNodeDialog extends AbstractPathTableReaderNodeDi
 
     @Override
     public void onClose() {
-        m_sourceFilePanel.onClose();
         super.onClose();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected GenericItemAccessor<JsonObject> createItemAccessor() {
+        // TODO Auto-generated method stub
+        return null;
     }
 }

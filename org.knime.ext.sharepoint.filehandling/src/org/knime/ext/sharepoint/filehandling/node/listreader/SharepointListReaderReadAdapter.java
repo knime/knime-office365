@@ -54,7 +54,8 @@ import org.knime.filehandling.core.node.table.reader.ReadAdapter;
  * {@link ReadAdapter} implementation that uses {@link Class} objects as data
  * type identifiers and {@link String} as value type.
  *
- * @author Moditha Hewasinghage, KNIME GmbH, Berlin, Germany
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 final class SharepointListReaderReadAdapter extends ReadAdapter<Class<?>, String> {
     // yes this class needs to be empty

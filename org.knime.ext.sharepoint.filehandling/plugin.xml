@@ -9,8 +9,12 @@
             id="org.knime.ext.sharepoint.filehandling.nodes.connection.SharepointConnectionNodeFactory"/>
       <node
             category-path="/io/connectors"
+            factory-class="org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderNodeFactory"
+            id="org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderNodeFactory"/>
+      <node
+            category-path="/io/connectors"
             factory-class="org.knime.ext.sharepoint.filehandling.node.listreaderold.ListReaderNodeFactory"
-            id="org.knime.ext.sharepoint.filehandling.node.listreader.ListReaderNodeFactory"/>
+            id="org.knime.ext.sharepoint.filehandling.node.listreaderold.ListReaderNodeFactory"/>
    </extension>
    <extension
          point="org.knime.filehandling.core.FSDescriptorProvider">

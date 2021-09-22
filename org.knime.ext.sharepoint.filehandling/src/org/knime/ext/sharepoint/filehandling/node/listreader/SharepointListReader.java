@@ -50,76 +50,60 @@ package org.knime.ext.sharepoint.filehandling.node.listreader;
 
 import java.io.IOException;
 
+import javax.json.JsonObject;
+
+import org.knime.core.data.DataCell;
+import org.knime.core.data.DataColumnSpec;
 import org.knime.core.node.ExecutionMonitor;
-import org.knime.filehandling.core.connections.FSPath;
-import org.knime.filehandling.core.node.table.reader.TableReader;
+import org.knime.filehandling.core.node.table.reader.GenericTableReader;
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
-import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 import org.knime.filehandling.core.node.table.reader.read.Read;
-import org.knime.filehandling.core.node.table.reader.read.ReadUtils;
 import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec;
-import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec.TypedReaderTableSpecBuilder;
 
 /**
- * Reader for the example CSV reader node.
- * 
- * Here we can manipulate the spec of the reader. In this case we read the first
- * row of the CSV to count the number of columns.
+ * Reader for the “SharePoint List Reader” node.
  *
- * @author Moditha Hewasinghage, KNIME GmbH, Germany, Germany
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReader implements TableReader<SharepointListReaderConfig, Class<?>, String> {
+final class SharepointListReader
+        implements GenericTableReader<JsonObject, SharepointListReaderConfig, Class<?>, String> {
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public Read<String> read(final FSPath path, final TableReadConfig<SharepointListReaderConfig> config)
+    public Read<String> read(final JsonObject item, final TableReadConfig<SharepointListReaderConfig> config)
             throws IOException {
-        return decorateForReading(new SharepointListRead(path, config), config);
+        return new SharepointListRead(null, config);
     }
 
     /**
-     * Creates a decorated {@link Read}, taking into account how many rows should be
-     * skipped or what is the maximum number of rows to read.
-     *
-     * @param path
-     *            the path of the file to read
-     * @param config
-     *            the {@link TableReadConfig} used
-     * @return a decorated read of type {@link Read}
-     * @throws IOException
-     *             if a stream can not be created from the provided file.
-     */
-    private static Read<String> decorateForReading(final SharepointListRead read,
-            final TableReadConfig<SharepointListReaderConfig> config) {
-        Read<String> filtered = read;
-        if (config.skipRows()) {
-            final long numRowsToSkip = config.getNumRowsToSkip();
-            filtered = ReadUtils.skip(filtered, numRowsToSkip);
-        }
-        if (config.limitRows()) {
-            final long numRowsToKeep = config.getMaxRows();
-            filtered = ReadUtils.limit(filtered, numRowsToKeep);
-        }
-        return filtered;
-    }
-
-    /**
-     * Column names are generated with Column prefix All the columns have the type
-     * String
+     * {@inheritDoc}
      */
     @Override
-    public TypedReaderTableSpec<Class<?>> readSpec(final FSPath path,
+    public TypedReaderTableSpec<Class<?>> readSpec(final JsonObject item,
             final TableReadConfig<SharepointListReaderConfig> config, final ExecutionMonitor exec) throws IOException {
-        try (final SharepointListRead read = new SharepointListRead(path, config)) {
-            TypedReaderTableSpecBuilder<Class<?>> specBuilder = new TypedReaderTableSpecBuilder<>();
-            final RandomAccessible<String> columns = read.next();
-            for (int i = 0; i < columns.size(); i++) {
-                specBuilder.addColumn(
-                        String.format("%s%x", config.getReaderSpecificConfig().getColumnHeaderPrefix(), i),
-                        String.class, true);
-            }
-            return specBuilder.build();
-        }
+        // TODO Auto-generated method stub
+        return null;
+    }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public DataColumnSpec createIdentifierColumnSpec(final JsonObject item, final String name) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public DataCell createIdentifierCell(final JsonObject item) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

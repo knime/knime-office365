@@ -48,33 +48,39 @@
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import javax.json.JsonObject;
+
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.NodeCreationConfiguration;
-import org.knime.filehandling.core.connections.FSPath;
-import org.knime.filehandling.core.defaultnodesettings.EnumConfig;
-import org.knime.filehandling.core.defaultnodesettings.filechooser.reader.SettingsModelReaderFileChooser;
-import org.knime.filehandling.core.defaultnodesettings.filtermode.SettingsModelFilterMode.FilterMode;
-import org.knime.filehandling.core.node.table.reader.AbstractTableReaderNodeFactory;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
+import org.knime.filehandling.core.node.table.reader.GenericAbstractTableReaderNodeFactory;
+import org.knime.filehandling.core.node.table.reader.GenericTableReader;
 import org.knime.filehandling.core.node.table.reader.MultiTableReadFactory;
 import org.knime.filehandling.core.node.table.reader.ProductionPathProvider;
 import org.knime.filehandling.core.node.table.reader.ReadAdapterFactory;
-import org.knime.filehandling.core.node.table.reader.TableReader;
-import org.knime.filehandling.core.node.table.reader.preview.dialog.AbstractPathTableReaderNodeDialog;
+import org.knime.filehandling.core.node.table.reader.paths.SourceSettings;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.AbstractTableReaderNodeDialog;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.GenericItemAccessor;
 import org.knime.filehandling.core.node.table.reader.type.hierarchy.TreeTypeHierarchy;
 import org.knime.filehandling.core.node.table.reader.type.hierarchy.TypeHierarchy;
 import org.knime.filehandling.core.node.table.reader.type.hierarchy.TypeTester;
 
 /**
- * This is an example implementation of the node factory of the
- * "ExampleCSVReader" node.
+ * This is the factory class for the “SharePoint List Reader” node
  *
- * We are using the {@link Class} to identify the external data types and using
- * {@link String} as the value from the reader
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 public class SharepointListReaderNodeFactory
-        extends AbstractTableReaderNodeFactory<SharepointListReaderConfig, Class<?>, String> {
-    // File extensions for the file browser
-    private static final String[] FILE_SUFFIXES = new String[] { ".csv" };
-
+        extends GenericAbstractTableReaderNodeFactory<JsonObject, SharepointListReaderConfig, Class<?>, String> {
+    private final static String MS_AUTH_GRP_ID = "Microsoft Authentication";
     // Only have String values in the simple csv reading
     private static final TypeHierarchy<Class<?>, Class<?>> TYPE_HIERARCHY = TreeTypeHierarchy
             .builder(createTypeTester(String.class)).build();
@@ -84,11 +90,15 @@ public class SharepointListReaderNodeFactory
         return TypeTester.createTypeTester(type, s -> true);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    protected SettingsModelReaderFileChooser createPathSettings(final NodeCreationConfiguration nodeCreationConfig) {
-        return new SettingsModelReaderFileChooser("file_selection",
-                nodeCreationConfig.getPortConfig().orElseThrow(IllegalStateException::new), FS_CONNECT_GRP_ID,
-                EnumConfig.create(FilterMode.FILE, FilterMode.FILES_IN_FOLDERS), FILE_SUFFIXES);
+    protected Optional<PortsConfigurationBuilder> createPortsConfigBuilder() {
+        return super.createPortsConfigBuilder().map(b -> {
+            b.addFixedInputPortGroup(MS_AUTH_GRP_ID, MicrosoftCredentialPortObject.TYPE);
+            return b;
+        });
     }
 
     @Override
@@ -97,7 +107,7 @@ public class SharepointListReaderNodeFactory
     }
 
     @Override
-    protected TableReader<SharepointListReaderConfig, Class<?>, String> createReader() {
+    protected GenericTableReader<JsonObject, SharepointListReaderConfig, Class<?>, String> createReader() {
         return new SharepointListReader();
     }
 
@@ -112,22 +122,72 @@ public class SharepointListReaderNodeFactory
     }
 
     @Override
-    protected AbstractPathTableReaderNodeDialog<SharepointListReaderConfig, Class<?>> createNodeDialogPane(
-            final NodeCreationConfiguration creationConfig,
-            final MultiTableReadFactory<FSPath, SharepointListReaderConfig, Class<?>> readFactory,
-            final ProductionPathProvider<Class<?>> defaultProductionPathFn) {
-
-        return new SharepointListReaderNodeDialog(createPathSettings(creationConfig), createConfig(creationConfig),
-                readFactory, defaultProductionPathFn);
-    }
-
-    @Override
-    protected SharepointListReaderMultiTableReadConfig createConfig(final NodeCreationConfiguration nodeCreationConfig) {
+    protected SharepointListReaderMultiTableReadConfig createConfig(
+            final NodeCreationConfiguration nodeCreationConfig) {
         return new SharepointListReaderMultiTableReadConfig();
     }
 
     @Override
     protected boolean hasDialog() {
         return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected AbstractTableReaderNodeDialog<JsonObject, SharepointListReaderConfig, Class<?>> createNodeDialogPane(
+            final NodeCreationConfiguration creationConfig,
+            final MultiTableReadFactory<JsonObject, SharepointListReaderConfig, Class<?>> readFactory,
+            final ProductionPathProvider<Class<?>> defaultProductionPathFn) {
+        return new SharepointListReaderNodeDialog(new SharepointListReaderMultiTableReadConfig(), creationConfig,
+                readFactory,
+                defaultProductionPathFn);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    protected SourceSettings<JsonObject> createPathSettings(final NodeCreationConfiguration nodeCreationConfig) {
+        return new SourceSettings<JsonObject>() {
+
+            @Override
+            public String getSourceIdentifier() {
+                // TODO Auto-generated method stub
+                return null;
+            }
+
+            @Override
+            public void configureInModel(final PortObjectSpec[] specs,
+                    final Consumer<StatusMessage> statusMessageConsumer) throws InvalidSettingsException {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public GenericItemAccessor<JsonObject> createItemAccessor() {
+                // TODO Auto-generated method stub
+                return null;
+            }
+
+            @Override
+            public void saveSettingsTo(final NodeSettingsWO settings) {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
+                // TODO Auto-generated method stub
+
+            }
+
+            @Override
+            public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+                // TODO Auto-generated method stub
+
+            }
+        };
     }
 }
