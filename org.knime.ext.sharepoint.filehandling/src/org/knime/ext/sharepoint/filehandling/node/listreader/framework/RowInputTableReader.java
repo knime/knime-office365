@@ -44,33 +44,63 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Dec 9, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ *   Feb 6, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreader.framework;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.knime.core.data.DataCell;
+import org.knime.core.data.DataColumnSpec;
+import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DataType;
-import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+import org.knime.core.data.DataValue;
+import org.knime.core.node.ExecutionMonitor;
+import org.knime.core.node.streamable.RowInput;
+import org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderConfig;
+import org.knime.ext.sharepoint.filehandling.node.listreader.table.Table;
+import org.knime.filehandling.core.node.table.reader.GenericTableReader;
+import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
+import org.knime.filehandling.core.node.table.reader.read.Read;
+import org.knime.filehandling.core.node.table.reader.spec.TypedReaderColumnSpec;
+import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec;
 
 /**
- * {@link MultiTableReadConfig} for the Table Manipulator.
+ * {@link GenericTableReader} that reads {@link RowInput}s.
  *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderMultiTableReadConfig extends
-    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {
-
-    public SharepointListReaderMultiTableReadConfig() {
-        super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
-            SharepointListReaderConfigSerializer.INSTANCE);
-        setFailOnDifferingSpecs(false);
-        getTableReadConfig().setRowIDIdx(0);
-    }
+public final class RowInputTableReader implements GenericTableReader<Table, SharepointListReaderConfig, DataType, DataValue> {
 
     @Override
-    protected SharepointListReaderMultiTableReadConfig getThis() {
-        return this;
+    public Read<DataValue> read(final Table path, final TableReadConfig<SharepointListReaderConfig> config)
+            throws IOException {
+        return new TableRead(path, config);
     }
 
+
+    @Override
+    public TypedReaderTableSpec<DataType> readSpec(final Table rowInput, final TableReadConfig<SharepointListReaderConfig> config,
+        final ExecutionMonitor exec) throws IOException {
+        final List<TypedReaderColumnSpec<DataType>> columnSpecs = new ArrayList<>();
+        final DataTableSpec spec = rowInput.getDataTableSpec();
+        for (final DataColumnSpec colSpec : spec) {
+            columnSpecs.add(TypedReaderColumnSpec.createWithName(colSpec.getName(), colSpec.getType(), true));
+        }
+        return new TypedReaderTableSpec<>(columnSpecs);
+    }
+
+
+    @Override
+    public DataColumnSpec createIdentifierColumnSpec(final Table item, final String name) {
+        throw new UnsupportedOperationException();
+    }
+
+
+    @Override
+    public DataCell createIdentifierCell(final Table item) {
+        throw new UnsupportedOperationException();
+    }
 }

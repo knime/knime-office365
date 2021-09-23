@@ -44,33 +44,62 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Dec 9, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ *   Nov 16, 2020 (Tobias): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreader.mapping;
 
 import org.knime.core.data.DataType;
-import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+import org.knime.filehandling.core.node.table.reader.type.hierarchy.TypeHierarchy;
 
 /**
- * {@link MultiTableReadConfig} for the Table Manipulator.
+ * {@link TypeHierarchy} used by the Table Manipulator node.
  *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderMultiTableReadConfig extends
-    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {
+public enum DataTypeTypeHierarchy implements TypeHierarchy<DataType, DataType> {
 
-    public SharepointListReaderMultiTableReadConfig() {
-        super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
-            SharepointListReaderConfigSerializer.INSTANCE);
-        setFailOnDifferingSpecs(false);
-        getTableReadConfig().setRowIDIdx(0);
+    /**
+     * The singleton instance.
+     */
+    INSTANCE;
+
+    static class DataTypeResolver implements TypeResolver<DataType, DataType> {
+
+        private DataType m_current;
+
+        @Override
+        public DataType getMostSpecificType() {
+            return m_current;
+        }
+
+        @Override
+        public void accept(final DataType value) {
+            if (m_current == null) {
+                m_current = value;
+            } else if (m_current != value) { //NOSONAR
+                m_current = DataType.getCommonSuperType(m_current, value);
+            }
+        }
+
+        @Override
+        public boolean reachedTop() {
+            return false;
+        }
+
+        @Override
+        public boolean hasType() {
+            return m_current != null;
+        }
+
     }
 
     @Override
-    protected SharepointListReaderMultiTableReadConfig getThis() {
-        return this;
+    public TypeResolver<DataType, DataType> createResolver() {
+        return new DataTypeResolver();
     }
 
+    @Override
+    public boolean supports(final DataType value) {
+        return true;
+    }
 }

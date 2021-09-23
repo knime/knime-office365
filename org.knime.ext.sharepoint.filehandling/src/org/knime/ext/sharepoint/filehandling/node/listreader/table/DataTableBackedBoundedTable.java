@@ -1,6 +1,5 @@
 /*
  * ------------------------------------------------------------------------
- *
  *  Copyright by KNIME AG, Zurich, Switzerland
  *  Website: http://www.knime.com; Email: contact@knime.com
  *
@@ -41,36 +40,46 @@
  *  propagated with or for interoperation with KNIME.  The owner of a Node
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
- * ---------------------------------------------------------------------
- *
- * History
- *   Dec 9, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ * ------------------------------------------------------------------------
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
 
-import org.knime.core.data.DataType;
-import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+package org.knime.ext.sharepoint.filehandling.node.listreader.table;
+
+import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.container.CloseableRowIterator;
+import org.knime.core.node.BufferedDataTable;
 
 /**
- * {@link MultiTableReadConfig} for the Table Manipulator.
+ * Default implementation of {@link Table} that is backed by a {@link BufferedDataTable}.
  *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderMultiTableReadConfig extends
-    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {
+public class DataTableBackedBoundedTable implements BoundedTable {
 
-    public SharepointListReaderMultiTableReadConfig() {
-        super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
-            SharepointListReaderConfigSerializer.INSTANCE);
-        setFailOnDifferingSpecs(false);
-        getTableReadConfig().setRowIDIdx(0);
+    private final BufferedDataTable m_table;
+
+    /**
+     * @param dataTable {@link BufferedDataTable}
+     */
+    public DataTableBackedBoundedTable(final BufferedDataTable dataTable) {
+        m_table = dataTable;
     }
 
     @Override
-    protected SharepointListReaderMultiTableReadConfig getThis() {
-        return this;
+    public DataTableSpec getDataTableSpec() {
+        return m_table.getDataTableSpec();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public CloseableRowIterator cursor() {
+        return m_table.iterator();
+    }
+
+    @Override
+    public long size() {
+        return m_table.size();
+    }
 }

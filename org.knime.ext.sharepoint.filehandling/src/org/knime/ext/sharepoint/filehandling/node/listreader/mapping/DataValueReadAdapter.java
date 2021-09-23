@@ -44,33 +44,20 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Dec 9, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ *   Feb 5, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreader.mapping;
 
 import org.knime.core.data.DataType;
-import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+import org.knime.core.data.DataValue;
+import org.knime.filehandling.core.node.table.reader.ReadAdapter;
 
 /**
- * {@link MultiTableReadConfig} for the Table Manipulator.
+ * {@link ReadAdapter} implementation that uses {@link DataType} objects as data type identifiers and DataValue as value
+ * type.
  *
  * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderMultiTableReadConfig extends
-    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {
-
-    public SharepointListReaderMultiTableReadConfig() {
-        super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
-            SharepointListReaderConfigSerializer.INSTANCE);
-        setFailOnDifferingSpecs(false);
-        getTableReadConfig().setRowIDIdx(0);
-    }
-
-    @Override
-    protected SharepointListReaderMultiTableReadConfig getThis() {
-        return this;
-    }
-
+final class DataValueReadAdapter extends ReadAdapter<DataType, DataValue> {
+    // yes this class needs to be empty
 }

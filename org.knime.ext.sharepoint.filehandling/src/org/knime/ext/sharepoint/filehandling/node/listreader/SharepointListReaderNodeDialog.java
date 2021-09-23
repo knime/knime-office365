@@ -44,295 +44,421 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   28 Jun 2021 (Moditha Hewasinghaget): created
+ *   Aug 14, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
 import java.awt.GridBagLayout;
-import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
 
-import javax.json.JsonObject;
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
-import javax.swing.JLabel;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
-import javax.swing.JSpinner;
-import javax.swing.SpinnerNumberModel;
-import javax.swing.event.ChangeListener;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
+import javax.swing.JSplitPane;
+import javax.swing.event.ChangeEvent;
 
+import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.DataType;
+import org.knime.core.data.DataValue;
+import org.knime.core.node.BufferedDataTable;
+import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.filehandling.core.defaultnodesettings.filechooser.reader.SettingsModelReaderFileChooser;
-import org.knime.filehandling.core.node.table.reader.MultiTableReadFactory;
+import org.knime.ext.sharepoint.filehandling.node.listreader.table.DataTableBackedBoundedTable;
+import org.knime.ext.sharepoint.filehandling.node.listreader.table.EmptyTable;
+import org.knime.ext.sharepoint.filehandling.node.listreader.table.Table;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
+import org.knime.filehandling.core.node.table.reader.DefaultMultiTableReadFactory;
 import org.knime.filehandling.core.node.table.reader.ProductionPathProvider;
 import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
+import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+import org.knime.filehandling.core.node.table.reader.config.StorableMultiTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
-import org.knime.filehandling.core.node.table.reader.dialog.SourceIdentifierColumnPanel;
-import org.knime.filehandling.core.node.table.reader.preview.dialog.AbstractTableReaderNodeDialog;
+import org.knime.filehandling.core.node.table.reader.config.tablespec.DefaultTableSpecConfig;
+import org.knime.filehandling.core.node.table.reader.config.tablespec.TableSpecConfig;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.AnalysisComponentModel;
 import org.knime.filehandling.core.node.table.reader.preview.dialog.GenericItemAccessor;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.TableReaderPreviewModel;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.TableReaderPreviewTransformationCoordinator;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.TableReaderPreviewView;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.transformer.TableTransformationPanel;
+import org.knime.filehandling.core.node.table.reader.preview.dialog.transformer.TableTransformationTableModel;
+import org.knime.filehandling.core.util.CheckNodeContextUtil;
 import org.knime.filehandling.core.util.GBCBuilder;
 
 /**
- * The dialog for the “SharePoint List Reader” node
+ * Table manipulator implementation of a {@link NodeDialogPane}.</br>
+ * It takes care of creating and managing the table preview.
  *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
- *
- *
+ * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderNodeDialog
-        extends AbstractTableReaderNodeDialog<JsonObject, SharepointListReaderConfig, Class<?>> {
+public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
+    /**A dummy table that has no columns and no rows.*/
+    private static final Table DUMMY_TABLE = new EmptyTable(new DataTableSpec("DUMMY"));
 
-    private static final Long ROW_START = Long.valueOf(0);
+    private static final class TableAccessor implements GenericItemAccessor<Table> {
 
-    private static final Long ROW_END = Long.valueOf(Long.MAX_VALUE);
+        private List<Table> m_tables;
 
-    private static final Long INIT_LIMIT = Long.valueOf(50);
+        private TableAccessor(final List<Table> tables) {
+            m_tables = tables;
+        }
 
-    private final SharepointListReaderMultiTableReadConfig m_config;
+        private void setTables(final List<Table> tables) {
+            m_tables = tables;
+        }
 
-    private final JCheckBox m_limitRowsChecker = new JCheckBox();
+        @Override
+        public void close() throws IOException {
+            //nothing to close
+        }
 
-    private final JSpinner m_limitRowsSpinner = new JSpinner(
-            new SpinnerNumberModel(INIT_LIMIT, ROW_START, ROW_END, INIT_LIMIT));
+        @Override
+        public List<Table> getItems(final Consumer<StatusMessage> statusMessageConsumer)
+            throws IOException, InvalidSettingsException {
+            return m_tables;
+        }
 
-    private final JCheckBox m_skipRowsChecker = new JCheckBox();
-
-    private final JSpinner m_skipRowsSpinner = new JSpinner(
-            new SpinnerNumberModel(INIT_LIMIT, ROW_START, ROW_END, INIT_LIMIT));
-
-    private final SourceIdentifierColumnPanel m_pathColumnPanel = new SourceIdentifierColumnPanel("Path");
-
-    /**
-     * Constructor.
-     *
-     * @param settingsModelFileChooser
-     *            the {@link SettingsModelReaderFileChooser}
-     * @param config
-     *            the {@link DefaultMultiTableReadConfig}
-     * @param creationConfig
-     *            the {@link NodeCreationConfiguration}
-     * @param multiReader
-     *            the {@link MultiTableReadFactory}
-     * @param productionPathProvider
-     *            the {@link ProductionPathProvider}
-     */
-    SharepointListReaderNodeDialog(final SharepointListReaderMultiTableReadConfig config,
-            final NodeCreationConfiguration creationConfig,
-            final MultiTableReadFactory<JsonObject, SharepointListReaderConfig, Class<?>> multiReader,
-            final ProductionPathProvider<Class<?>> productionPathProvider) {
-        super(multiReader, productionPathProvider, true);
-
-        m_config = config;
-
-        registerPreviewChangeListeners();
-
-        createDialogPanels();
-
-        m_limitRowsChecker.addActionListener(e -> controlSpinner(m_limitRowsChecker, m_limitRowsSpinner));
-        m_limitRowsChecker.doClick();
-
-        m_skipRowsChecker.addActionListener(e -> controlSpinner(m_skipRowsChecker, m_skipRowsSpinner));
-        m_skipRowsChecker.doClick();
+        @Override
+        public Table getRootItem(final Consumer<StatusMessage> statusMessageConsumer)
+            throws IOException, InvalidSettingsException {
+            return DUMMY_TABLE;
+        }
     }
 
-    /**
-     * Register the listeners for the preview. Only when the file changes
-     */
-    private void registerPreviewChangeListeners() {
+    private final TableReaderPreviewTransformationCoordinator<Table, SharepointListReaderConfig, DataType> m_coordinator;
 
-        final ActionListener actionListener = l -> configChanged();
+    private final List<TableReaderPreviewView> m_previews = new ArrayList<>();
 
-        final ChangeListener changeListener = l -> configChanged();
+    private final TableReaderPreviewModel m_previewModel;
 
-        final DocumentListener documentListener = new DocumentListener() {
+    private final TableTransformationPanel m_specTransformer;
 
-            @Override
-            public void removeUpdate(final DocumentEvent e) {
-                configChanged();
-            }
+    private final boolean m_disableIOComponents;
 
-            @Override
-            public void insertUpdate(final DocumentEvent e) {
-                configChanged();
-            }
+    private boolean m_ignoreEvents = false;
 
-            @Override
-            public void changedUpdate(final DocumentEvent e) {
-                configChanged();
-            }
-        };
+    private final StorableMultiTableReadConfig<SharepointListReaderConfig, DataType> m_config;
 
-        m_limitRowsChecker.getModel().addActionListener(actionListener);
-        m_limitRowsSpinner.getModel().addChangeListener(changeListener);
-        m_skipRowsChecker.getModel().addActionListener(actionListener);
-        m_skipRowsSpinner.getModel().addChangeListener(changeListener);
-        m_pathColumnPanel.addChangeListener(changeListener);
-    }
+    private final TableAccessor m_itemAccessor = new TableAccessor(Collections.<Table>emptyList());
 
-    private void createDialogPanels() {
+    private final JCheckBox m_useRowID;
+
+    private final JCheckBox m_prependTableIdxToRowID = new JCheckBox("Prepend table index to row ID");
+
+    SharepointListReaderNodeDialog() {
+        m_config = SharepointListReaderNodeModel.createConfig();
+        final DefaultMultiTableReadFactory<Table, SharepointListReaderConfig, DataType, DataValue> readFactory =
+                SharepointListReaderNodeModel.createReadFactory();
+        final ProductionPathProvider<DataType> productionPathProvider =
+                SharepointListReaderNodeModel.createProductionPathProvider();
+        final AnalysisComponentModel analysisComponentModel = new AnalysisComponentModel();
+        final TableReaderPreviewModel previewModel = new TableReaderPreviewModel(analysisComponentModel);
+        m_previewModel = previewModel;
+        final TableTransformationTableModel<DataType> transformationModel =
+            new TableTransformationTableModel<>(productionPathProvider);
+        m_coordinator = new TableReaderPreviewTransformationCoordinator<>(readFactory, transformationModel,
+            analysisComponentModel, previewModel, this::getConfig, this::getReadPathAccessor, false);
+        m_specTransformer = new TableTransformationPanel(transformationModel, true, true);
+        m_disableIOComponents = CheckNodeContextUtil.isRemoteWorkflowContext();
+        m_useRowID = new JCheckBox("Use existing row ID");
+        m_useRowID.addActionListener(l -> configChanged());
+        m_useRowID.addActionListener(l -> m_prependTableIdxToRowID.setEnabled(m_useRowID.isSelected()));
+        m_prependTableIdxToRowID.addActionListener(l -> configChanged());
         addTab("Settings", createSettingsPanel());
-        addTab("Limit Rows", createLimitRowsPanel());
-
     }
 
-    /**
-     * Creates a standard setup {@link GBCBuilder}.
-     *
-     * @return returns a {@link GBCBuilder}
-     */
-    private static final GBCBuilder createGBCBuilder() {
-        return new GBCBuilder().resetPos().fillHorizontal().anchorFirstLineStart();
+    GenericItemAccessor<Table> getReadPathAccessor() {
+        return m_itemAccessor;
     }
 
-    /**
-     * Creates the {@link JPanel} for the Settings tab.
-     *
-     * @return the settings panel {@link JPanel}
-     */
     private JPanel createSettingsPanel() {
         final JPanel panel = new JPanel(new GridBagLayout());
-        GBCBuilder gbc = createGBCBuilder().fillHorizontal().setWeightX(1).anchorPageStart();
-        panel.add(createSourcePanel(), gbc.build());
-        panel.add(createColHeaderPanel(), gbc.incY().build());
-        panel.add(m_pathColumnPanel, gbc.incY().build());
-        gbc.setWeightY(1).resetX().widthRemainder().incY().fillBoth();
-        // Adding the preview panel
-        panel.add(createPreview(), gbc.build());
+        final GBCBuilder gbc = new GBCBuilder().resetPos().anchorFirstLineStart().fillHorizontal().setWeightX(1.0);
+        panel.add(createRowIDPanel(), gbc.incY().build());
+        panel.add(createTransformationTab(), gbc.fillBoth().setWeightY(1.0).incY().build());
+        return panel;
+    }
+
+    private JComponent createRowIDPanel() {
+        final JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Row ID handling"));
+        final GBCBuilder gbc = new GBCBuilder().resetPos().anchorFirstLineStart().fillHorizontal();
+        panel.add(m_useRowID, gbc.incY().build());
+        panel.add(m_prependTableIdxToRowID, gbc.incX().insetLeft(10).build());
+        panel.add(new JPanel(), gbc.setWeightX(1.0).incX().build());
         return panel;
     }
 
     /**
-     * Creates the source file {@link JPanel}.
+     * Use this method to notify the dialog that the reading switched from single file to multiple files or vice versa.
      *
-     * @return the source file {@link JPanel}
+     * @param readingMultipleFiles {@code true} if potentially multiple files are read
      */
-    private JPanel createSourcePanel() {
-        final JPanel sourcePanel = new JPanel(new GridBagLayout());
-        sourcePanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Input location"));
-        GBCBuilder gbc = createGBCBuilder().setWeightX(1);
-        return sourcePanel;
+    protected final void setReadingMultipleFiles(final boolean readingMultipleFiles) {
+        m_specTransformer.setColumnFilterModeEnabled(readingMultipleFiles);
     }
 
     /**
-     * Creates the column header {@link JPanel}.
+     * Enables/disables all previews created with {@link #createPreview()}.
      *
-     * @return the column header {@link JPanel}
+     * @param enabled {@code true} if enabled, {@code false} otherwise
      */
-    private JPanel createColHeaderPanel() {
-        final JPanel colHeaderPanel = new JPanel(new GridBagLayout());
-        GBCBuilder gbc = createGBCBuilder().fillHorizontal();
-        colHeaderPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Column Header"));
-        colHeaderPanel.add(new JPanel(), gbc.incX().setWeightX(1.0).build());
-        return colHeaderPanel;
+    protected final void setPreviewEnabled(final boolean enabled) {
+        for (TableReaderPreviewView preview : m_previews) {
+            preview.setEnabled(enabled);
+        }
     }
 
     /**
-     * Creates the row {@link JPanel}.
+     * Creates a {@link TableReaderPreviewView} that is synchronized with all other previews created by this method.
+     * This means that scrolling in one preview will scroll to the same position in all other previews.
      *
-     * @return the row {@link JPanel}
+     * @return a {@link TableReaderPreviewView}
      */
-    private JPanel createLimitRowsPanel() {
-        final JPanel limitPanel = new JPanel(new GridBagLayout());
-        GBCBuilder gbc = createGBCBuilder().fillHorizontal();
-        limitPanel.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Row Settings"));
-
-        limitPanel.add(new JLabel("Limit rows:"), gbc.build());
-        limitPanel.add(m_limitRowsChecker, gbc.incX().build());
-        limitPanel.add(m_limitRowsSpinner, gbc.incX().build());
-
-        limitPanel.add(new JLabel("Skip rows:"), gbc.resetX().incY().build());
-        limitPanel.add(m_skipRowsChecker, gbc.incX().build());
-        limitPanel.add(m_skipRowsSpinner, gbc.incX().build());
-
-        limitPanel.add(new JPanel(), gbc.incX().setWeightX(1.0).build());
-        gbc.setWeightY(1).resetX().widthRemainder().incY().insetBottom(0).fillBoth();
-        limitPanel.add(createPreview(), gbc.build());
-        return limitPanel;
+    protected final TableReaderPreviewView createPreview() {
+        final TableReaderPreviewView preview = new TableReaderPreviewView(m_previewModel);
+        m_previews.add(preview);
+        preview.addScrollListener(this::updateScrolling);
+        return preview;
     }
 
     /**
-     * Enables a {@link JSpinner} based on a corresponding {@link JCheckBox}.
+     * Convenience method that creates a {@link JSplitPane} containing the {@link TableTransformationPanel} and a
+     * {@link TableReaderPreviewView}. NOTE: If this method is called multiple times, then the
+     * {@link TableTransformationPanel} will only be shown in the {@link JSplitPane} created by the latest call.
      *
-     * @param checker
-     *            the {@link JCheckBox} which controls if a {@link JSpinner} should
-     *            be enabled
-     * @param spinner
-     *            a {@link JSpinner} controlled by the {@link JCheckBox}
+     * @return a {@link JSplitPane} containing the {@link TableTransformationPanel} and a {@link TableReaderPreviewView}
      */
-    private static void controlSpinner(final JCheckBox checker, final JSpinner spinner) {
-        spinner.setEnabled(checker.isSelected());
+    protected final JSplitPane createTransformationTab() {
+        final JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.setLeftComponent(getTransformationPanel());
+        splitPane.setRightComponent(createPreview());
+        splitPane.setOneTouchExpandable(true);
+        splitPane.setDividerSize(15);
+        return splitPane;
+    }
+
+    private void updateScrolling(final ChangeEvent changeEvent) {
+        final TableReaderPreviewView updatedView = (TableReaderPreviewView)changeEvent.getSource();
+        for (TableReaderPreviewView preview : m_previews) {
+            if (preview != updatedView) {
+                preview.updateViewport(updatedView);
+            }
+        }
+    }
+
+    /**
+     * Returns the {@link TableTransformationPanel} that allows to alter the table structure.
+     *
+     * @return the {@link TableTransformationPanel}
+     */
+    protected final TableTransformationPanel getTransformationPanel() {
+        return m_specTransformer;
+    }
+
+    /**
+     * Should be called by inheriting classes whenever the config changed i.e. if the user interacts with the dialog.
+     */
+    protected final void configChanged() {
+        if (areIOComponentsDisabled()) {
+            m_coordinator.setDisabledInRemoteJobViewInfo();
+        } else if (!areEventsIgnored()) {
+            m_coordinator.configChanged();
+        }
+    }
+
+    /**
+     * Sets whether this dialog should react to calls of {@link #configChanged()}. Call when loading the settings to
+     * avoid unnecessary I/O due to many calls to {@link #configChanged()}.
+     *
+     * @param ignoreEvents whether events should be ignored or not
+     */
+    protected final void ignoreEvents(final boolean ignoreEvents) {
+        m_ignoreEvents = ignoreEvents;
+    }
+
+    /**
+     * Indicates whether events should be ignored. If this returns {@code true}, calls to {@link #configChanged()} won't
+     * have any effect.
+     *
+     * @return {@code true} if {@link #configChanged()} doesn't react to calls
+     */
+    protected final boolean areEventsIgnored() {
+        return m_ignoreEvents;
+    }
+
+    /**
+     * Indicates whether the components doing IO, such as the preview, are disabled (by default when opened in remote
+     * job view).
+     *
+     * @return if IO components are disabled
+     */
+    protected boolean areIOComponentsDisabled() {
+        return m_disableIOComponents;
     }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
-        getConfig().saveInDialog(settings);
-    }
-
-    @Override
-    protected SharepointListReaderMultiTableReadConfig getConfig() throws InvalidSettingsException {
-        saveTableReadSettings(m_config.getTableReadConfig());
-        saveExampleReaderSettings(m_config.getTableReadConfig().getReaderSpecificConfig());
-        m_config.setAppendItemIdentifierColumn(m_pathColumnPanel.isAppendSourceIdentifierColumn());
-        m_config.setItemIdentifierColumnName(m_pathColumnPanel.getSourceIdentifierColumnName());
-        return m_config;
-    }
-
-    private void saveExampleReaderSettings(final SharepointListReaderConfig config) {
-    }
-
-    @Override
-    protected SharepointListReaderMultiTableReadConfig loadSettings(final NodeSettingsRO settings,
-            final PortObjectSpec[] specs) throws NotConfigurableException {
-        m_config.loadInDialog(settings, specs);
-
-        final SharepointListReaderConfig exampleReaderConfig = m_config.getReaderSpecificConfig();
-
-        final TableReadConfig<SharepointListReaderConfig> exampleCSVReaderConfig = m_config.getTableReadConfig();
-        m_limitRowsChecker.setSelected(exampleCSVReaderConfig.limitRows());
-        m_limitRowsSpinner.setValue(exampleCSVReaderConfig.getMaxRows());
-        m_skipRowsChecker.setSelected(exampleCSVReaderConfig.skipRows());
-        m_skipRowsSpinner.setValue(exampleCSVReaderConfig.getNumRowsToSkip());
-
-        m_pathColumnPanel.load(m_config.appendItemIdentifierColumn(), m_config.getItemIdentifierColumnName());
-
-        controlSpinner(m_limitRowsChecker, m_limitRowsSpinner);
-        controlSpinner(m_skipRowsChecker, m_skipRowsSpinner);
-
-        return m_config;
+        m_specTransformer.commitChanges();
+        saveConfig();
+        m_config.saveInModel(settings);
     }
 
     /**
-     * Saves the {@link DefaultTableReadConfig}. We do not use the column header
+     * Save the current config.
      *
-     * @param config
-     *            the {@link DefaultTableReadConfig}
+     * @throws InvalidSettingsException if a setting could not be saved
      */
-    private void saveTableReadSettings(final DefaultTableReadConfig<SharepointListReaderConfig> config) {
-        config.setUseColumnHeaderIdx(false);
-        config.setLimitRows(m_limitRowsChecker.isSelected());
-        config.setMaxRows((long) m_limitRowsSpinner.getValue());
-        config.setSkipRows(m_skipRowsChecker.isSelected());
-        config.setNumRowsToSkip((long) m_skipRowsSpinner.getValue());
+    protected void saveConfig() throws InvalidSettingsException {
+        saveTableReadSettings();
+        m_config.setTableSpecConfig(getTableSpecConfig());
+    }
+
+    /**
+     * Fill in the setting values in {@link TableReadConfig} using values from dialog.
+     */
+    private void saveTableReadSettings() {
+        final DefaultTableReadConfig<SharepointListReaderConfig> tableReadConfig =
+                (DefaultTableReadConfig<SharepointListReaderConfig>)m_config.getTableReadConfig();
+
+
+
+        //TODO: true throws mapping exception because of strange index mapper
+        tableReadConfig.setUseRowIDIdx(m_useRowID.isSelected());
+        tableReadConfig.setRowIDIdx(0);
+
+        tableReadConfig.setPrependSourceIdxToRowId(m_prependTableIdxToRowID.isSelected());
+
+        tableReadConfig.setUseColumnHeaderIdx(false);
+        tableReadConfig.setColumnHeaderIdx(0);
+
+        tableReadConfig.setSkipRows(false);
+        tableReadConfig.setNumRowsToSkip(0);
+
+        tableReadConfig.setLimitRows(false);
+        tableReadConfig.setMaxRows(0);
+
+        tableReadConfig.setLimitRowsForSpec(false);
+        tableReadConfig.setMaxRowsForSpec(0);
+
+        tableReadConfig.setAllowShortRows(false);
     }
 
     @Override
-    public void onClose() {
-        super.onClose();
+    protected final void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+        throws NotConfigurableException {
+        loadSettings(settings, specs, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    protected GenericItemAccessor<JsonObject> createItemAccessor() {
-        // TODO Auto-generated method stub
-        return null;
+    protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input)
+            throws NotConfigurableException {
+        final DataTableSpec[] specs = new DataTableSpec[input.length];
+        final BufferedDataTable[] tables = new BufferedDataTable[input.length];
+        for (int i = 0, length = specs.length; i < length; i++) {
+            final BufferedDataTable table = (BufferedDataTable)input[i];
+            specs[i] = table.getDataTableSpec();
+            tables[i] = table;
+        }
+        loadSettings(settings, specs, tables);
+    }
+
+    private void loadSettings(final NodeSettingsRO settings, final PortObjectSpec[] specs,
+        final BufferedDataTable[] input)
+            throws NotConfigurableException {
+        ignoreEvents(true);
+        setPreviewEnabled(false);
+
+        m_config.loadInDialog(settings, specs);
+        if (m_config.hasTableSpecConfig()) {
+            m_coordinator.load(m_config.getTableSpecConfig().getTableTransformation());
+        }
+        final boolean useRowIDIdx = m_config.getTableReadConfig().useRowIDIdx();
+        m_useRowID.setSelected(useRowIDIdx);
+        m_prependTableIdxToRowID.setSelected(m_config.getTableReadConfig().prependSourceIdxToRowID());
+        m_prependTableIdxToRowID.setEnabled(useRowIDIdx);
+        final List<Table> rowInputs = new ArrayList<>(specs.length);
+        if (input != null ) {
+            for (BufferedDataTable table : input) {
+                rowInputs.add(new DataTableBackedBoundedTable(table));
+            }
+        } else {
+            for (PortObjectSpec spec : specs) {
+                rowInputs.add(new EmptyTable((DataTableSpec)spec));
+            }
+        }
+        m_itemAccessor.setTables(rowInputs);
+
+        ignoreEvents(false);
+        refreshPreview(true);
+    }
+
+    /**
+     * Retrieves the currently configured {@link DefaultTableSpecConfig} or {@code null} if none is available e.g. if
+     * the current settings are invalid and thus no preview could be loaded.
+     *
+     * @return the currently configured {@link DefaultTableSpecConfig} or {@code null} if none is available
+     */
+    protected final TableSpecConfig<DataType> getTableSpecConfig() {
+        return m_coordinator.getTableSpecConfig();
+    }
+
+    /**
+     * This method must return the current {@link MultiTableReadConfig}. It is used to load the preview, so please make
+     * sure that all settings are stored in the config, otherwise the preview will be incorrect.</br>
+     * {@link RuntimeException} should be wrapped into {@link InvalidSettingsException} if they indicate an invalid
+     * configuration.
+     *
+     * @return the current configuration
+     * @throws InvalidSettingsException if the settings are invalid
+     */
+    protected MultiTableReadConfig<SharepointListReaderConfig, DataType> getConfig()
+            throws InvalidSettingsException{
+        return saveAndGetConfig();
+    }
+
+    private MultiTableReadConfig<SharepointListReaderConfig, DataType> saveAndGetConfig() throws InvalidSettingsException {
+        try {
+            saveConfig();
+        } catch (RuntimeException e) {
+            throw new InvalidSettingsException(e.getMessage(), e);
+        }
+        return m_config;
+    }
+
+    @Override
+    public void onClose() {
+        m_coordinator.onClose();
+        m_specTransformer.onClose();
+        super.onClose();
+    }
+
+    /**
+     * Enables/disables the preview depending on what {@link #areIOComponentsDisabled()} returns. Refreshes the preview
+     * if the passed parameter is {@code true} and the preview enabled.
+     *
+     * @param refreshPreview whether the preview should be refreshed
+     */
+    public void refreshPreview(final boolean refreshPreview) {
+        final boolean enabled = !areIOComponentsDisabled();
+        setPreviewEnabled(enabled);
+        if (enabled && refreshPreview) {
+            configChanged();
+        }
     }
 }

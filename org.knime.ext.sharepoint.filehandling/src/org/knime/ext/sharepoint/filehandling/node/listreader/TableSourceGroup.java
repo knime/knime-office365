@@ -44,19 +44,50 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Feb 5, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ *   Dec 5, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
-import org.knime.filehandling.core.node.table.reader.ReadAdapter;
+import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Stream;
+
+import org.knime.ext.sharepoint.filehandling.node.listreader.table.Table;
+import org.knime.filehandling.core.node.table.reader.SourceGroup;
 
 /**
- * {@link ReadAdapter} implementation that uses {@link Class} objects as data
- * type identifiers and {@link String} as value type.
+ * {@link SourceGroup} based on {@link Table} that uses a constant value as ID.
  *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderReadAdapter extends ReadAdapter<Class<?>, String> {
-    // yes this class needs to be empty
+final class TableSourceGroup implements SourceGroup<Table> {
+
+    private static final String ROOTPATH = "ROOTPATH";
+
+    private final List<Table> m_tables;
+
+    TableSourceGroup(final List<Table> tables) {
+        m_tables = tables;
+    }
+
+    @Override
+    public Iterator<Table> iterator() {
+        return m_tables.iterator();
+    }
+
+    @Override
+    public String getID() {
+        return ROOTPATH;
+    }
+
+    @Override
+    public Stream<Table> stream() {
+        return m_tables.stream();
+    }
+
+    @Override
+    public int size() {
+        return m_tables.size();
+    }
+
 }

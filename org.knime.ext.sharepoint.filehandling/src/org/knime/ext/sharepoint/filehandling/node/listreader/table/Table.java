@@ -44,33 +44,28 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Dec 9, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ *   Nov 17, 2020 (Tobias): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreader.table;
 
-import org.knime.core.data.DataType;
-import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.container.CloseableRowIterator;
+import org.knime.core.data.v2.RowCursor;
 
 /**
- * {@link MultiTableReadConfig} for the Table Manipulator.
  *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderMultiTableReadConfig extends
-    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {
+public interface Table {
 
-    public SharepointListReaderMultiTableReadConfig() {
-        super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
-            SharepointListReaderConfigSerializer.INSTANCE);
-        setFailOnDifferingSpecs(false);
-        getTableReadConfig().setRowIDIdx(0);
-    }
+    /**
+     * @return the {@link DataTableSpec}
+     */
+    DataTableSpec getDataTableSpec();
 
-    @Override
-    protected SharepointListReaderMultiTableReadConfig getThis() {
-        return this;
-    }
+    /**
+     * @return the {@link RowCursor}
+     */
+    CloseableRowIterator cursor();
 
 }

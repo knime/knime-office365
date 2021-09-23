@@ -44,66 +44,39 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   28 Jun 2021 Moditha Hewasinghage: created
+ *   Feb 5, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreader.mapping;
 
-import java.io.IOException;
-
-import javax.json.JsonObject;
-
-import org.knime.core.data.DataCell;
-import org.knime.core.data.DataColumnSpec;
-import org.knime.core.node.ExecutionMonitor;
-import org.knime.filehandling.core.node.table.reader.GenericTableReader;
-import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
-import org.knime.filehandling.core.node.table.reader.read.Read;
-import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec;
+import org.knime.core.data.DataType;
+import org.knime.core.data.DataValue;
+import org.knime.core.data.convert.map.ProducerRegistry;
+import org.knime.filehandling.core.node.table.reader.ReadAdapter;
+import org.knime.filehandling.core.node.table.reader.ReadAdapterFactory;
 
 /**
- * Reader for the “SharePoint List Reader” node.
+ * Factory for DataValueReadAdapter objects.
  *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReader
-        implements GenericTableReader<JsonObject, SharepointListReaderConfig, Class<?>, String> {
+public enum DataValueReadAdapterFactory implements ReadAdapterFactory<DataType, DataValue> {
+        /**
+         * The singleton instance.
+         */
+        INSTANCE;
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public Read<String> read(final JsonObject item, final TableReadConfig<SharepointListReaderConfig> config)
-            throws IOException {
-        return new SharepointListRead(null, config);
+    public DataType getDefaultType(final DataType type) {
+        return type;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public TypedReaderTableSpec<Class<?>> readSpec(final JsonObject item,
-            final TableReadConfig<SharepointListReaderConfig> config, final ExecutionMonitor exec) throws IOException {
-        // TODO Auto-generated method stub
-        return null;
+    public ReadAdapter<DataType, DataValue> createReadAdapter() {
+        return new DataValueReadAdapter();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public DataColumnSpec createIdentifierColumnSpec(final JsonObject item, final String name) {
-        // TODO Auto-generated method stub
-        return null;
+    public ProducerRegistry<DataType, ? extends ReadAdapter<DataType, DataValue>> getProducerRegistry() {
+        return DataTypeProducerRegistry.INSTANCE;
     }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public DataCell createIdentifierCell(final JsonObject item) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
 }

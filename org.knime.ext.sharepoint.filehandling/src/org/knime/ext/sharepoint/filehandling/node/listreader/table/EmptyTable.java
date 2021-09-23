@@ -44,33 +44,65 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Dec 9, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ *   Nov 17, 2020 (Tobias): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreader.table;
 
-import org.knime.core.data.DataType;
-import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+import java.util.NoSuchElementException;
+
+import org.knime.core.data.DataRow;
+import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.container.CloseableRowIterator;
 
 /**
- * {@link MultiTableReadConfig} for the Table Manipulator.
  *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderMultiTableReadConfig extends
-    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {
+public class EmptyTable implements BoundedTable {
 
-    public SharepointListReaderMultiTableReadConfig() {
-        super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
-            SharepointListReaderConfigSerializer.INSTANCE);
-        setFailOnDifferingSpecs(false);
-        getTableReadConfig().setRowIDIdx(0);
+    private DataTableSpec m_spec;
+
+    private static final class EmptyCursor extends CloseableRowIterator {
+
+
+
+        @Override
+        public DataRow next() {
+            throw new NoSuchElementException("This iterator is empty.");
+        }
+
+        @Override
+        public void close() {
+            // nothing to close
+        }
+
+        @Override
+        public boolean hasNext() {
+            return false;
+        }
+
+    }
+
+    /**
+     * @param spec the {@link DataTableSpec} to use
+     */
+    public EmptyTable(final DataTableSpec spec) {
+        m_spec = spec;
     }
 
     @Override
-    protected SharepointListReaderMultiTableReadConfig getThis() {
-        return this;
+    public DataTableSpec getDataTableSpec() {
+        return m_spec;
+    }
+
+    @Override
+    public CloseableRowIterator cursor() {
+        return new EmptyCursor();
+    }
+
+    @Override
+    public long size() {
+        return 0;
     }
 
 }

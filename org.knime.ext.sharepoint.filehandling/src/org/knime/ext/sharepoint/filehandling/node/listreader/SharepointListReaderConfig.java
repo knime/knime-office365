@@ -44,45 +44,23 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   28 Jun 2021 (Moditha Hewasinghage, KNIME GmbH, Berlin, Germany): created
+ *   6 Apr 2020 (Temesgen H. Dadi, KNIME GmbH, Berlin, Germany): created
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
 import org.knime.filehandling.core.node.table.reader.config.ReaderSpecificConfig;
 
+
 /**
- * {@link ReaderSpecificConfig} for the Example CSV reader node.
- * 
- * Here we keep the configurations specific to this reader node
+ * Table manipulator {@link ReaderSpecificConfig} implementation.
  *
- * @author Moditha Hewasinghage, KNIME GmbH, Berlin, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderConfig implements ReaderSpecificConfig<SharepointListReaderConfig> {
-
-    /** Setting to store the name of the column header prefix */
-    private String m_columnHeaderPrefix = "Column";
-
-    /**
-     * Constructor.
-     */
-    SharepointListReaderConfig() {
-    }
-
-    private SharepointListReaderConfig(final SharepointListReaderConfig toCopy) {
-        setColumnHeaderPrefix(toCopy.getColumnHeaderPrefix());
-    }
+public final class SharepointListReaderConfig implements ReaderSpecificConfig<SharepointListReaderConfig> {
 
     @Override
     public SharepointListReaderConfig copy() {
-        return new SharepointListReaderConfig(this);
-    }
-
-    public String getColumnHeaderPrefix() {
-        return m_columnHeaderPrefix;
-    }
-
-    public void setColumnHeaderPrefix(final String columnHeaderPrefix) {
-        m_columnHeaderPrefix = columnHeaderPrefix;
+        return new SharepointListReaderConfig();
     }
 
 }

@@ -44,65 +44,19 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   28 Jun 2021 Moditha Hewasinghage: created
+ *   Nov 17, 2020 (Tobias): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.OptionalLong;
-
-import javax.json.JsonObject;
-
-import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
-import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
-import org.knime.filehandling.core.node.table.reader.read.Read;
+package org.knime.ext.sharepoint.filehandling.node.listreader.table;
 
 /**
- * Class for the example csv reader which implements {@link Read}. We read as
- * {@link String} tokens.
  *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
- *
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListRead implements Read<String> {
-
-
-    /**
-     * Constructor.
-     *
-     * @param path
-     *            the {@link Path} to the file
-     * @param config
-     *            the {@link TableReadConfig} of the node
-     * @throws IOException
-     */
-    SharepointListRead(final JsonObject path, final TableReadConfig<SharepointListReaderConfig> config)
-            throws IOException { // NOSONAR not using config yet
-
-    }
+public interface BoundedTable extends Table {
 
     /**
-     * Reads and returns the next row
+     * @return the number of rows of this table
      */
-    @Override
-    public RandomAccessible<String> next() throws IOException {
-        return null;
-    }
+    long size();
 
-    @Override
-    public void close() throws IOException {
-        // nothing to do
-    }
-
-    @Override
-    public OptionalLong getMaxProgress() {
-        return OptionalLong.of(42L);
-    }
-
-    @Override
-    public long getProgress() {
-        return 21;
-    }
 }

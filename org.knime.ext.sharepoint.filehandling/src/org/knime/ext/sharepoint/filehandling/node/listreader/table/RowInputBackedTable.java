@@ -44,33 +44,85 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Dec 9, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ *   Nov 17, 2020 (Tobias): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreader.table;
 
-import org.knime.core.data.DataType;
-import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
+import java.util.NoSuchElementException;
+
+import org.knime.core.data.DataRow;
+import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.container.CloseableRowIterator;
+import org.knime.core.node.streamable.RowInput;
 
 /**
- * {@link MultiTableReadConfig} for the Table Manipulator.
- *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * {@link RowInput} backed Table implementation.
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderMultiTableReadConfig extends
-    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {
+public class RowInputBackedTable implements Table {
 
-    public SharepointListReaderMultiTableReadConfig() {
-        super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
-            SharepointListReaderConfigSerializer.INSTANCE);
-        setFailOnDifferingSpecs(false);
-        getTableReadConfig().setRowIDIdx(0);
+    private static final class RowInputRowCursor extends CloseableRowIterator {
+
+        private RowInput m_delegate;
+
+        private DataRow m_nextRow;
+
+        /**
+         * @param rowInput
+         */
+        RowInputRowCursor(final RowInput delegate) {
+            m_delegate = delegate;
+            try {
+                m_nextRow = m_delegate.poll();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Data streaming was canceled", e);
+            }
+        }
+
+        @Override
+        public void close() {
+            m_delegate.close();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return m_nextRow != null;
+        }
+
+        @Override
+        public DataRow next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException("This iterator has no more rows.");
+            }
+            final DataRow currentRow = m_nextRow;
+            try {
+                m_nextRow = m_delegate.poll();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Data streaming was canceled", e);
+            }
+            return currentRow;
+        }
+
+    }
+
+    private final RowInput m_rowInput;
+
+    /**
+     * @param rowInput {@link RowInput} to use
+     */
+    public RowInputBackedTable(final RowInput rowInput) {
+        m_rowInput = rowInput;
     }
 
     @Override
-    protected SharepointListReaderMultiTableReadConfig getThis() {
-        return this;
+    public DataTableSpec getDataTableSpec() {
+        return m_rowInput.getDataTableSpec();
+    }
+    @Override
+    public CloseableRowIterator cursor() {
+        return new RowInputRowCursor(m_rowInput);
     }
 
 }
