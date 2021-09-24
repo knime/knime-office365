@@ -48,19 +48,52 @@
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.knime.filehandling.core.node.table.reader.config.ReaderSpecificConfig;
 
-
 /**
- * Table manipulator {@link ReaderSpecificConfig} implementation.
+ * “SharePoint List Reader” {@link ReaderSpecificConfig} implementation.
  *
- * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
 public final class SharepointListReaderConfig implements ReaderSpecificConfig<SharepointListReaderConfig> {
 
-    @Override
-    public SharepointListReaderConfig copy() {
-        return new SharepointListReaderConfig();
+    private boolean m_idDisplayNameMappingPresent = false;
+
+    private Map<String, String> m_idDisplayNameMapping = new LinkedHashMap<>();
+    // TODO put the site settings in here?
+
+    /**
+     * @return a mapping between the “name” field which is a kind of ID and the
+     *         “displayName” which is purely visual and used for the column names
+     */
+    public Map<String, String> getIdDisplayNameMapping() {
+        return m_idDisplayNameMapping;
     }
 
+    /**
+     * @return whether the ID name and display name mapping has been calculated.
+     */
+    public boolean isIdDisplayNameMappingPresent() {
+        return m_idDisplayNameMappingPresent;
+    }
+
+    /**
+     * @param idDisplayNameMappingPresent
+     *            whether the ID name and display name mapping has been calculated.
+     */
+    public void setIdDisplayNameMappingPresent(final boolean idDisplayNameMappingPresent) {
+        m_idDisplayNameMappingPresent = idDisplayNameMappingPresent;
+    }
+
+    @Override
+    public SharepointListReaderConfig copy() {
+        final var res = new SharepointListReaderConfig();
+        res.m_idDisplayNameMappingPresent = m_idDisplayNameMappingPresent;
+        m_idDisplayNameMapping.forEach(res.m_idDisplayNameMapping::put);
+        return res;
+    }
 }

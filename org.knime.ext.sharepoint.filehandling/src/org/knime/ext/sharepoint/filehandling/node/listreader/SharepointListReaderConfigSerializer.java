@@ -74,7 +74,7 @@ import org.knime.filehandling.core.util.SettingsUtils;
  *
  * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  */
-public enum SharepointListReaderConfigSerializer implements ConfigSerializer<SharepointListReaderMultiTableReadConfig>,
+enum SharepointListReaderConfigSerializer implements ConfigSerializer<SharepointListReaderMultiTableReadConfig>,
     ConfigIDFactory<SharepointListReaderMultiTableReadConfig> {
 
         /**
@@ -82,17 +82,13 @@ public enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sha
          */
         INSTANCE;
 
-    private static final String CFG_HAS_ROW_ID = "has_row_id";
-
-    private static final String CFG_PREPEND_TABLE_IDX_TO_ROWID = "prepend_table_index_to_row_id";
-
     private static final String CFG_SETTINGS_TAB = "settings";
 
     private static final String CFG_TABLE_SPEC_CONFIG = "table_spec_config" + SettingsModel.CFGKEY_INTERNAL;
 
     private final TableSpecConfigSerializer<DataType> m_tableSpecSerializer;
 
-    public enum DataTypeSerializer implements NodeSettingsSerializer<DataType> {
+    enum DataTypeSerializer implements NodeSettingsSerializer<DataType> {
 
             SERIALIZER_INSTANCE;
 
@@ -170,27 +166,19 @@ public enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sha
     private static void loadSettingsTabInDialog(final SharepointListReaderMultiTableReadConfig config,
         final NodeSettingsRO settings) {
         final DefaultTableReadConfig<SharepointListReaderConfig> tc = config.getTableReadConfig();
-        tc.setUseRowIDIdx(settings.getBoolean(CFG_HAS_ROW_ID, true));
-        tc.setPrependSourceIdxToRowId(settings.getBoolean(CFG_PREPEND_TABLE_IDX_TO_ROWID, false));
     }
 
     private static void loadSettingsTabInModel(final SharepointListReaderMultiTableReadConfig config,
         final NodeSettingsRO settings) throws InvalidSettingsException {
         final DefaultTableReadConfig<SharepointListReaderConfig> tc = config.getTableReadConfig();
-        tc.setUseRowIDIdx(settings.getBoolean(CFG_HAS_ROW_ID));
-        tc.setPrependSourceIdxToRowId(settings.getBoolean(CFG_PREPEND_TABLE_IDX_TO_ROWID));
     }
 
     private static void saveSettingsTab(final SharepointListReaderMultiTableReadConfig config,
         final NodeSettingsWO settings) {
         final TableReadConfig<?> tc = config.getTableReadConfig();
-        settings.addBoolean(CFG_HAS_ROW_ID, tc.useRowIDIdx());
-        settings.addBoolean(CFG_PREPEND_TABLE_IDX_TO_ROWID, tc.prependSourceIdxToRowID());
     }
 
     static void validateSettingsTab(final NodeSettingsRO settings) throws InvalidSettingsException {
-        settings.getBoolean(CFG_HAS_ROW_ID);
-        settings.getBoolean(CFG_PREPEND_TABLE_IDX_TO_ROWID);
     }
 
     @Override

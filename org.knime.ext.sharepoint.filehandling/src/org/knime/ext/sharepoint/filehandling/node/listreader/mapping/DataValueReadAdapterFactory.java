@@ -49,7 +49,6 @@
 package org.knime.ext.sharepoint.filehandling.node.listreader.mapping;
 
 import org.knime.core.data.DataType;
-import org.knime.core.data.DataValue;
 import org.knime.core.data.convert.map.ProducerRegistry;
 import org.knime.filehandling.core.node.table.reader.ReadAdapter;
 import org.knime.filehandling.core.node.table.reader.ReadAdapterFactory;
@@ -59,7 +58,7 @@ import org.knime.filehandling.core.node.table.reader.ReadAdapterFactory;
  *
  * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-public enum DataValueReadAdapterFactory implements ReadAdapterFactory<DataType, DataValue> {
+public enum DataValueReadAdapterFactory implements ReadAdapterFactory<DataType, String> {
         /**
          * The singleton instance.
          */
@@ -71,12 +70,12 @@ public enum DataValueReadAdapterFactory implements ReadAdapterFactory<DataType, 
     }
 
     @Override
-    public ReadAdapter<DataType, DataValue> createReadAdapter() {
+    public ReadAdapter<DataType, String> createReadAdapter() {
         return new DataValueReadAdapter();
     }
 
     @Override
-    public ProducerRegistry<DataType, ? extends ReadAdapter<DataType, DataValue>> getProducerRegistry() {
+    public ProducerRegistry<DataType, ? extends ReadAdapter<DataType, String>> getProducerRegistry() {
         return DataTypeProducerRegistry.INSTANCE;
     }
 }

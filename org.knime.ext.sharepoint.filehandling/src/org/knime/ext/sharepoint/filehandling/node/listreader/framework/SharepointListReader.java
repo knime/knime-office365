@@ -44,50 +44,57 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Dec 5, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
+ *   Feb 6, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader;
+package org.knime.ext.sharepoint.filehandling.node.listreader.framework;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.stream.Stream;
+import java.io.IOException;
+import java.util.stream.Collectors;
 
-import org.knime.ext.sharepoint.filehandling.node.listreader.table.Table;
-import org.knime.filehandling.core.node.table.reader.SourceGroup;
+import org.knime.core.data.DataCell;
+import org.knime.core.data.DataColumnSpec;
+import org.knime.core.data.DataType;
+import org.knime.core.data.def.StringCell;
+import org.knime.core.node.ExecutionMonitor;
+import org.knime.core.node.streamable.RowInput;
+import org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderConfig;
+import org.knime.filehandling.core.node.table.reader.GenericTableReader;
+import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
+import org.knime.filehandling.core.node.table.reader.read.Read;
+import org.knime.filehandling.core.node.table.reader.spec.TypedReaderColumnSpec;
+import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec;
 
 /**
- * {@link SourceGroup} based on {@link Table} that uses a constant value as ID.
+ * {@link GenericTableReader} that reads {@link RowInput}s.
  *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-final class TableSourceGroup implements SourceGroup<Table> {
+public final class SharepointListReader
+        implements GenericTableReader<SharepointListAccessor, SharepointListReaderConfig, DataType, String> {
 
-    private static final String ROOTPATH = "ROOTPATH";
-
-    private final List<Table> m_tables;
-
-    TableSourceGroup(final List<Table> tables) {
-        m_tables = tables;
+    @Override
+    public Read<String> read(final SharepointListAccessor in, final TableReadConfig<SharepointListReaderConfig> config)
+            throws IOException {
+        return new SharepointListRead(in, config);
     }
 
     @Override
-    public Iterator<Table> iterator() {
-        return m_tables.iterator();
+    public TypedReaderTableSpec<DataType> readSpec(final SharepointListAccessor in,
+            final TableReadConfig<SharepointListReaderConfig> config, final ExecutionMonitor exec) throws IOException {
+        final var columnSpecs = in.getColumnsDisplayNames()
+                .map(n -> TypedReaderColumnSpec.createWithName(n, StringCell.TYPE, true))//
+                .collect(Collectors.toList());
+
+        return new TypedReaderTableSpec<>(columnSpecs);
     }
 
     @Override
-    public String getID() {
-        return ROOTPATH;
+    public DataColumnSpec createIdentifierColumnSpec(final SharepointListAccessor item, final String name) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public Stream<Table> stream() {
-        return m_tables.stream();
+    public DataCell createIdentifierCell(final SharepointListAccessor item) {
+        throw new UnsupportedOperationException();
     }
-
-    @Override
-    public int size() {
-        return m_tables.size();
-    }
-
 }

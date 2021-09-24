@@ -44,19 +44,100 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Nov 17, 2020 (Tobias): created
+ *   Nov 14, 2020 (Tobias): created
  */
-package org.knime.ext.sharepoint.filehandling.node.listreader.table;
+package org.knime.ext.sharepoint.filehandling.node.listreader.framework;
+
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.OptionalLong;
+
+import org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderConfig;
+import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
+import org.knime.filehandling.core.node.table.reader.randomaccess.AbstractRandomAccessible;
+import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
+import org.knime.filehandling.core.node.table.reader.read.Read;
 
 /**
+ * {@link Read} implementation that works with {@link Tables}.
  *
  * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-public interface BoundedTable extends Table {
+public class SharepointListRead implements Read<String> {
+
+    static class RandomAccessibleDataRow extends AbstractRandomAccessible<String> {
+
+        private final String[] m_row;
+
+        RandomAccessibleDataRow(final String[] dataRow) {
+            m_row = dataRow;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public int size() {
+            return m_row.length;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public String get(final int idx) {
+            return m_row[idx];
+        }
+
+    }
+
+    private final TableReadConfig<SharepointListReaderConfig> m_config;
+
+
+    private Iterator<RandomAccessibleDataRow> m_items;
+
+
+    private long m_rowsRead;
 
     /**
-     * @return the number of rows of this table
+     * Constructor.
+     *
+     * @param client
+     *            the client to read from and use for requests
+     * @param config
+     *            configuration
      */
-    long size();
+    public SharepointListRead(final SharepointListAccessor client,
+            final TableReadConfig<SharepointListReaderConfig> config) {
+        m_config = config;
+        m_items = client.getItems();
+        m_rowsRead = 0;
 
+    }
+
+
+    @Override
+    public RandomAccessible<String> next() throws IOException {
+        if (m_items.hasNext()) {
+            m_rowsRead++;
+            return m_items.next();
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public OptionalLong getMaxProgress() {
+        return OptionalLong.empty(); // TODO something useful here
+    }
+
+    @Override
+    public long getProgress() {
+        return m_rowsRead;
+    }
+
+    @Override
+    public void close() throws IOException {
+        // nothing to close
+    }
 }

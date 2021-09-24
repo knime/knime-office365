@@ -55,31 +55,22 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-import javax.swing.BorderFactory;
-import javax.swing.JCheckBox;
-import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.event.ChangeEvent;
 
-import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.DataType;
-import org.knime.core.data.DataValue;
-import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.sharepoint.filehandling.node.listreader.table.DataTableBackedBoundedTable;
-import org.knime.ext.sharepoint.filehandling.node.listreader.table.EmptyTable;
-import org.knime.ext.sharepoint.filehandling.node.listreader.table.Table;
+import org.knime.ext.sharepoint.filehandling.node.listreader.framework.SharepointListAccessor;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
-import org.knime.filehandling.core.node.table.reader.DefaultMultiTableReadFactory;
-import org.knime.filehandling.core.node.table.reader.ProductionPathProvider;
 import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.StorableMultiTableReadConfig;
@@ -96,48 +87,48 @@ import org.knime.filehandling.core.node.table.reader.preview.dialog.transformer.
 import org.knime.filehandling.core.util.CheckNodeContextUtil;
 import org.knime.filehandling.core.util.GBCBuilder;
 
+
 /**
  * Table manipulator implementation of a {@link NodeDialogPane}.</br>
  * It takes care of creating and managing the table preview.
  *
  * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
-    /**A dummy table that has no columns and no rows.*/
-    private static final Table DUMMY_TABLE = new EmptyTable(new DataTableSpec("DUMMY"));
+    private static final class SharepointListAccessorAccessor implements GenericItemAccessor<SharepointListAccessor> {
 
-    private static final class TableAccessor implements GenericItemAccessor<Table> {
+        private List<SharepointListAccessor> m_clients;
 
-        private List<Table> m_tables;
-
-        private TableAccessor(final List<Table> tables) {
-            m_tables = tables;
+        private SharepointListAccessorAccessor(final List<SharepointListAccessor> clients) {
+            m_clients = clients;
         }
 
-        private void setTables(final List<Table> tables) {
-            m_tables = tables;
+        private void setTables(final List<SharepointListAccessor> client) {
+            m_clients = client;
         }
 
         @Override
         public void close() throws IOException {
-            //nothing to close
+            // nothing to close
         }
 
         @Override
-        public List<Table> getItems(final Consumer<StatusMessage> statusMessageConsumer)
-            throws IOException, InvalidSettingsException {
-            return m_tables;
+        public List<SharepointListAccessor> getItems(final Consumer<StatusMessage> statusMessageConsumer)
+                throws IOException, InvalidSettingsException {
+            return m_clients;
         }
 
         @Override
-        public Table getRootItem(final Consumer<StatusMessage> statusMessageConsumer)
-            throws IOException, InvalidSettingsException {
-            return DUMMY_TABLE;
+        public SharepointListAccessor getRootItem(final Consumer<StatusMessage> statusMessageConsumer)
+                throws IOException, InvalidSettingsException {
+            return m_clients.get(0);
         }
     }
 
-    private final TableReaderPreviewTransformationCoordinator<Table, SharepointListReaderConfig, DataType> m_coordinator;
+    private final TableReaderPreviewTransformationCoordinator<SharepointListAccessor, SharepointListReaderConfig, DataType> m_coordinator;
 
     private final List<TableReaderPreviewView> m_previews = new ArrayList<>();
 
@@ -149,71 +140,41 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private boolean m_ignoreEvents = false;
 
-    private final StorableMultiTableReadConfig<SharepointListReaderConfig, DataType> m_config;
+    private final StorableMultiTableReadConfig<SharepointListReaderConfig, DataType> m_config; // TODO ?
 
-    private final TableAccessor m_itemAccessor = new TableAccessor(Collections.<Table>emptyList());
-
-    private final JCheckBox m_useRowID;
-
-    private final JCheckBox m_prependTableIdxToRowID = new JCheckBox("Prepend table index to row ID");
+    private final SharepointListAccessorAccessor m_itemAccessor = new SharepointListAccessorAccessor(
+            Collections.<SharepointListAccessor>emptyList());
 
     SharepointListReaderNodeDialog() {
         m_config = SharepointListReaderNodeModel.createConfig();
-        final DefaultMultiTableReadFactory<Table, SharepointListReaderConfig, DataType, DataValue> readFactory =
-                SharepointListReaderNodeModel.createReadFactory();
-        final ProductionPathProvider<DataType> productionPathProvider =
-                SharepointListReaderNodeModel.createProductionPathProvider();
-        final AnalysisComponentModel analysisComponentModel = new AnalysisComponentModel();
-        final TableReaderPreviewModel previewModel = new TableReaderPreviewModel(analysisComponentModel);
-        m_previewModel = previewModel;
-        final TableTransformationTableModel<DataType> transformationModel =
-            new TableTransformationTableModel<>(productionPathProvider);
+        final var readFactory = SharepointListReaderNodeModel.createReadFactory();
+        final var productionPathProvider = SharepointListReaderNodeModel.createProductionPathProvider();
+        final var analysisComponentModel = new AnalysisComponentModel();
+        m_previewModel = new TableReaderPreviewModel(analysisComponentModel);
+        final var transformationModel = new TableTransformationTableModel<>(productionPathProvider);
         m_coordinator = new TableReaderPreviewTransformationCoordinator<>(readFactory, transformationModel,
-            analysisComponentModel, previewModel, this::getConfig, this::getReadPathAccessor, false);
+                analysisComponentModel, m_previewModel, this::getConfig, this::getItemAccessor, true);
         m_specTransformer = new TableTransformationPanel(transformationModel, true, true);
         m_disableIOComponents = CheckNodeContextUtil.isRemoteWorkflowContext();
-        m_useRowID = new JCheckBox("Use existing row ID");
-        m_useRowID.addActionListener(l -> configChanged());
-        m_useRowID.addActionListener(l -> m_prependTableIdxToRowID.setEnabled(m_useRowID.isSelected()));
-        m_prependTableIdxToRowID.addActionListener(l -> configChanged());
         addTab("Settings", createSettingsPanel());
     }
 
-    GenericItemAccessor<Table> getReadPathAccessor() {
+    GenericItemAccessor<SharepointListAccessor> getItemAccessor() {
         return m_itemAccessor;
     }
 
     private JPanel createSettingsPanel() {
-        final JPanel panel = new JPanel(new GridBagLayout());
-        final GBCBuilder gbc = new GBCBuilder().resetPos().anchorFirstLineStart().fillHorizontal().setWeightX(1.0);
-        panel.add(createRowIDPanel(), gbc.incY().build());
+        final var panel = new JPanel(new GridBagLayout());
+        final var gbc = new GBCBuilder().resetPos().anchorFirstLineStart().fillHorizontal().setWeightX(1.0);
         panel.add(createTransformationTab(), gbc.fillBoth().setWeightY(1.0).incY().build());
         return panel;
-    }
-
-    private JComponent createRowIDPanel() {
-        final JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Row ID handling"));
-        final GBCBuilder gbc = new GBCBuilder().resetPos().anchorFirstLineStart().fillHorizontal();
-        panel.add(m_useRowID, gbc.incY().build());
-        panel.add(m_prependTableIdxToRowID, gbc.incX().insetLeft(10).build());
-        panel.add(new JPanel(), gbc.setWeightX(1.0).incX().build());
-        return panel;
-    }
-
-    /**
-     * Use this method to notify the dialog that the reading switched from single file to multiple files or vice versa.
-     *
-     * @param readingMultipleFiles {@code true} if potentially multiple files are read
-     */
-    protected final void setReadingMultipleFiles(final boolean readingMultipleFiles) {
-        m_specTransformer.setColumnFilterModeEnabled(readingMultipleFiles);
     }
 
     /**
      * Enables/disables all previews created with {@link #createPreview()}.
      *
-     * @param enabled {@code true} if enabled, {@code false} otherwise
+     * @param enabled
+     *            {@code true} if enabled, {@code false} otherwise
      */
     protected final void setPreviewEnabled(final boolean enabled) {
         for (TableReaderPreviewView preview : m_previews) {
@@ -222,27 +183,31 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     /**
-     * Creates a {@link TableReaderPreviewView} that is synchronized with all other previews created by this method.
-     * This means that scrolling in one preview will scroll to the same position in all other previews.
+     * Creates a {@link TableReaderPreviewView} that is synchronized with all other
+     * previews created by this method. This means that scrolling in one preview
+     * will scroll to the same position in all other previews.
      *
      * @return a {@link TableReaderPreviewView}
      */
     protected final TableReaderPreviewView createPreview() {
-        final TableReaderPreviewView preview = new TableReaderPreviewView(m_previewModel);
+        final var preview = new TableReaderPreviewView(m_previewModel);
         m_previews.add(preview);
         preview.addScrollListener(this::updateScrolling);
         return preview;
     }
 
     /**
-     * Convenience method that creates a {@link JSplitPane} containing the {@link TableTransformationPanel} and a
-     * {@link TableReaderPreviewView}. NOTE: If this method is called multiple times, then the
-     * {@link TableTransformationPanel} will only be shown in the {@link JSplitPane} created by the latest call.
+     * Convenience method that creates a {@link JSplitPane} containing the
+     * {@link TableTransformationPanel} and a {@link TableReaderPreviewView}. NOTE:
+     * If this method is called multiple times, then the
+     * {@link TableTransformationPanel} will only be shown in the {@link JSplitPane}
+     * created by the latest call.
      *
-     * @return a {@link JSplitPane} containing the {@link TableTransformationPanel} and a {@link TableReaderPreviewView}
+     * @return a {@link JSplitPane} containing the {@link TableTransformationPanel}
+     *         and a {@link TableReaderPreviewView}
      */
     protected final JSplitPane createTransformationTab() {
-        final JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        final var splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.setLeftComponent(getTransformationPanel());
         splitPane.setRightComponent(createPreview());
         splitPane.setOneTouchExpandable(true);
@@ -251,8 +216,8 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     private void updateScrolling(final ChangeEvent changeEvent) {
-        final TableReaderPreviewView updatedView = (TableReaderPreviewView)changeEvent.getSource();
-        for (TableReaderPreviewView preview : m_previews) {
+        final var updatedView = (TableReaderPreviewView) changeEvent.getSource();
+        for (final var preview : m_previews) {
             if (preview != updatedView) {
                 preview.updateViewport(updatedView);
             }
@@ -260,7 +225,8 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     /**
-     * Returns the {@link TableTransformationPanel} that allows to alter the table structure.
+     * Returns the {@link TableTransformationPanel} that allows to alter the table
+     * structure.
      *
      * @return the {@link TableTransformationPanel}
      */
@@ -269,7 +235,8 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     /**
-     * Should be called by inheriting classes whenever the config changed i.e. if the user interacts with the dialog.
+     * Should be called by inheriting classes whenever the config changed i.e. if
+     * the user interacts with the dialog.
      */
     protected final void configChanged() {
         if (areIOComponentsDisabled()) {
@@ -280,18 +247,20 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     /**
-     * Sets whether this dialog should react to calls of {@link #configChanged()}. Call when loading the settings to
-     * avoid unnecessary I/O due to many calls to {@link #configChanged()}.
+     * Sets whether this dialog should react to calls of {@link #configChanged()}.
+     * Call when loading the settings to avoid unnecessary I/O due to many calls to
+     * {@link #configChanged()}.
      *
-     * @param ignoreEvents whether events should be ignored or not
+     * @param ignoreEvents
+     *            whether events should be ignored or not
      */
     protected final void ignoreEvents(final boolean ignoreEvents) {
         m_ignoreEvents = ignoreEvents;
     }
 
     /**
-     * Indicates whether events should be ignored. If this returns {@code true}, calls to {@link #configChanged()} won't
-     * have any effect.
+     * Indicates whether events should be ignored. If this returns {@code true},
+     * calls to {@link #configChanged()} won't have any effect.
      *
      * @return {@code true} if {@link #configChanged()} doesn't react to calls
      */
@@ -300,8 +269,8 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     /**
-     * Indicates whether the components doing IO, such as the preview, are disabled (by default when opened in remote
-     * job view).
+     * Indicates whether the components doing IO, such as the preview, are disabled
+     * (by default when opened in remote job view).
      *
      * @return if IO components are disabled
      */
@@ -319,7 +288,8 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     /**
      * Save the current config.
      *
-     * @throws InvalidSettingsException if a setting could not be saved
+     * @throws InvalidSettingsException
+     *             if a setting could not be saved
      */
     protected void saveConfig() throws InvalidSettingsException {
         saveTableReadSettings();
@@ -327,19 +297,15 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     /**
-     * Fill in the setting values in {@link TableReadConfig} using values from dialog.
+     * Fill in the setting values in {@link TableReadConfig} using values from
+     * dialog.
      */
     private void saveTableReadSettings() {
-        final DefaultTableReadConfig<SharepointListReaderConfig> tableReadConfig =
-                (DefaultTableReadConfig<SharepointListReaderConfig>)m_config.getTableReadConfig();
+        final DefaultTableReadConfig<SharepointListReaderConfig> tableReadConfig = (DefaultTableReadConfig<SharepointListReaderConfig>) m_config
+                .getTableReadConfig();
 
-
-
-        //TODO: true throws mapping exception because of strange index mapper
-        tableReadConfig.setUseRowIDIdx(m_useRowID.isSelected());
+        // TODO: true throws mapping exception because of strange index mapper
         tableReadConfig.setRowIDIdx(0);
-
-        tableReadConfig.setPrependSourceIdxToRowId(m_prependTableIdxToRowID.isSelected());
 
         tableReadConfig.setUseColumnHeaderIdx(false);
         tableReadConfig.setColumnHeaderIdx(0);
@@ -347,18 +313,18 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         tableReadConfig.setSkipRows(false);
         tableReadConfig.setNumRowsToSkip(0);
 
-        tableReadConfig.setLimitRows(false);
-        tableReadConfig.setMaxRows(0);
+        tableReadConfig.setLimitRows(true);
+        tableReadConfig.setMaxRows(100);
 
-        tableReadConfig.setLimitRowsForSpec(false);
-        tableReadConfig.setMaxRowsForSpec(0);
+        tableReadConfig.setLimitRowsForSpec(true);
+        tableReadConfig.setMaxRowsForSpec(100);
 
-        tableReadConfig.setAllowShortRows(false);
+        tableReadConfig.setAllowShortRows(true);
     }
 
     @Override
     protected final void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
-        throws NotConfigurableException {
+            throws NotConfigurableException {
         loadSettings(settings, specs, null);
     }
 
@@ -368,19 +334,17 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input)
             throws NotConfigurableException {
-        final DataTableSpec[] specs = new DataTableSpec[input.length];
-        final BufferedDataTable[] tables = new BufferedDataTable[input.length];
-        for (int i = 0, length = specs.length; i < length; i++) {
-            final BufferedDataTable table = (BufferedDataTable)input[i];
-            specs[i] = table.getDataTableSpec();
-            tables[i] = table;
+        try {
+            final var client = SharepointListReaderNodeModel.createSourceGroup(input).iterator().next();
+            // TODO no array creation?
+            loadSettings(settings, new PortObjectSpec[] { input[0].getSpec() }, client);
+        } catch (IOException | InvalidSettingsException e) {
+            NodeLogger.getLogger(getClass()).error(e);
         }
-        loadSettings(settings, specs, tables);
     }
 
     private void loadSettings(final NodeSettingsRO settings, final PortObjectSpec[] specs,
-        final BufferedDataTable[] input)
-            throws NotConfigurableException {
+            final SharepointListAccessor input) throws NotConfigurableException {
         ignoreEvents(true);
         setPreviewEnabled(false);
 
@@ -388,51 +352,42 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         if (m_config.hasTableSpecConfig()) {
             m_coordinator.load(m_config.getTableSpecConfig().getTableTransformation());
         }
-        final boolean useRowIDIdx = m_config.getTableReadConfig().useRowIDIdx();
-        m_useRowID.setSelected(useRowIDIdx);
-        m_prependTableIdxToRowID.setSelected(m_config.getTableReadConfig().prependSourceIdxToRowID());
-        m_prependTableIdxToRowID.setEnabled(useRowIDIdx);
-        final List<Table> rowInputs = new ArrayList<>(specs.length);
-        if (input != null ) {
-            for (BufferedDataTable table : input) {
-                rowInputs.add(new DataTableBackedBoundedTable(table));
-            }
-        } else {
-            for (PortObjectSpec spec : specs) {
-                rowInputs.add(new EmptyTable((DataTableSpec)spec));
-            }
-        }
-        m_itemAccessor.setTables(rowInputs);
+
+        m_itemAccessor.setTables(Collections.singletonList(input));
 
         ignoreEvents(false);
         refreshPreview(true);
     }
 
     /**
-     * Retrieves the currently configured {@link DefaultTableSpecConfig} or {@code null} if none is available e.g. if
-     * the current settings are invalid and thus no preview could be loaded.
+     * Retrieves the currently configured {@link DefaultTableSpecConfig} or
+     * {@code null} if none is available e.g. if the current settings are invalid
+     * and thus no preview could be loaded.
      *
-     * @return the currently configured {@link DefaultTableSpecConfig} or {@code null} if none is available
+     * @return the currently configured {@link DefaultTableSpecConfig} or
+     *         {@code null} if none is available
      */
     protected final TableSpecConfig<DataType> getTableSpecConfig() {
         return m_coordinator.getTableSpecConfig();
     }
 
     /**
-     * This method must return the current {@link MultiTableReadConfig}. It is used to load the preview, so please make
-     * sure that all settings are stored in the config, otherwise the preview will be incorrect.</br>
-     * {@link RuntimeException} should be wrapped into {@link InvalidSettingsException} if they indicate an invalid
-     * configuration.
+     * This method must return the current {@link MultiTableReadConfig}. It is used
+     * to load the preview, so please make sure that all settings are stored in the
+     * config, otherwise the preview will be incorrect.</br>
+     * {@link RuntimeException} should be wrapped into
+     * {@link InvalidSettingsException} if they indicate an invalid configuration.
      *
      * @return the current configuration
-     * @throws InvalidSettingsException if the settings are invalid
+     * @throws InvalidSettingsException
+     *             if the settings are invalid
      */
-    protected MultiTableReadConfig<SharepointListReaderConfig, DataType> getConfig()
-            throws InvalidSettingsException{
+    protected MultiTableReadConfig<SharepointListReaderConfig, DataType> getConfig() throws InvalidSettingsException {
         return saveAndGetConfig();
     }
 
-    private MultiTableReadConfig<SharepointListReaderConfig, DataType> saveAndGetConfig() throws InvalidSettingsException {
+    private MultiTableReadConfig<SharepointListReaderConfig, DataType> saveAndGetConfig()
+            throws InvalidSettingsException {
         try {
             saveConfig();
         } catch (RuntimeException e) {
@@ -449,10 +404,12 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     /**
-     * Enables/disables the preview depending on what {@link #areIOComponentsDisabled()} returns. Refreshes the preview
-     * if the passed parameter is {@code true} and the preview enabled.
+     * Enables/disables the preview depending on what
+     * {@link #areIOComponentsDisabled()} returns. Refreshes the preview if the
+     * passed parameter is {@code true} and the preview enabled.
      *
-     * @param refreshPreview whether the preview should be refreshed
+     * @param refreshPreview
+     *            whether the preview should be refreshed
      */
     public void refreshPreview(final boolean refreshPreview) {
         final boolean enabled = !areIOComponentsDisabled();

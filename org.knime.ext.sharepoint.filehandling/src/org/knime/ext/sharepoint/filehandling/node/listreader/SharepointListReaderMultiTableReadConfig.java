@@ -68,6 +68,7 @@ final class SharepointListReaderMultiTableReadConfig extends
         getTableReadConfig().setRowIDIdx(0);
     }
 
+
     @Override
     protected SharepointListReaderMultiTableReadConfig getThis() {
         return this;

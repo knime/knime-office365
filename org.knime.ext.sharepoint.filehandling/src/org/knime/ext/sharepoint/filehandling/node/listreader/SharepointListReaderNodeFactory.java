@@ -56,10 +56,10 @@ import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeView;
 import org.knime.core.node.context.NodeCreationConfiguration;
 import org.knime.core.node.context.ports.PortsConfiguration;
-import org.knime.core.node.port.PortType;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
 
 /**
- * Factory implementation of the table manipulation node.
+ * Factory implementation of the “SharePoint List Reader” node.
  *
  * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
@@ -67,9 +67,9 @@ public class SharepointListReaderNodeFactory extends ConfigurableNodeFactory<Sha
 
     @Override
     protected Optional<PortsConfigurationBuilder> createPortsConfigBuilder() {
-        PortsConfigurationBuilder b = new PortsConfigurationBuilder();
-        b.addExtendableInputPortGroup("input", new PortType[]{BufferedDataTable.TYPE}, BufferedDataTable.TYPE);
-        b.addFixedOutputPortGroup("Appended columns", BufferedDataTable.TYPE);
+        final var b = new PortsConfigurationBuilder();
+        b.addFixedInputPortGroup("Microsoft Authentication", MicrosoftCredentialPortObject.TYPE);
+        b.addFixedOutputPortGroup("Table", BufferedDataTable.TYPE);
         return Optional.of(b);
     }
 
@@ -99,7 +99,7 @@ public class SharepointListReaderNodeFactory extends ConfigurableNodeFactory<Sha
     }
 
     private static PortsConfiguration getPortConfig(final NodeCreationConfiguration creationConfig) {
-        return creationConfig.getPortConfig().get();
+        return creationConfig.getPortConfig().orElseThrow();
     }
 
 }

@@ -73,6 +73,7 @@ import org.knime.core.data.convert.map.MappingException;
 import org.knime.core.data.convert.map.ProducerRegistry;
 import org.knime.core.data.convert.map.ProductionPath;
 import org.knime.core.data.convert.util.SerializeUtil;
+import org.knime.core.data.def.StringCell;
 import org.knime.core.data.filestore.FileStoreFactory;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
@@ -262,7 +263,8 @@ public final class DataTypeProducerRegistry extends ProducerRegistry<DataType, D
                 public DataCell produceCellValue(final DataValueReadAdapter source,
                     final ReadAdapterParams<DataValueReadAdapter, SharepointListReaderConfig> params)
                     throws MappingException {
-                    return (DataCell)source.get(params);
+                    final var s = source.get(params);
+                    return StringCell.StringCellFactory.create(s == null ? "<missingno>" : s);
                 }
             };
         }
@@ -360,9 +362,10 @@ public final class DataTypeProducerRegistry extends ProducerRegistry<DataType, D
                 public D produceCellValue(final DataValueReadAdapter source,
                     final ReadAdapterParams<DataValueReadAdapter, SharepointListReaderConfig> params)
                     throws MappingException {
-                    final DataValue value = source.get(params);
+                    final var value = source.get(params);
+                    // TODO magic happens here
                     try {
-                        return value == null ? null : m_converter.convert(value);
+                        return null; // value == null ? null : m_converter.convert(value);
                     } catch (Exception e) {
                         throw new MappingException(e);
                     }

@@ -49,7 +49,6 @@
 package org.knime.ext.sharepoint.filehandling.node.listreader.mapping;
 
 import org.knime.core.data.DataType;
-import org.knime.core.data.DataValue;
 import org.knime.filehandling.core.node.table.reader.ReadAdapter;
 
 /**
@@ -58,6 +57,6 @@ import org.knime.filehandling.core.node.table.reader.ReadAdapter;
  *
  * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  */
-final class DataValueReadAdapter extends ReadAdapter<DataType, DataValue> {
+final class DataValueReadAdapter extends ReadAdapter<DataType, String> {
     // yes this class needs to be empty
 }
