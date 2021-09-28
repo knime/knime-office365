@@ -48,7 +48,6 @@
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
-import org.knime.core.data.DataType;
 import org.knime.filehandling.core.node.table.reader.config.AbstractMultiTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
@@ -59,7 +58,7 @@ import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig
  * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  */
 final class SharepointListReaderMultiTableReadConfig extends
-    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {
+    AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, Class<?>, SharepointListReaderMultiTableReadConfig> {
 
     public SharepointListReaderMultiTableReadConfig() {
         super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
