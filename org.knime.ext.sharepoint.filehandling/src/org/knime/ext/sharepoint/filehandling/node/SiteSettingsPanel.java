@@ -71,7 +71,6 @@ import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig.SiteMode;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.node.LoadedItemsSelector.IdComboboxItem;
-import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteSettings;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.util.CheckedExceptionSupplier;
 import org.knime.filehandling.core.util.IOESupplier;
@@ -88,7 +87,7 @@ import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
  *
  * @author Alexander Bondaletov
  */
-final class SiteSettingsPanel extends JPanel {
+public class SiteSettingsPanel extends JPanel {
 
     private static final long serialVersionUID = 1L;
 
@@ -105,7 +104,7 @@ final class SiteSettingsPanel extends JPanel {
      * @param settings
      * @param connectionSupplier
      */
-    SiteSettingsPanel(final SiteSettings settings, final IOESupplier<FSConnection> connectionSupplier) {
+    public SiteSettingsPanel(final SiteSettings settings, final IOESupplier<FSConnection> connectionSupplier) {
         m_settings = settings;
         m_fsConnectionSupplier = connectionSupplier;
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
@@ -121,7 +120,7 @@ final class SiteSettingsPanel extends JPanel {
      * @param credentials
      *            The Microsoft Credential object.
      */
-    void settingsLoaded(final MicrosoftCredential credentials) {
+    public void settingsLoaded(final MicrosoftCredential credentials) {
         m_connection = credentials;
 
         m_subsiteSelector.onSettingsLoaded();

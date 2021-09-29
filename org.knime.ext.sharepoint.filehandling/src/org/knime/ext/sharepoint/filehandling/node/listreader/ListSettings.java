@@ -44,53 +44,108 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   6 Apr 2020 (Temesgen H. Dadi, KNIME GmbH, Berlin, Germany): created
+ *   2021-09-28 (lars.schweikardt): created
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.node.SiteSettings;
-import org.knime.filehandling.core.node.table.reader.config.ReaderSpecificConfig;
 
 /**
- * â€œSharePoint List Readerâ€� {@link ReaderSpecificConfig} implementation.
+ * Class represents chosen site and list settings.
  *
- * @author Jannik LÃ¶scher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public final class SharepointListReaderConfig implements ReaderSpecificConfig<SharepointListReaderConfig> {
+public class ListSettings {
+    private static final String KEY_LIST = "list";
+    private static final String KEY_LIST_NAME = "listName";
 
-    // TODO put the site settings in here?
+    private final SettingsModelString m_list;
+    private final SettingsModelString m_listName;
 
-    private SiteSettings m_listSettings;
-
-    /**
-     * Constructor.
-     */
-    public SharepointListReaderConfig() {
-        m_listSettings = new SiteSettings();
-    }
-
-    private SharepointListReaderConfig(final SharepointListReaderConfig toCopy) {
-        setSiteSettings(toCopy.getSiteSettings());
-    }
-
-    @Override
-    public SharepointListReaderConfig copy() {
-        return new SharepointListReaderConfig(this);
-    }
+    private final SiteSettings m_siteSettings;
 
     /**
-     * @return the siteSettings
+     * Creates new instance
      */
+    public ListSettings(final SiteSettings siteSettings) {
+        super();
+        m_list = new SettingsModelString(KEY_LIST, "");
+        m_listName = new SettingsModelString(KEY_LIST_NAME, "");
+        m_siteSettings = siteSettings;
+
+    }
+
+    // TODO
+    private void resetDropdowns() {
+        m_list.setStringValue("");
+        m_listName.setStringValue("");
+    }
+
+    /**
+     * Saves the settings in this instance to the given {@link NodeSettingsWO}
+     *
+     * @param settings
+     *            Node settings.
+     */
+    public void saveSettingsTo(final NodeSettingsWO settings) {
+        m_list.saveSettingsTo(settings);
+        m_listName.saveSettingsTo(settings);
+    }
+
+    /**
+     * Validates the settings in a given {@link NodeSettingsRO}
+     *
+     * @param settings
+     *            Node settings.
+     * @throws InvalidSettingsException
+     */
+    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+        m_list.validateSettings(settings);
+        m_listName.validateSettings(settings);
+    }
+
+    /**
+     * Validates settings consistency for this instance.
+     *
+     * @throws InvalidSettingsException
+     */
+    public void validate() throws InvalidSettingsException {
+        if (m_list.getStringValue().isEmpty()) {
+            throw new InvalidSettingsException("No list is selected.");
+        }
+    }
+
+    /**
+     * Loads settings from the given {@link NodeSettingsRO}
+     *
+     * @param settings
+     *            Node settings.
+     * @throws InvalidSettingsException
+     */
+    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
+        m_list.loadSettingsFrom(settings);
+        m_listName.loadSettingsFrom(settings);
+    }
+
+    /**
+     * @return the list model
+     */
+    public SettingsModelString getListModel() {
+        return m_list;
+    }
+
+    /**
+     * @return the listName model
+     */
+    public SettingsModelString getListNameModel() {
+        return m_listName;
+    }
+
     public SiteSettings getSiteSettings() {
-        return m_listSettings;
-    }
-
-    /**
-     * @param siteSettings
-     *            the siteSettings to set
-     */
-    public void setSiteSettings(final SiteSettings siteSettings) {
-        m_listSettings = siteSettings;
+        return m_siteSettings;
     }
 }

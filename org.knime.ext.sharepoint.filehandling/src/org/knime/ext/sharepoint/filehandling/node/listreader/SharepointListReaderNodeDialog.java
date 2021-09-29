@@ -68,11 +68,16 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
+import org.knime.ext.sharepoint.filehandling.node.SiteSettingsPanel;
 import org.knime.ext.sharepoint.filehandling.node.listreader.framework.SharepointListAccessor;
+import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
-import org.knime.filehandling.core.node.table.reader.config.StorableMultiTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.DefaultTableSpecConfig;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.TableSpecConfig;
@@ -85,7 +90,6 @@ import org.knime.filehandling.core.node.table.reader.preview.dialog.transformer.
 import org.knime.filehandling.core.node.table.reader.preview.dialog.transformer.TableTransformationTableModel;
 import org.knime.filehandling.core.util.CheckNodeContextUtil;
 import org.knime.filehandling.core.util.GBCBuilder;
-
 
 /**
  * Table manipulator implementation of a {@link NodeDialogPane}.</br>
@@ -131,6 +135,13 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private final List<TableReaderPreviewView> m_previews = new ArrayList<>();
 
+    // TODO extract common stuff
+    private final SharepointListsSettings m_sharePointConnectionSettings = new SharepointListsSettings();
+
+    private MicrosoftCredential m_connection;
+
+    private final SiteSettingsPanel m_listSettingsPanel;
+
     private final TableReaderPreviewModel m_previewModel;
 
     private final TableTransformationPanel m_specTransformer;
@@ -139,7 +150,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private boolean m_ignoreEvents = false;
 
-    private final StorableMultiTableReadConfig<SharepointListReaderConfig, Class<?>> m_config; // TODO ?
+    private final SharepointListReaderMultiTableReadConfig m_config;
 
     private final SharepointListAccessorAccessor m_itemAccessor = new SharepointListAccessorAccessor(
             Collections.<SharepointListAccessor>emptyList());
@@ -149,6 +160,8 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         final var readFactory = SharepointListReaderNodeModel.createReadFactory();
         final var productionPathProvider = SharepointListReaderNodeModel.createProductionPathProvider();
         final var analysisComponentModel = new AnalysisComponentModel();
+        m_listSettingsPanel = new SiteSettingsPanel(m_config.getReaderSpecificConfig().getSiteSettings(),
+                this::createFSConnection);
         m_previewModel = new TableReaderPreviewModel(analysisComponentModel);
         final var transformationModel = new TableTransformationTableModel<>(productionPathProvider);
         m_coordinator = new TableReaderPreviewTransformationCoordinator<>(readFactory, transformationModel,
@@ -158,6 +171,15 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         addTab("Settings", createSettingsPanel());
     }
 
+    private FSConnection createFSConnection() throws IOException {
+        final var clonedSettings = m_sharePointConnectionSettings.clone();
+
+        final String accessToken = ((OAuth2Credential) m_connection).getAccessToken().getToken();
+
+        return new SharepointFSConnection(
+                clonedSettings.toFSConnectionConfig(a -> a.addHeader("Authorization", "Bearer " + accessToken)));
+    }
+
     GenericItemAccessor<SharepointListAccessor> getItemAccessor() {
         return m_itemAccessor;
     }
@@ -165,6 +187,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     private JPanel createSettingsPanel() {
         final var panel = new JPanel(new GridBagLayout());
         final var gbc = new GBCBuilder().resetPos().anchorFirstLineStart().fillHorizontal().setWeightX(1.0);
+        panel.add(m_listSettingsPanel, gbc.fillBoth().build());
         panel.add(createTransformationTab(), gbc.fillBoth().setWeightY(1.0).incY().build());
         return panel;
     }
@@ -300,8 +323,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
      * dialog.
      */
     private void saveTableReadSettings() {
-        final DefaultTableReadConfig<SharepointListReaderConfig> tableReadConfig = (DefaultTableReadConfig<SharepointListReaderConfig>) m_config
-                .getTableReadConfig();
+        final DefaultTableReadConfig<SharepointListReaderConfig> tableReadConfig = m_config.getTableReadConfig();
 
         // TODO: true throws mapping exception because of strange index mapper
         tableReadConfig.setRowIDIdx(0);
@@ -327,9 +349,6 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         loadSettings(settings, specs, null);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input)
             throws NotConfigurableException {
@@ -346,6 +365,13 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
             final SharepointListAccessor input) throws NotConfigurableException {
         ignoreEvents(true);
         setPreviewEnabled(false);
+
+        m_connection = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
+        if (m_connection == null) {
+            throw new NotConfigurableException("Authentication required");
+        }
+
+        m_listSettingsPanel.settingsLoaded(m_connection);
 
         m_config.loadInDialog(settings, specs);
         if (m_config.hasTableSpecConfig()) {

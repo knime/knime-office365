@@ -44,9 +44,9 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-05-17 (Alexander Bondaletov): created
+ *   2021-09-29 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.filehandling.node;
+package org.knime.ext.sharepoint.filehandling.node.listreader;
 
 import java.time.Duration;
 
@@ -57,24 +57,32 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.sharepoint.filehandling.node.AbstractSharepointSettings;
 import org.knime.filehandling.core.connections.meta.FSConnectionConfig;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
- * Node settings for the Sharepoint Connector node.
+ * Settings for nodes which make use of Sharepoint lists.
  *
- * @author Alexander Bondaletov
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-@SuppressWarnings("deprecation")
-class SharepointConnectionSettings extends AbstractSharepointSettings {
+public final class SharepointListsSettings extends AbstractSharepointSettings {
+
+    private static final String KEY_LIST = "list";
 
     private static final String KEY_WORKING_DIRECTORY = "workingDirectory";
 
     private final SettingsModelString m_workingDirectory;
 
-    SharepointConnectionSettings() {
+    private final ListSettings m_listSettings;
+
+    /**
+     * Constructor.
+     */
+    SharepointListsSettings() {
         super();
+        m_listSettings = new ListSettings(null);
         m_workingDirectory = new SettingsModelString(KEY_WORKING_DIRECTORY, SharepointFileSystem.PATH_SEPARATOR);
     }
 
@@ -87,6 +95,7 @@ class SharepointConnectionSettings extends AbstractSharepointSettings {
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
         m_workingDirectory.saveSettingsTo(settings);
+        m_listSettings.saveSettingsTo(settings.addNodeSettings(KEY_LIST));
         super.saveSettingsTo(settings);
     }
 
@@ -111,6 +120,7 @@ class SharepointConnectionSettings extends AbstractSharepointSettings {
     @Override
     public void validate() throws InvalidSettingsException {
         super.validate();
+        m_listSettings.validate();
         if (m_workingDirectory.getStringValue().isEmpty()) {
             throw new InvalidSettingsException("Working directory must be specified.");
         }
@@ -132,6 +142,7 @@ class SharepointConnectionSettings extends AbstractSharepointSettings {
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_workingDirectory.loadSettingsFrom(settings);
+        m_listSettings.loadSettingsFrom(settings.getNodeSettings(KEY_LIST));
         super.loadSettingsFrom(settings);
     }
 
@@ -179,11 +190,11 @@ class SharepointConnectionSettings extends AbstractSharepointSettings {
     }
 
     @Override
-    public SharepointConnectionSettings clone() {
+    public SharepointListsSettings clone() {
         var transferSettings = new NodeSettings("ignored");
         saveSettingsTo(transferSettings);
 
-        final var clone = new SharepointConnectionSettings();
+        final var clone = new SharepointListsSettings();
         try {
             clone.loadSettingsFrom(transferSettings);
         } catch (InvalidSettingsException ex) {

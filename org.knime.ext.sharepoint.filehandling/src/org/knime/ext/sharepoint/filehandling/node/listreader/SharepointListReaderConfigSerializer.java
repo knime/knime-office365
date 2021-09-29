@@ -72,63 +72,84 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
      */
     INSTANCE;
 
+    private static final String CFG_SETTINGS_ID = "sharepoint_list_reader";
+
+    private static final String CFG_SETTINGS_TAB = "settings";
 
     @Override
     public ConfigID createFromConfig(final SharepointListReaderMultiTableReadConfig config) {
-        return new NodeSettingsConfigID(new NodeSettings("table_manipulator"));
+        final NodeSettings settings = new NodeSettings(CFG_SETTINGS_ID);
+        // TODO create NodeSettings for each tab
+
+        return new NodeSettingsConfigID(settings);
+    }
+
+    private static void saveConfigIDSettingsTab(final SharepointListReaderMultiTableReadConfig config,
+            final NodeSettingsWO settings) {
     }
 
     @Override
     public ConfigID createFromSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        return new NodeSettingsConfigID(settings.getNodeSettings("table_manipulator"));
+        return new NodeSettingsConfigID(settings.getNodeSettings(CFG_SETTINGS_ID));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadInDialog(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings,
             final PortObjectSpec[] specs) throws NotConfigurableException {
-        // TODO Auto-generated method stub
+        loadSettingsTabInDialog(config, settings);
+    }
+
+    private static void loadSettingsTabInDialog(final SharepointListReaderMultiTableReadConfig config,
+            final NodeSettingsRO settings) {
+        final var siteSetting = config.getReaderSpecificConfig().getSiteSettings();
+        try {
+            siteSetting.loadSettingsFrom(settings);
+        } catch (InvalidSettingsException ex) {
+            // TODO Auto-generated catch block
+        }
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadInModel(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings)
             throws InvalidSettingsException {
-        // TODO Auto-generated method stub
+        loadSettingsTabInModel(config, settings);
+    }
+
+    private static void loadSettingsTabInModel(final SharepointListReaderMultiTableReadConfig config,
+            final NodeSettingsRO settings) throws InvalidSettingsException {
+        final var siteSetting = config.getReaderSpecificConfig().getSiteSettings();
+        siteSetting.loadSettingsFrom(settings);
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void saveInModel(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsWO settings) {
-        // TODO Auto-generated method stub
-
+        saveSettingsTab(config, settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    private static void saveSettingsTab(final SharepointListReaderMultiTableReadConfig config,
+            final NodeSettingsWO settings) {
+        final var siteSetting = config.getReaderSpecificConfig().getSiteSettings();
+        siteSetting.saveSettingsTo(settings);
+    }
+
     @Override
     public void saveInDialog(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsWO settings)
             throws InvalidSettingsException {
-        // TODO Auto-generated method stub
-
+        saveInModel(config, settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void validate(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings)
             throws InvalidSettingsException {
-        // TODO Auto-generated method stub
-
+        final var siteSetting = config.getReaderSpecificConfig().getSiteSettings();
+        siteSetting.validate();
     }
+
+    public static void validateSettingsTab(final NodeSettingsRO settings) throws InvalidSettingsException {
+        // Example
+        // settings.getBoolean(CFG_SITE_SETTINGS);
+    }
+
 }

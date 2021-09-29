@@ -80,7 +80,7 @@ import com.microsoft.graph.http.GraphServiceException;
  *
  * @author Alexander Bondaletov
  */
-abstract class LoadedItemsSelector extends JPanel {
+public abstract class LoadedItemsSelector extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final SettingsModelString m_idModel;
@@ -325,7 +325,7 @@ abstract class LoadedItemsSelector extends JPanel {
         }
     }
 
-    static class IdComboboxItem {
+    public static class IdComboboxItem {
 
         private String m_id;
         private String m_title;
