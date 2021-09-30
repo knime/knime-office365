@@ -54,6 +54,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.sharepoint.filehandling.node.SiteSettings;
 import org.knime.filehandling.core.node.table.ConfigSerializer;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.ConfigID;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.ConfigIDFactory;
@@ -101,11 +102,11 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
 
     private static void loadSettingsTabInDialog(final SharepointListReaderMultiTableReadConfig config,
             final NodeSettingsRO settings) {
-        final var siteSetting = config.getReaderSpecificConfig().getSiteSettings();
+        final var siteSettings = config.getReaderSpecificConfig().getSiteSettings();
         try {
-            siteSetting.loadSettingsFrom(settings);
-        } catch (InvalidSettingsException ex) {
-            // TODO Auto-generated catch block
+            siteSettings.loadSettingsFrom(settings);
+        } catch (InvalidSettingsException ex) { // NOSONAR: just load the defaults
+            config.getReaderSpecificConfig().setSiteSettings(new SiteSettings());
         }
 
     }

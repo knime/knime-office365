@@ -44,63 +44,18 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   6 Apr 2020 (Temesgen H. Dadi, KNIME GmbH, Berlin, Germany): created
+ *   Feb 5, 2020 (Adrian Nembach, KNIME GmbH, Konstanz, Germany): created
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader.mapping;
 
+import org.knime.filehandling.core.node.table.reader.ReadAdapter;
+
 /**
- * A utility class to escape or unescape a fixed set of escape sequences i.e., {\t \n \r \n\r}
+ * {@link ReadAdapter} implementation that uses {@link Class} objects as data type identifiers and Strings as value
+ * type.
  *
- * @author Temesgen H. Dadi, KNIME GmbH, Berlin, Germany
- * @since 4.2
+ * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  */
-public final class EscapeUtils {
-
-    private EscapeUtils() {
-        throw new IllegalStateException("Utility class, can not be instantiated!");
-    }
-
-    /**
-     * Returns an actual an escape sequence by unescaping the backslash. Useful when getting the value of special
-     * characters from UI component. on Works only in a limited number of cases, i.e., {\\t \\n \\r \\n\\r}. In other
-     * cases it returns the original string
-     *
-     * @param s the input string where backslash char is escaped
-     * @return escape sequence string.
-     */
-    public static String unescape(final String s) {
-        if ("\\t".equals(s)) {
-            return "\t";
-        } else if ("\\n".equals(s)) {
-            return "\n";
-        } else if ("\\r".equals(s)) {
-            return "\r";
-        } else if ("\\r\\n".equals(s)) {
-            return "\r\n";
-        } else {
-            return s;
-        }
-    }
-
-    /**
-     * Returns a string where the escaping the backslash is skipped. Useful when displaying a special character on UI
-     * component. Works only for a limited number of cases, i.e., {\t \n \r \n\r}. In other cases it returns the
-     * original string
-     *
-     * @param s the input string where backslash char is escaped
-     * @return escape sequence string.
-     */
-    public static String escape(final String s) {
-        if ("\t".equals(s)) {
-            return "\\t";
-        } else if ("\n".equals(s)) {
-            return "\\n";
-        } else if ("\r".equals(s)) {
-            return "\\r";
-        } else if ("\r\n".equals(s)) {
-            return "\\r\\n";
-        } else {
-            return s;
-        }
-    }
+final class SharepointListReadAdapter extends ReadAdapter<Class<?>, String> {
+    // yes this class needs to be empty
 }

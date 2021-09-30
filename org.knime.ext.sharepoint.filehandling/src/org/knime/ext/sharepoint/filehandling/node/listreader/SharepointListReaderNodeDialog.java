@@ -326,21 +326,10 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         final DefaultTableReadConfig<SharepointListReaderConfig> tableReadConfig = m_config.getTableReadConfig();
 
         // TODO: true throws mapping exception because of strange index mapper
-        tableReadConfig.setRowIDIdx(0);
+        tableReadConfig.setRowIDIdx(-1);
 
         tableReadConfig.setUseColumnHeaderIdx(false);
         tableReadConfig.setColumnHeaderIdx(0);
-
-        tableReadConfig.setSkipRows(false);
-        tableReadConfig.setNumRowsToSkip(0);
-
-        tableReadConfig.setLimitRows(true);
-        tableReadConfig.setMaxRows(1);
-
-        tableReadConfig.setLimitRowsForSpec(true);
-        tableReadConfig.setMaxRowsForSpec(1);
-
-        tableReadConfig.setAllowShortRows(true);
     }
 
     @Override
