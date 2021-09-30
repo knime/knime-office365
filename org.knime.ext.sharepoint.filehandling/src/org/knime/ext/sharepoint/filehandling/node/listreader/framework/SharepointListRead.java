@@ -52,8 +52,6 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.OptionalLong;
 
-import org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderConfig;
-import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
 import org.knime.filehandling.core.node.table.reader.randomaccess.AbstractRandomAccessible;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 import org.knime.filehandling.core.node.table.reader.read.Read;
@@ -91,9 +89,6 @@ public class SharepointListRead implements Read<String> {
 
     }
 
-    private final TableReadConfig<SharepointListReaderConfig> m_config;
-
-
     private Iterator<RandomAccessibleDataRow> m_items;
 
 
@@ -107,9 +102,7 @@ public class SharepointListRead implements Read<String> {
      * @param config
      *            configuration
      */
-    public SharepointListRead(final SharepointListAccessor client,
-            final TableReadConfig<SharepointListReaderConfig> config) {
-        m_config = config;
+    public SharepointListRead(final SharepointListAccessor client) {
         m_items = client.getItems();
         m_rowsRead = 0;
 

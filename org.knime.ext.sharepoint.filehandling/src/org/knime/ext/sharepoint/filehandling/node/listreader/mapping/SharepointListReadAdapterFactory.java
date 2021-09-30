@@ -130,9 +130,9 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<Class
         registry.register(
             new SupplierCellValueProducerFactory<>(Double.class, Double.class, StringToDoubleCellValueProducer::new));
         registry.register(
-                new SupplierCellValueProducerFactory<>(Double.class, Integer.class, StringToIntCellValueProducer::new));
+                new SupplierCellValueProducerFactory<>(Integer.class, Double.class, StringToIntCellValueProducer::new));
         registry.register(
-                new SupplierCellValueProducerFactory<>(Double.class, Long.class, StringToLongCellValueProducer::new));
+                new SupplierCellValueProducerFactory<>(Long.class, Double.class, StringToLongCellValueProducer::new));
         registry.register(
             new SupplierCellValueProducerFactory<>(Long.class, Long.class, StringToLongCellValueProducer::new));
         registry.register(new SimpleCellValueProducerFactory<>(String.class, String.class,

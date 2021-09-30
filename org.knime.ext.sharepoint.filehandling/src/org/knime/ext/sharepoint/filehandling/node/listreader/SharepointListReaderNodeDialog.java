@@ -166,7 +166,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         final var transformationModel = new TableTransformationTableModel<>(productionPathProvider);
         m_coordinator = new TableReaderPreviewTransformationCoordinator<>(readFactory, transformationModel,
                 analysisComponentModel, m_previewModel, this::getConfig, this::getItemAccessor, true);
-        m_specTransformer = new TableTransformationPanel(transformationModel, true, true);
+        m_specTransformer = new TableTransformationPanel(transformationModel, false, false);
         m_disableIOComponents = CheckNodeContextUtil.isRemoteWorkflowContext();
         addTab("Settings", createSettingsPanel());
     }

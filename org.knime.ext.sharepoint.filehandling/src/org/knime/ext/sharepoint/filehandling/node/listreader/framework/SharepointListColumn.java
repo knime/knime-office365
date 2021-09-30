@@ -48,6 +48,7 @@
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader.framework;
 
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -62,13 +63,17 @@ import com.google.gson.JsonObject;
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
 abstract class SharepointListColumn<T> {
+
+    private static final String TITLE = "Title";
+    private static final String LINK_TITLE = "LinkTitle";
+
     protected final JsonObject m_spec;
 
     protected SharepointFieldType m_type; // not final because we could be usure and edit later
 
     private boolean m_typeDetermined;
 
-    protected final String m_displayName;
+    private String m_displayName;
 
     protected final String m_idName;
 
@@ -123,7 +128,7 @@ abstract class SharepointListColumn<T> {
     }
 
     /**
-     * @return whether an absolute type already could be determined
+     * set that an absolute type has been determined
      */
     public void setTypeDetermined() {
         m_typeDetermined = true;
@@ -136,21 +141,21 @@ abstract class SharepointListColumn<T> {
         return m_type;
     }
 
-    public abstract String getCannonicalRepresentation(final JsonObject fields);
+    public abstract T getCannonicalRepresentation(final JsonElement data);
 
-    public abstract Class<T> getCannonicalType();
+    public abstract Class<? extends T> getCannonicalType();
 
-    public static SharepointListColumn<?> of(final JsonObject spec) {
-        JsonElement elem;
+    public static SharepointListColumn<?> of(final JsonObject spec) { // NOSONAR
+        JsonObject elem;
         SharepointListColumn<?> result;
-        if ((elem = spec.get("text")) != null) {
-            if (elem.getAsJsonObject().get("allowMultipleLines").getAsBoolean()) {
+        if ((elem = spec.getAsJsonObject("text")) != null) {
+            if (elem.get("allowMultipleLines").getAsBoolean()) {
                 result = new StringTypedColumn(spec, SharepointFieldType.MULTI_LINE_TEXT);
             } else {
                 result = new StringTypedColumn(spec, SharepointFieldType.SINGLE_LINE_TEXT);
             }
         } else if (spec.has("choice")) {
-            result = new StringTypedColumn(spec, SharepointFieldType.CHOICE);
+            result = new ChoiceTypedColumn(spec);
         } else if (spec.has("number")) {
             result = new NumberTypedColumn(spec);
         } else if (spec.has("boolean")) {
@@ -164,8 +169,37 @@ abstract class SharepointListColumn<T> {
         return result;
     }
 
-    protected JsonElement get(final JsonObject fields) {
-        return fields.get(getIdName());
+    /**
+     * In the SharePoint API the display name of the “Title” column seems to be
+     * fixed. To be still able to rename the it a second column with the renamed
+     * title and the ID name “LinkTitle” is created which is the be used for getting
+     * the display name.<br>
+     *
+     * To ensure that the user sees the name they have set in the GUI this method
+     * maps the renamed display name to the original title column. It should be
+     * called directly after the columns have been read into a list and before this
+     * list is used.
+     *
+     * @param columns
+     *            the list containing the columns to be edited. It must contain
+     *            columns with the name id {@value #TITLE} and {@value #LINK_TITLE}.
+     */
+    static void fixTitleColumnLink(final List<SharepointListColumn<?>> columns) {
+        SharepointListColumn<?> title = null;
+        SharepointListColumn<?> linkTitle = null;
+        for (final var col : columns) {
+            if (col.getIdName().equals(TITLE)) {
+                title = col;
+            } else if (col.getIdName().equals(LINK_TITLE)) {
+                linkTitle = col;
+            }
+            if (null != title && null != linkTitle) {
+                break;
+            }
+        }
+        assert null != title && null != linkTitle;
+
+        title.m_displayName = linkTitle.m_displayName;
     }
 
     static final class StringTypedColumn extends SharepointListColumn<String> {
@@ -184,8 +218,8 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public String getCannonicalRepresentation(final JsonObject fields) {
-            return get(fields).getAsString();
+        public String getCannonicalRepresentation(final JsonElement data) {
+            return data.getAsString();
         }
 
         /**
@@ -197,7 +231,10 @@ abstract class SharepointListColumn<T> {
         }
     }
 
-    static final class NumberTypedColumn extends SharepointListColumn<Double> {
+    static final class NumberTypedColumn extends SharepointListColumn<Number> {
+
+        private final String m_decimalPlaces;
+        private final String m_displayAs;
 
         /**
          * @param spec
@@ -205,28 +242,43 @@ abstract class SharepointListColumn<T> {
          */
         protected NumberTypedColumn(final JsonObject spec) {
             super(spec, SharepointFieldType.NUMBER);
+            final var settings = spec.getAsJsonObject("number");
+            m_decimalPlaces = settings.get("decimalPlaces").getAsString();
+            m_displayAs = settings.get("displayAs").getAsString();
         }
 
         /**
          * {@inheritDoc}
          */
         @Override
-        public String getCannonicalRepresentation(final JsonObject fields) {
-            return Double.toString(get(fields).getAsDouble());
+        public Number getCannonicalRepresentation(final JsonElement data) {
+            if (m_decimalPlaces.equals("none")) {
+                return data.getAsLong();
+            } else if (m_decimalPlaces.equals("auto")) {
+                return data.getAsNumber();
+            } else {
+                return data.getAsDouble();
+            }
         }
 
         /**
          * {@inheritDoc}
          */
         @Override
-        public Class<Double> getCannonicalType() {
-            return Double.class;
+        public Class<? extends Number> getCannonicalType() {
+            if (m_decimalPlaces.equals("none")) {
+                return Long.class;
+            } else if (m_decimalPlaces.equals("auto")) {
+                return Number.class;
+            } else {
+                return Double.class;
+            }
         }
     }
 
     static final class PersonTypedColumn extends SharepointListColumn<String> {
 
-        final String m_displayAs; // TODO can this even be changed by the user?
+        final String m_displayAs; // TODO can this even be changed by the user?: yes, it can in the old UI
         final boolean m_multiple;
         final String m_idNameLookup;
 
@@ -236,7 +288,7 @@ abstract class SharepointListColumn<T> {
          */
         protected PersonTypedColumn(final JsonObject spec) {
             super(spec, SharepointFieldType.PERSON);
-            final var settings = spec.get("personOrGroup").getAsJsonObject();
+            final var settings = spec.getAsJsonObject("personOrGroup");
             m_displayAs = settings.get("displayAs").getAsString();
             m_multiple = settings.get("allowMultipleSelection").getAsBoolean();
             m_idNameLookup = m_idName + "LookupId";
@@ -258,16 +310,15 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public String getCannonicalRepresentation(final JsonObject fields) {
-            final var id = get(fields);
+        public String getCannonicalRepresentation(final JsonElement data) {
             if (m_multiple) {
-                return StreamSupport.stream(id.getAsJsonArray().spliterator(), false)//
+                return StreamSupport.stream(data.getAsJsonArray().spliterator(), false)//
                         .map(JsonElement::getAsJsonObject)//
                         .map(o -> o.get("LookupId"))//
                         .map(JsonElement::getAsString)//
                         .collect(Collectors.joining(","));
             } else {
-                return id.getAsString();
+                return data.getAsString();
             }
         }
 
@@ -294,8 +345,8 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public String getCannonicalRepresentation(final JsonObject fields) {
-            return Boolean.toString(get(fields).getAsBoolean());
+        public Boolean getCannonicalRepresentation(final JsonElement data) {
+            return data.getAsBoolean();
         }
 
         /**
@@ -305,6 +356,69 @@ abstract class SharepointListColumn<T> {
         public Class<Boolean> getCannonicalType() {
             return Boolean.class;
         }
+    }
+
+    static final class ChoiceTypedColumn extends SharepointListColumn<String> {
+
+        private final boolean m_multiple;
+
+        /**
+         * @param spec
+         *            the specification as JSON
+         */
+        protected ChoiceTypedColumn(final JsonObject spec) {
+            super(spec, SharepointFieldType.CHOICE);
+            m_multiple = spec.getAsJsonObject("choice")//
+                    .getAsJsonPrimitive("displayAs").getAsString()//
+                    .equals("checkBoxes");
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public String getCannonicalRepresentation(final JsonElement data) {
+            if (m_multiple) {
+                return StreamSupport.stream(data.getAsJsonArray().spliterator(), false)//
+                        .map(JsonElement::getAsString)//
+                        .collect(Collectors.joining(","));
+            } else {
+                return data.getAsString();
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public Class<String> getCannonicalType() {
+            return String.class;
+        }
+
+    }
+
+    enum SharepointFieldType {
+        SINGLE_LINE_TEXT, // "text": { "allowMultipleLines": false }
+        MULTI_LINE_TEXT, // "text": { "allowMultipleLines": true }
+        LOCATION, // null | { …, "dispayName": ""}
+        NUMBER, // "number": {"decimalPlaces": "", "displayAs":""}
+        YES_NO, // "boolean": {}
+        PERSON, // "personOrGroup": {"displayAs": ""} |
+                // "<name>LookupId": "" -> "users" list index
+        DATE_AND_TIME, // "dateTime": {"displayAs": "", "format":{}}
+        CHOICE, // "choice":{}
+        HYPERLINK, // null | { "Description": "", "Url": ""}
+        CURRENCY, // "currency": { "locale": // TODO do some magic here java.util.Currency }
+        IMAGE, // null | "" (JSON)
+        LOOKUP, // "lookup": { "listId": "", "columnName": ""}
+        CALCULATION, // "calculated": { "outpuType": ""}
+        TASK_OUTCOME, // "defaultValue": {}
+        // EXTERNAL_DATA, // ???
+        MANAGED_METADATA, // "defaultValue": {}
+
+        ATTACHMENTS, // null | boolean
+
+        LOCATION_OR_IMAGE_OR_HYPERLINK, TASK_OUTCOME_OR_MANAGED_METADATA,
     }
 
     static final class UnsureTypedColumn extends SharepointListColumn<String> {
@@ -323,9 +437,9 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public String getCannonicalRepresentation(final JsonObject fields) {
+        public String getCannonicalRepresentation(final JsonElement data) {
             // TODO Auto-generated method stub
-            return get(fields).toString();
+            return data.toString();
         }
 
         /**
@@ -336,30 +450,5 @@ abstract class SharepointListColumn<T> {
             return String.class;
         }
 
-    }
-
-    enum SharepointFieldType {
-        SINGLE_LINE_TEXT, // "text": { "allowMultipleLines": false }
-        MULTI_LINE_TEXT, // "text": { "allowMultipleLines": true }
-        LOCATION, // null | { …, "dispayName": ""}
-        NUMBER, // "number": {"decimalPlaces": "", "displayAs":"", "maximum": number, "minimum":
-                // number}
-        YES_NO, // "boolean": {}
-        PERSON, // "personOrGroup": {"displayAs": ""} | "<name>LookupId": "" -> "users" list
-                // index
-        DATE_AND_TIME, // "dateTime": {"displayAs": "", "format":{}}
-        CHOICE, // "choice":{}
-        HYPERLINK, // null | { "Description": "", "Url": ""}
-        CURRENCY, // "currency": { "locale": // TODO do some magic here java.util.Currency }
-        IMAGE, // null | "" (JSON)
-        LOOKUP, // "lookup": { "listId": "", "columnName": ""}
-        CALCULATION, // "calculated": { "outpuType": ""}
-        TASK_OUTCOME, // "defaultValue": {}
-        // EXTERNAL_DATA, // ???
-        MANAGED_METADATA, // "defaultValue": {}
-
-        ATTACHMENTS, // null | boolean
-
-        LOCATION_OR_IMAGE_OR_HYPERLINK, TASK_OUTCOME_OR_MANAGED_METADATA,
     }
 }

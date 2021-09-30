@@ -78,7 +78,6 @@ import org.knime.ext.sharepoint.filehandling.node.listreader.framework.Sharepoin
 import org.knime.ext.sharepoint.filehandling.node.listreader.framework.SharepointListReader;
 import org.knime.ext.sharepoint.filehandling.node.listreader.mapping.SharepointListReadAdapterFactory;
 import org.knime.filehandling.core.node.table.reader.DefaultMultiTableReadFactory;
-import org.knime.filehandling.core.node.table.reader.DefaultProductionPathProvider;
 import org.knime.filehandling.core.node.table.reader.DefaultSourceGroup;
 import org.knime.filehandling.core.node.table.reader.MultiTableReader;
 import org.knime.filehandling.core.node.table.reader.ProductionPathProvider;
@@ -137,8 +136,7 @@ final class SharepointListReaderNodeModel extends NodeModel {
 
     static ProductionPathProvider<Class<?>> createProductionPathProvider() {
         final var readAdapterFactory = SharepointListReadAdapterFactory.INSTANCE;
-        return new DefaultProductionPathProvider<>(readAdapterFactory.getProducerRegistry(),
-                readAdapterFactory::getDefaultType);
+        return readAdapterFactory.createProductionPathProvider();
     }
 
     @Override

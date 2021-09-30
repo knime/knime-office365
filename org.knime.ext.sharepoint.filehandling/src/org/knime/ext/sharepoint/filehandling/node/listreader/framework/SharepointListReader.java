@@ -59,6 +59,7 @@ import org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReade
 import org.knime.filehandling.core.node.table.reader.GenericTableReader;
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
 import org.knime.filehandling.core.node.table.reader.read.Read;
+import org.knime.filehandling.core.node.table.reader.read.ReadUtils;
 import org.knime.filehandling.core.node.table.reader.spec.TypedReaderColumnSpec;
 import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec;
 
@@ -71,16 +72,17 @@ public final class SharepointListReader
         implements GenericTableReader<SharepointListAccessor, SharepointListReaderConfig, Class<?>, String> {
 
     @Override
+    @SuppressWarnings("resource") // closing the read is the responsibility of the caller
     public Read<String> read(final SharepointListAccessor in, final TableReadConfig<SharepointListReaderConfig> config)
             throws IOException {
-        return new SharepointListRead(in, config);
+        final var read = new SharepointListRead(in);
+        return decorateForReading(read, config);
     }
 
     @Override
     public TypedReaderTableSpec<Class<?>> readSpec(final SharepointListAccessor in,
             final TableReadConfig<SharepointListReaderConfig> config, final ExecutionMonitor exec) throws IOException {
         final var columnSpecs = in.getColumns()
-                .filter(SharepointListAccessor.ALLOWED)
                 .map(SharepointListReader::getColumnSpec)//
                 .collect(Collectors.toList());
 
@@ -99,5 +101,31 @@ public final class SharepointListReader
     @Override
     public DataCell createIdentifierCell(final SharepointListAccessor item) {
         throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Creates a decorated {@link Read} from {@link SharepointListRead}, taking into
+     * account how many rows should be skipped or what is the maximum number of rows
+     * to read.
+     *
+     * @param read
+     *            the path of the file to read
+     * @param config
+     *            the {@link TableReadConfig} used
+     * @return a decorated read of type {@link Read}
+     */
+    @SuppressWarnings("resource") // closing the read is the responsibility of the caller
+    private static Read<String> decorateForReading(final SharepointListRead read,
+            final TableReadConfig<SharepointListReaderConfig> config) {
+        Read<String> filtered = read;
+        if (config.skipRows()) {
+            final var numRowsToSkip = config.getNumRowsToSkip();
+            filtered = ReadUtils.skip(filtered, numRowsToSkip);
+        }
+        if (config.limitRows()) {
+            final var numRowsToKeep = config.getMaxRows();
+            filtered = ReadUtils.limit(filtered, numRowsToKeep);
+        }
+        return filtered;
     }
 }

@@ -54,6 +54,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -67,6 +69,7 @@ import com.google.gson.JsonElement;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
+import com.microsoft.graph.requests.extensions.IColumnDefinitionCollectionPage;
 import com.microsoft.graph.requests.extensions.IListItemCollectionPage;
 
 /**
@@ -79,18 +82,18 @@ public final class SharepointListAccessor {
     static final String LIST_SHORT = "d999e2ab-89ac-4611-b99e-20937224de3a";
 
     private static final Set<String> DISALLOW_LIST = Set.of("LinkTitleNoMenu", "LinkTitle");
-    static final Predicate<SharepointListColumn> ALLOWED = c -> !DISALLOW_LIST.contains(c.getIdName());
-    private static final Pair<Integer, SharepointListColumn> MISSING = Pair.create(-1, null);
+    private static final Predicate<SharepointListColumn<?>> ALLOWED = c -> !DISALLOW_LIST.contains(c.getIdName());
+
+    private static final Pair<Integer, SharepointListColumn<?>> MISSING = Pair.create(-1, null);
 
     private final IGraphServiceClient m_client;
 
     private final String m_site = "root";
 
     private final String m_list = LIST_SHORT;
-    static final List<Option> OPTIONS = Collections.singletonList(new QueryOption("expand", "fields"));
-    static final List<Option> OPTIONS_COLUMNS_ITEMS = Collections.singletonList(new QueryOption("select", "name"));
+    private static final List<Option> OPTIONS_ITEMS = Collections.singletonList(new QueryOption("expand", "fields"));
 
-    private List<SharepointListColumn> m_columns = null;
+    private List<SharepointListColumn<?>> m_columns = null;
 
     /**
      * Create an object used to setup get information from the Microsoft Graph API.
@@ -108,17 +111,62 @@ public final class SharepointListAccessor {
     /**
      * @return a {@link Stream} of the display names of the columns in the list
      */
-    public Stream<SharepointListColumn> getColumns() {
+    public Stream<SharepointListColumn<?>> getColumns() {// NOSONAR
         if (m_columns == null) {
             m_columns = StreamSupport
-                    .stream(m_client.sites(m_site).lists(m_list).columns().buildRequest(Collections.emptyList()).get()//
-                            .getRawObject()//
-                            .getAsJsonArray("value")//
-                            .spliterator(), false)//
+                    .stream(Spliterators.spliteratorUnknownSize(new ColumnIterator(),
+                            Spliterator.ORDERED | Spliterator.IMMUTABLE | Spliterator.NONNULL), false)//
                     .map(JsonElement::getAsJsonObject)//
-                    .map(SharepointListColumn::of).collect(Collectors.toUnmodifiableList());
+                    .map(SharepointListColumn::of)//
+                    .collect(Collectors.toUnmodifiableList());
+            SharepointListColumn.fixTitleColumnLink(m_columns);
         }
-        return m_columns.stream();
+        return m_columns.stream().filter(ALLOWED);
+    }
+
+    private class ColumnIterator implements Iterator<JsonElement> {
+        private Iterator<JsonElement> m_current = Collections.emptyIterator();
+        private IColumnDefinitionCollectionPage m_page = null;
+        private boolean m_finishedRead = false;
+
+        private void makeNextRequest() {
+            if (m_page == null) {
+                m_page = m_client.sites(m_site).lists(m_list).columns().buildRequest().get();
+            } else {
+                final var req = m_page.getNextPage();
+                if (req == null) {
+                    m_page = null;
+                    m_finishedRead = true;
+                } else {
+                    m_page = req.buildRequest().get();
+                }
+            }
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean hasNext() {
+            if (m_finishedRead) {
+                return false;
+            } else if (!m_current.hasNext()) {
+                makeNextRequest();
+                if (m_finishedRead) {
+                    return false;
+                }
+                m_current = m_page.getRawObject().getAsJsonArray("value").iterator();
+            }
+            return m_current.hasNext();
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public JsonElement next() {
+            return m_current.next();
+        }
     }
 
     /**
@@ -137,38 +185,38 @@ public final class SharepointListAccessor {
 
         private Iterator<JsonElement> m_itemSetIterator = Collections.emptyIterator();
 
-        private final Map<String, Pair<Integer, SharepointListColumn>> m_idIndexMapping = new LinkedHashMap<>();
+        private final Map<String, Pair<Integer, SharepointListColumn<?>>> m_idIndexMapping = new LinkedHashMap<>();
 
         private void makeNextRequest() {
             if (!m_finishedRead) {
                 if (m_page == null) { // first read
-                    // TODO there could be multiple pages of columns!
                     // there seems to be a way to do multiple requests in batch but there is no Java
                     // interface for that
-                    // read columns for assigning correctly
-                    final var columns = getColumns();
-
-                    final var iter = columns.iterator();
-                    var idx = 0;
-                    while (iter.hasNext()) {
-                        final var val = iter.next();
-                        if (!ALLOWED.test(val)) {
-                            continue;
-                        }
-                        m_idIndexMapping.put(val.getIdName(), Pair.create(idx, val));
-                        idx++;
-                    }
+                    createColumnAssignment();
                     // read the first items
-                    m_page = m_client.sites(m_site).lists(m_list).items().buildRequest(OPTIONS).get();
+                    m_page = m_client.sites(m_site).lists(m_list).items().buildRequest(OPTIONS_ITEMS).get();
                 } else {
                     final var req = m_page.getNextPage();
                     if (req == null) {
                         m_page = null;
                         m_finishedRead = true;
                     } else {
-                        m_page = req.buildRequest(OPTIONS).get();
+                        m_page = req.buildRequest(OPTIONS_ITEMS).get();
                     }
                 }
+            }
+        }
+
+        private void createColumnAssignment() {
+            // read columns for assigning correctly
+            final var columns = getColumns();
+
+            final var iter = columns.iterator();
+            var idx = 0;
+            while (iter.hasNext()) {
+                final var val = iter.next();
+                m_idIndexMapping.put(val.getIdName(), Pair.create(idx, val));
+                idx++;
             }
         }
 
@@ -186,7 +234,7 @@ public final class SharepointListAccessor {
                 }
                 m_itemSetIterator = m_page.getRawObject().getAsJsonArray("value").iterator();
             }
-            return true;
+            return m_itemSetIterator.hasNext();
         }
 
         /**
@@ -195,22 +243,27 @@ public final class SharepointListAccessor {
         @Override
         public RandomAccessibleDataRow next() {
             final var res = new String[m_idIndexMapping.size()];
-            final var fields = m_itemSetIterator.next()//
+            final var properties = m_itemSetIterator.next()//
                     .getAsJsonObject()//
                     .get("fields")//
-                    .getAsJsonObject();
-            final var properties = fields.entrySet();
+                    .getAsJsonObject()//
+                    .entrySet();
             for (final var e : properties) {
                 final var lookup = m_idIndexMapping.getOrDefault(e.getKey(), MISSING);
                 if (lookup != MISSING) {
-                    res[lookup.getFirst()] = lookup.getSecond().getCannonicalRepresentation(fields).toString();
+                    try {
+                    res[lookup.getFirst()] = lookup.getSecond()// [columnIndex] = column
+                            .getCannonicalRepresentation(e.getValue()).toString(); // TODO maybe change this to a
+                                                                                   // different type later
+
+                } catch (IllegalStateException e2) {
+                    e2.printStackTrace();
+                    }
                 }
             }
-            System.out.println();
 
             return new RandomAccessibleDataRow(res);
         }
-
     }
 
 }
