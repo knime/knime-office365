@@ -53,6 +53,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 
+import org.knime.core.data.DataType;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
@@ -97,14 +98,14 @@ final class SharepointListReaderNodeModel extends NodeModel {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListReaderNodeModel.class);
 
-    private final StorableMultiTableReadConfig<SharepointListReaderConfig, Class<?>> m_config;
+    private final StorableMultiTableReadConfig<SharepointListReaderConfig, DataType> m_config;
 
     /**
      * A supplier is used to avoid any issues should this node model ever be used in
      * parallel. However, this also means that the specs are recalculated for each
      * generated reader.
      */
-    private final MultiTableReader<SharepointListAccessor, SharepointListReaderConfig, Class<?>> m_tableReader;
+    private final MultiTableReader<SharepointListAccessor, SharepointListReaderConfig, DataType> m_tableReader;
 
     private final InputPortRole[] m_inputPortRoles;
 
@@ -123,18 +124,18 @@ final class SharepointListReaderNodeModel extends NodeModel {
         return new SharepointListReaderMultiTableReadConfig();
     }
 
-    static DefaultMultiTableReadFactory<SharepointListAccessor, SharepointListReaderConfig, Class<?>, String> createReadFactory() {
+    static DefaultMultiTableReadFactory<SharepointListAccessor, SharepointListReaderConfig, DataType, String> createReadFactory() {
         final var readAdapterFactory = SharepointListReadAdapterFactory.INSTANCE;
         final var productionPathProvider = createProductionPathProvider();
         return new DefaultMultiTableReadFactory<>(//
-                SharepointListReadAdapterFactory.TYPE_HIERARCHY, // <Class<?>, Class<?>>
+                SharepointListReadAdapterFactory.TYPE_HIERARCHY, // <DataType, DataType>
                 new DefaultRowKeyGeneratorContextFactory<>(String::toString, "Table"), // <SharepointListAccessor, String>
-                new SharepointListReader(), // <SharepointListAccessor, Config, Class<?>, String>
-                productionPathProvider, // <Class<?>>
-                readAdapterFactory::createReadAdapter); // <Class<?>, String>
+                new SharepointListReader(), // <SharepointListAccessor, Config, DataType, String>
+                productionPathProvider, // <DataType>
+                readAdapterFactory::createReadAdapter); // <DataType, String>
     }
 
-    static ProductionPathProvider<Class<?>> createProductionPathProvider() {
+    static ProductionPathProvider<DataType> createProductionPathProvider() {
         final var readAdapterFactory = SharepointListReadAdapterFactory.INSTANCE;
         return readAdapterFactory.createProductionPathProvider();
     }
@@ -143,7 +144,7 @@ final class SharepointListReaderNodeModel extends NodeModel {
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         try {
             final var tableSourceGroup = createSourceGroup(inSpecs);
-            final TableSpecConfig<Class<?>> tableSpecConfig = m_tableReader.createTableSpecConfig(tableSourceGroup,
+            final TableSpecConfig<DataType> tableSpecConfig = m_tableReader.createTableSpecConfig(tableSourceGroup,
                     m_config);
             if (!m_config.hasTableSpecConfig()) {
                 m_config.setTableSpecConfig(tableSpecConfig);

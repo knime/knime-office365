@@ -237,7 +237,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     }
 
     @Override
-    protected BaseFileAttributes fetchAttributesInternal(final SharepointPath path, final Class<?> type)
+    protected BaseFileAttributes fetchAttributesInternal(final SharepointPath path, final DataType type)
             throws IOException {
 
         if (path.isRoot()) {

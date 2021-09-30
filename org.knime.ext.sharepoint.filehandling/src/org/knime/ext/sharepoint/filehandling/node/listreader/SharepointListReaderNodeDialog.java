@@ -59,6 +59,7 @@ import javax.swing.JPanel;
 import javax.swing.JSplitPane;
 import javax.swing.event.ChangeEvent;
 
+import org.knime.core.data.DataType;
 import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
@@ -131,7 +132,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         }
     }
 
-    private final TableReaderPreviewTransformationCoordinator<SharepointListAccessor, SharepointListReaderConfig, Class<?>> m_coordinator;
+    private final TableReaderPreviewTransformationCoordinator<SharepointListAccessor, SharepointListReaderConfig, DataType> m_coordinator;
 
     private final List<TableReaderPreviewView> m_previews = new ArrayList<>();
 
@@ -381,7 +382,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
      * @return the currently configured {@link DefaultTableSpecConfig} or
      *         {@code null} if none is available
      */
-    protected final TableSpecConfig<Class<?>> getTableSpecConfig() {
+    protected final TableSpecConfig<DataType> getTableSpecConfig() {
         return m_coordinator.getTableSpecConfig();
     }
 
@@ -396,11 +397,11 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
      * @throws InvalidSettingsException
      *             if the settings are invalid
      */
-    protected MultiTableReadConfig<SharepointListReaderConfig, Class<?>> getConfig() throws InvalidSettingsException {
+    protected MultiTableReadConfig<SharepointListReaderConfig, DataType> getConfig() throws InvalidSettingsException {
         return saveAndGetConfig();
     }
 
-    private MultiTableReadConfig<SharepointListReaderConfig, Class<?>> saveAndGetConfig()
+    private MultiTableReadConfig<SharepointListReaderConfig, DataType> saveAndGetConfig()
             throws InvalidSettingsException {
         try {
             saveConfig();

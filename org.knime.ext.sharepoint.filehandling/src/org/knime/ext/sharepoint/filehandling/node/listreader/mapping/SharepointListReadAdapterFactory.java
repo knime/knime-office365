@@ -52,10 +52,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -86,53 +83,39 @@ import org.knime.filehandling.core.node.table.reader.util.MultiTableUtils;
  * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  * @noreference non-public API
  */
-public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<Class<?>, String> {
+public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataType, String> {
     /**
      * The singleton instance.
      */
     INSTANCE;
 
-    private static final ProducerRegistry<Class<?>, SharepointListReadAdapter> PRODUCER_REGISTRY = initializeProducerRegistry();
-
-    private static final Map<Class<?>, DataType> DEFAULT_TYPES = createDefaultTypeMap();
+    private static final ProducerRegistry<DataType, SharepointListReadAdapter> PRODUCER_REGISTRY = initializeProducerRegistry();
 
     /**
      * The type hierarchy of the CSV Reader.
      */
-    public static final TreeTypeHierarchy<Class<?>, Class<?>> TYPE_HIERARCHY = createHierarchy(
+    public static final TreeTypeHierarchy<DataType, DataType> TYPE_HIERARCHY = createHierarchy(
             new SharepointListReaderConfig()).createTypeFocusedHierarchy();
 
-    private static Map<Class<?>, DataType> createDefaultTypeMap() {
-        final var defaultTypes = new HashMap<Class<?>, DataType>();
-        defaultTypes.put(Boolean.class, BooleanCell.TYPE);
-        defaultTypes.put(Byte.class, IntCell.TYPE);
-        defaultTypes.put(Short.class, IntCell.TYPE);
-        defaultTypes.put(Integer.class, IntCell.TYPE);
-        defaultTypes.put(Long.class, LongCell.TYPE);
-        defaultTypes.put(Float.class, DoubleCell.TYPE);
-        defaultTypes.put(Double.class, DoubleCell.TYPE);
-        defaultTypes.put(String.class, StringCell.TYPE);
-        defaultTypes.put(InputStream.class, BinaryObjectDataCell.TYPE);
-        return Collections.unmodifiableMap(defaultTypes);
-    }
-
-    private static ProducerRegistry<Class<?>, SharepointListReadAdapter> initializeProducerRegistry() {
-        final ProducerRegistry<Class<?>, SharepointListReadAdapter> registry = MappingFramework
+    private static ProducerRegistry<DataType, SharepointListReadAdapter> initializeProducerRegistry() {
+        final ProducerRegistry<DataType, SharepointListReadAdapter> registry = MappingFramework
                 .forSourceType(SharepointListReadAdapter.class);
-        registry.register(new SimpleCellValueProducerFactory<>(String.class, String.class,
+        registry.register(new SimpleCellValueProducerFactory<>(StringCell.TYPE, String.class,
                 SharepointListReadAdapterFactory::readStringFromSource));
-        registry.register(new SimpleCellValueProducerFactory<>(Boolean.class, Boolean.class,
+        registry.register(new SimpleCellValueProducerFactory<>(BooleanCell.TYPE, Boolean.class,
                 SharepointListReadAdapterFactory::readBooleanFromSource));
-        registry.register(new SimpleCellValueProducerFactory<>(Integer.class, Integer.class,
+        registry.register(new SimpleCellValueProducerFactory<>(IntCell.TYPE, Integer.class,
                 SharepointListReadAdapterFactory::readIntFromSource));
-        registry.register(new SimpleCellValueProducerFactory<>(Long.class, Long.class,
+        registry.register(new SimpleCellValueProducerFactory<>(LongCell.TYPE, Long.class,
                 SharepointListReadAdapterFactory::readLongFromSource));
-        registry.register(new SimpleCellValueProducerFactory<>(Double.class, Double.class,
+        registry.register(new SimpleCellValueProducerFactory<>(DoubleCell.TYPE, Double.class,
                 SharepointListReadAdapterFactory::readDoubleFromSource));
-        registry.register(new SimpleCellValueProducerFactory<>(LocalDate.class, LocalDate.class,
-                SharepointListReadAdapterFactory::readLocalDateFromSource));
-        registry.register(new SimpleCellValueProducerFactory<>(LocalTime.class, LocalTime.class,
-                SharepointListReadAdapterFactory::readLocalTimeFromSource));
+        // registry.register(new SimpleCellValueProducerFactory<>(LocalDateCell.TYPE,
+        // LocalDate.class,
+        // SharepointListReadAdapterFactory::readLocalDateFromSource));
+        // registry.register(new SimpleCellValueProducerFactory<>(LocalTimeCell.TYPE,
+        // LocalTime.class,
+        // SharepointListReadAdapterFactory::readLocalTimeFromSource));
         return registry;
     }
 
@@ -180,23 +163,13 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<Class
     }
 
     @Override
-    public ReadAdapter<Class<?>, String> createReadAdapter() {
+    public ReadAdapter<DataType, String> createReadAdapter() {
         return new SharepointListReadAdapter();
     }
 
     @Override
-    public ProducerRegistry<Class<?>, SharepointListReadAdapter> getProducerRegistry() {
+    public ProducerRegistry<DataType, SharepointListReadAdapter> getProducerRegistry() {
         return PRODUCER_REGISTRY;
-    }
-
-    /**
-     * Returns the {@link Map} providing the default {@link Class<?> DataTypes}.
-     *
-     * @return {@link Map} containing the default {@link Class<?> DataTypes}
-     */
-    @SuppressWarnings("static-method")
-    public Map<Class<?>, DataType> getDefaultTypeMap() {
-        return DEFAULT_TYPES;
     }
 
     /**
@@ -205,14 +178,14 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<Class
      * @noreference This enum method is not intended to be referenced by clients.
      */
     @Override
-    public DataType getDefaultType(final Class<?> type) {
-        return DEFAULT_TYPES.get(type);
+    public DataType getDefaultType(final DataType type) {
+        return type;
     }
 
     /**
      * @return a {@link HierarchyAwareProductionPathProvider}
      */
-    public HierarchyAwareProductionPathProvider<Class<?>> createProductionPathProvider() {
+    public HierarchyAwareProductionPathProvider<DataType> createProductionPathProvider() {
         final Set<DataType> reachableDataTypes = new HashSet<>(
                 MultiTableUtils.extractReachableKnimeTypes(PRODUCER_REGISTRY));
         // the binary object type can't be read with the CSV Reader
@@ -222,8 +195,8 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<Class
                 SharepointListReadAdapterFactory::isValidPathFor, reachableDataTypes);
     }
 
-    private static boolean isValidPathFor(final Class<?> type, final ProductionPath path) {
-        if (type == String.class) {
+    private static boolean isValidPathFor(final DataType type, final ProductionPath path) {
+        if (type == StringCell.TYPE) {
             final DataType knimeType = path.getDestinationType();
             // exclude numeric types for String because
             // a) The default String -> Number converters don't use the user-specified
@@ -242,17 +215,17 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<Class
                 || knimeType.equals(IntCell.TYPE);
     }
 
-    static TreeTypeHierarchy<Class<?>, String> createHierarchy(final SharepointListReaderConfig config) {
-        return TreeTypeHierarchy.builder(createTypeTester(String.class, t -> {
-        })).addType(String.class, createTypeTester(Double.class, Double::parseDouble))
-                .addType(Double.class, createTypeTester(Long.class, Long::parseLong))
-                .addType(Long.class, createTypeTester(Integer.class, Integer::parseInt))
-                .addType(String.class, TypeTester.createTypeTester(Boolean.class,
+    static TreeTypeHierarchy<DataType, String> createHierarchy(final SharepointListReaderConfig config) {
+        return TreeTypeHierarchy.builder(createTypeTester(StringCell.TYPE, t -> {
+        })).addType(StringCell.TYPE, createTypeTester(DoubleCell.TYPE, Double::parseDouble))
+                .addType(DoubleCell.TYPE, createTypeTester(LongCell.TYPE, Long::parseLong))
+                .addType(LongCell.TYPE, createTypeTester(IntCell.TYPE, Integer::parseInt))
+                .addType(StringCell.TYPE, TypeTester.createTypeTester(BooleanCell.TYPE,
                         s -> s.strip().equalsIgnoreCase("false") || s.strip().equalsIgnoreCase("true")))
                 .build();
     }
 
-    private static TypeTester<Class<?>, String> createTypeTester(final Class<?> type, final Consumer<String> tester) {
+    private static TypeTester<DataType, String> createTypeTester(final DataType type, final Consumer<String> tester) {
         return TypeTester.createTypeTester(type, consumerToPredicate(tester));
     }
 

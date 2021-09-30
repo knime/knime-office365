@@ -53,6 +53,7 @@ import java.util.stream.Collectors;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
+import org.knime.core.data.DataType;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.streamable.RowInput;
 import org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderConfig;
@@ -69,7 +70,7 @@ import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec;
  * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
 public final class SharepointListReader
-        implements GenericTableReader<SharepointListAccessor, SharepointListReaderConfig, Class<?>, String> {
+        implements GenericTableReader<SharepointListAccessor, SharepointListReaderConfig, DataType, String> {
 
     @Override
     @SuppressWarnings("resource") // closing the read is the responsibility of the caller
@@ -80,7 +81,7 @@ public final class SharepointListReader
     }
 
     @Override
-    public TypedReaderTableSpec<Class<?>> readSpec(final SharepointListAccessor in,
+    public TypedReaderTableSpec<DataType> readSpec(final SharepointListAccessor in,
             final TableReadConfig<SharepointListReaderConfig> config, final ExecutionMonitor exec) throws IOException {
         final var columnSpecs = in.getColumns()
                 .map(SharepointListReader::getColumnSpec)//
@@ -89,7 +90,7 @@ public final class SharepointListReader
         return new TypedReaderTableSpec<>(columnSpecs);
     }
 
-    private static TypedReaderColumnSpec<Class<?>> getColumnSpec(final SharepointListColumn<?> column) {
+    private static TypedReaderColumnSpec<DataType> getColumnSpec(final SharepointListColumn<?> column) {
         return TypedReaderColumnSpec.createWithName(column.getDisplayName(), column.getCannonicalType(), true);
     }
 

@@ -21,4 +21,6 @@ Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Bundle-Activator: org.knime.ext.sharepoint.filehandling.SharepointPlugin
 Automatic-Module-Name: org.knime.ext.sharepoint.filehandling
+Import-Package: org.knime.core.data.time.localdate,
+ org.knime.core.data.time.localtime
 

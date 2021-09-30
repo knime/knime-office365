@@ -52,6 +52,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import org.knime.core.data.DataType;
+import org.knime.core.data.def.BooleanCell;
+import org.knime.core.data.def.DoubleCell;
+import org.knime.core.data.def.LongCell;
+import org.knime.core.data.def.StringCell;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -143,7 +149,7 @@ abstract class SharepointListColumn<T> {
 
     public abstract T getCannonicalRepresentation(final JsonElement data);
 
-    public abstract Class<? extends T> getCannonicalType();
+    public abstract DataType getCannonicalType();
 
     public static SharepointListColumn<?> of(final JsonObject spec) { // NOSONAR
         JsonObject elem;
@@ -226,8 +232,8 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public Class<String> getCannonicalType() {
-            return String.class;
+        public DataType getCannonicalType() {
+            return StringCell.TYPE;
         }
     }
 
@@ -265,13 +271,13 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public Class<? extends Number> getCannonicalType() {
+        public DataType getCannonicalType() {
             if (m_decimalPlaces.equals("none")) {
-                return Long.class;
+                return LongCell.TYPE;
             } else if (m_decimalPlaces.equals("auto")) {
-                return Number.class;
+                return DoubleCell.TYPE;
             } else {
-                return Double.class;
+                return DoubleCell.TYPE;
             }
         }
     }
@@ -326,8 +332,8 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public Class<String> getCannonicalType() {
-            return String.class;
+        public DataType getCannonicalType() {
+            return StringCell.TYPE;
         }
     }
 
@@ -353,8 +359,8 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public Class<Boolean> getCannonicalType() {
-            return Boolean.class;
+        public DataType getCannonicalType() {
+            return BooleanCell.TYPE;
         }
     }
 
@@ -391,8 +397,8 @@ abstract class SharepointListColumn<T> {
          * {@inheritDoc}
          */
         @Override
-        public Class<String> getCannonicalType() {
-            return String.class;
+        public DataType getCannonicalType() {
+            return StringCell.TYPE;
         }
 
     }
@@ -438,16 +444,15 @@ abstract class SharepointListColumn<T> {
          */
         @Override
         public String getCannonicalRepresentation(final JsonElement data) {
-            // TODO Auto-generated method stub
-            return data.toString();
+            return data.toString(); // JSONCells seem not to be available //TODO
         }
 
         /**
          * {@inheritDoc}
          */
         @Override
-        public Class<String> getCannonicalType() {
-            return String.class;
+        public DataType getCannonicalType() {
+            return StringCell.TYPE;
         }
 
     }
