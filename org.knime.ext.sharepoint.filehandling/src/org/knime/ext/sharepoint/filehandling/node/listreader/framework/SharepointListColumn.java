@@ -48,7 +48,6 @@
  */
 package org.knime.ext.sharepoint.filehandling.node.listreader.framework;
 
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -173,39 +172,6 @@ abstract class SharepointListColumn<T> {
         }
 
         return result;
-    }
-
-    /**
-     * In the SharePoint API the display name of the “Title” column seems to be
-     * fixed. To be still able to rename the it a second column with the renamed
-     * title and the ID name “LinkTitle” is created which is the be used for getting
-     * the display name.<br>
-     *
-     * To ensure that the user sees the name they have set in the GUI this method
-     * maps the renamed display name to the original title column. It should be
-     * called directly after the columns have been read into a list and before this
-     * list is used.
-     *
-     * @param columns
-     *            the list containing the columns to be edited. It must contain
-     *            columns with the name id {@value #TITLE} and {@value #LINK_TITLE}.
-     */
-    static void fixTitleColumnLink(final List<SharepointListColumn<?>> columns) {
-        SharepointListColumn<?> title = null;
-        SharepointListColumn<?> linkTitle = null;
-        for (final var col : columns) {
-            if (col.getIdName().equals(TITLE)) {
-                title = col;
-            } else if (col.getIdName().equals(LINK_TITLE)) {
-                linkTitle = col;
-            }
-            if (null != title && null != linkTitle) {
-                break;
-            }
-        }
-        assert null != title && null != linkTitle;
-
-        title.m_displayName = linkTitle.m_displayName;
     }
 
     static final class StringTypedColumn extends SharepointListColumn<String> {

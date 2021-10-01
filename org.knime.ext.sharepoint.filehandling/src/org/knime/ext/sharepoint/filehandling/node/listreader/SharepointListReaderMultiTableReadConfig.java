@@ -65,9 +65,11 @@ final class SharepointListReaderMultiTableReadConfig extends
         super(new DefaultTableReadConfig<>(new SharepointListReaderConfig()), SharepointListReaderConfigSerializer.INSTANCE,
             SharepointListReaderConfigSerializer.INSTANCE);
         setFailOnDifferingSpecs(false);
-        getTableReadConfig().setRowIDIdx(0);
-        getTableReadConfig().setLimitRows(true);
-        getTableReadConfig().setMaxRows(1);
+        final var tableReadConfig = getTableReadConfig();
+        tableReadConfig.setRowIDIdx(-1);
+
+        tableReadConfig.setUseColumnHeaderIdx(false);
+        tableReadConfig.setColumnHeaderIdx(0);
     }
 
 

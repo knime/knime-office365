@@ -90,7 +90,7 @@ public final class SharepointListAccessor {
 
     private final String m_site = "root";
 
-    private final String m_list = LIST_SHORT;
+    private final String m_list = LIST_LOONG;
     private static final List<Option> OPTIONS_ITEMS = Collections.singletonList(new QueryOption("expand", "fields"));
 
     private List<SharepointListColumn<?>> m_columns = null;
@@ -119,7 +119,6 @@ public final class SharepointListAccessor {
                     .map(JsonElement::getAsJsonObject)//
                     .map(SharepointListColumn::of)//
                     .collect(Collectors.toUnmodifiableList());
-            SharepointListColumn.fixTitleColumnLink(m_columns);
         }
         return m_columns.stream().filter(ALLOWED);
     }

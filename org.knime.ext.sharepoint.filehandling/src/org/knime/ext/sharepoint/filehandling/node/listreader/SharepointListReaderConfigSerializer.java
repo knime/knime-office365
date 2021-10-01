@@ -86,7 +86,24 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
 
     private static final String CFG_TABLE_SPEC_CONFIG = "table_spec_config" + SettingsModel.CFGKEY_INTERNAL;
 
+    private static final String SUB_CFG_ADVANCED = "advanced_settings";
+
+    private static final String CFG_LIMIT_SCANNED_ROWS = "limit_data_rows_scanned";
+
+    private static final String CFG_LIMIT_SCANNED_ROW_NUM = "max_data_rows_scanned";
+
+    private static final String SUB_CFG_LIMIT_ROWS = "limit_rows";
+
+    private static final String CFG_SKIP_ROWS = "skip_data_rows";
+
+    private static final String CFG_SKIP_ROW_NUM = "number_of_rows_to_skip";
+
+    private static final String CFG_LIMIT_ROWS = "limit_data_rows";
+
+    private static final String CFG_LIMIT_ROW_NUM = "max_data_rows";
+
     private final TableSpecConfigSerializer<DataType> m_tableSpecSerializer;
+
 
     public enum DataTypeSerializer implements NodeSettingsSerializer<DataType> {
 

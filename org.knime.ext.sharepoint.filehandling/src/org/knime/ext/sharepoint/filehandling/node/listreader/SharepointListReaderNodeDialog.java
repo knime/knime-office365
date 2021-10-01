@@ -49,15 +49,23 @@
 package org.knime.ext.sharepoint.filehandling.node.listreader;
 
 import java.awt.GridBagLayout;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.JCheckBox;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.border.Border;
 import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 import org.knime.core.data.DataType;
 import org.knime.core.node.DataAwareNodeDialogPane;
@@ -77,7 +85,6 @@ import org.knime.ext.sharepoint.filehandling.node.SiteSettingsPanel;
 import org.knime.ext.sharepoint.filehandling.node.listreader.framework.SharepointListAccessor;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
-import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.DefaultTableSpecConfig;
@@ -98,39 +105,12 @@ import org.knime.filehandling.core.util.GBCBuilder;
  *
  * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
+ * @author Temesgen H. Dadi, KNIME GmbH, Berlin, Germany
+ * @author Simon Schmid, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
-    private static final class SharepointListAccessorAccessor implements GenericItemAccessor<SharepointListAccessor> {
-
-        private List<SharepointListAccessor> m_clients;
-
-        private SharepointListAccessorAccessor(final List<SharepointListAccessor> clients) {
-            m_clients = clients;
-        }
-
-        private void setTables(final List<SharepointListAccessor> client) {
-            m_clients = client;
-        }
-
-        @Override
-        public void close() throws IOException {
-            // nothing to close
-        }
-
-        @Override
-        public List<SharepointListAccessor> getItems(final Consumer<StatusMessage> statusMessageConsumer)
-                throws IOException, InvalidSettingsException {
-            return m_clients;
-        }
-
-        @Override
-        public SharepointListAccessor getRootItem(final Consumer<StatusMessage> statusMessageConsumer)
-                throws IOException, InvalidSettingsException {
-            return m_clients.get(0);
-        }
-    }
 
     private final TableReaderPreviewTransformationCoordinator<SharepointListAccessor, SharepointListReaderConfig, DataType> m_coordinator;
 
@@ -154,7 +134,17 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     private final SharepointListReaderMultiTableReadConfig m_config;
 
     private final SharepointListAccessorAccessor m_itemAccessor = new SharepointListAccessorAccessor(
-            Collections.<SharepointListAccessor>emptyList());
+            Collections.emptyList());
+
+    // advanced tab
+    private final JCheckBox m_limitScannedRowsEnabled;
+    private final JSpinner m_limitScannedRowsNumber;
+
+    // limit rows tab
+    private final JCheckBox m_skipRowsEnabled;
+    private final JSpinner m_skipRowsNumber;
+    private final JCheckBox m_limitRowsEnabled;
+    private final JSpinner m_limitRowsNumber;
 
     SharepointListReaderNodeDialog() {
         m_config = SharepointListReaderNodeModel.createConfig();
@@ -166,10 +156,67 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         m_previewModel = new TableReaderPreviewModel(analysisComponentModel);
         final var transformationModel = new TableTransformationTableModel<>(productionPathProvider);
         m_coordinator = new TableReaderPreviewTransformationCoordinator<>(readFactory, transformationModel,
-                analysisComponentModel, m_previewModel, this::getConfig, this::getItemAccessor, true);
+                analysisComponentModel, m_previewModel, this::getConfig, this::getItemAccessor, false);
         m_specTransformer = new TableTransformationPanel(transformationModel, false, false);
         m_disableIOComponents = CheckNodeContextUtil.isRemoteWorkflowContext();
+
+        final var stepSize = Long.valueOf(1);
+        final var rowStart = Long.valueOf(0);
+        final var rowEnd = Long.valueOf(Long.MAX_VALUE);
+        final var skipOne = Long.valueOf(1);
+        final var initLimit = Long.valueOf(50);
+
+        m_limitScannedRowsEnabled = new JCheckBox("Limit data rows scanned");
+        m_limitScannedRowsNumber = new JSpinner(new SpinnerNumberModel(initLimit, rowStart, rowEnd, initLimit));
+        m_limitScannedRowsEnabled
+                .addActionListener(e -> controlSpinner(m_limitScannedRowsEnabled, m_limitScannedRowsNumber));
+        m_limitScannedRowsEnabled.doClick();
+
+        m_skipRowsEnabled = new JCheckBox("Skip first data rows");
+        m_skipRowsNumber = new JSpinner(new SpinnerNumberModel(skipOne, rowStart, rowEnd, stepSize));
+        m_skipRowsEnabled.addActionListener(e -> controlSpinner(m_skipRowsEnabled, m_skipRowsNumber));
+        m_skipRowsEnabled.doClick();
+
+        m_limitRowsEnabled = new JCheckBox("Limit data rows");
+        m_limitRowsNumber = new JSpinner(new SpinnerNumberModel(initLimit, rowStart, rowEnd, initLimit));
+        m_limitRowsEnabled.addActionListener(e -> controlSpinner(m_limitRowsEnabled, m_limitRowsNumber));
+        m_limitRowsEnabled.doClick();
+
+        registerPreviewListeners();
+
         addTab("Settings", createSettingsPanel());
+        addTab("Transformation", createTransformationTab());
+        addTab("Advanced", createAdvancedTab());
+        addTab("Limit Rows", createLimitRowsTab());
+    }
+
+    private void registerPreviewListeners() {
+        final ActionListener action = a -> configChanged();
+        final ChangeListener change = c -> configChanged();
+
+        m_limitScannedRowsEnabled.addActionListener(action);
+        m_limitScannedRowsNumber.addChangeListener(change);
+        m_skipRowsEnabled.addActionListener(action);
+        m_skipRowsNumber.addChangeListener(change);
+        m_limitRowsEnabled.addActionListener(action);
+        m_limitRowsNumber.addChangeListener(change);
+    }
+
+    /**
+     * Enables a {@link JSpinner} based on a corresponding {@link JCheckBox}.
+     *
+     * @param checker
+     *            the {@link JCheckBox} which controls if a {@link JSpinner} should
+     *            be enabled
+     * @param spinner
+     *            a {@link JSpinner} controlled by the {@link JCheckBox}
+     */
+    private static void controlSpinner(final JCheckBox checker, final JSpinner spinner) {
+        spinner.setEnabled(checker.isSelected());
+    }
+
+    private static Border createBorder(final String title) {
+        return BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), title);
     }
 
     private FSConnection createFSConnection() throws IOException {
@@ -187,10 +234,49 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private JPanel createSettingsPanel() {
         final var panel = new JPanel(new GridBagLayout());
-        final var gbc = new GBCBuilder().resetPos().anchorFirstLineStart().fillHorizontal().setWeightX(1.0);
-        panel.add(m_listSettingsPanel, gbc.fillBoth().build());
-        panel.add(createTransformationTab(), gbc.fillBoth().setWeightY(1.0).incY().build());
+        final var gbc = new GBCBuilder().resetPos().weight(1, 0).anchorFirstLineStart().fillHorizontal();
+        panel.add(m_listSettingsPanel, gbc.build());
+
+        panel.add(createPreview(), gbc.incY().fillBoth().setWeightY(1).build());
         return panel;
+    }
+
+    private JPanel createAdvancedTab() {
+        final var panel = new JPanel(new GridBagLayout());
+
+        final var specLimitPanel = new JPanel(new GridBagLayout());
+        specLimitPanel.setBorder(createBorder("Table specification"));
+        final var gbc = new GBCBuilder().resetPos().weight(0, 0).insets(5, 0, 5, 5).anchorFirstLineStart().fillNone();
+        specLimitPanel.add(m_limitScannedRowsEnabled, gbc.build());
+        specLimitPanel.add(m_limitScannedRowsNumber, gbc.incX().build());
+        specLimitPanel.add(Box.createVerticalBox(), gbc.incX().setWeightX(1).fillHorizontal().build());
+        gbc.resetPos().insets(0, 0, 0, 0).weight(1, 0).fillHorizontal().anchorFirstLineStart();
+        panel.add(specLimitPanel, gbc.build());
+
+        panel.add(createPreview(), gbc.incY().fillBoth().setWeightY(1).build());
+        return panel;
+
+    }
+
+    private JPanel createLimitRowsTab() {
+        final var panel = new JPanel(new GridBagLayout());
+
+        final var specLimitPanel = new JPanel(new GridBagLayout());
+        specLimitPanel.setBorder(createBorder("Limit rows"));
+        final var gbc = new GBCBuilder().resetPos().weight(0, 0).insets(5, 0, 5, 5).anchorFirstLineStart().fillNone();
+        specLimitPanel.add(m_skipRowsEnabled, gbc.build());
+        specLimitPanel.add(m_skipRowsNumber, gbc.incX().build());
+        specLimitPanel.add(Box.createVerticalBox(), gbc.incX().setWeightX(1).fillHorizontal().build());
+        gbc.fillNone().resetX().setWeightX(0).incY();
+        specLimitPanel.add(m_limitRowsEnabled, gbc.build());
+        specLimitPanel.add(m_limitRowsNumber, gbc.incX().build());
+        specLimitPanel.add(Box.createVerticalBox(), gbc.incX().setWeightX(1).fillHorizontal().build());
+        gbc.resetPos().insets(0, 0, 0, 0).weight(1, 0).fillHorizontal().anchorFirstLineStart();
+        panel.add(specLimitPanel, gbc.build());
+
+        panel.add(createPreview(), gbc.incY().fillBoth().setWeightY(1).build());
+        return panel;
+
     }
 
     /**
@@ -324,13 +410,15 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
      * dialog.
      */
     private void saveTableReadSettings() {
-        final DefaultTableReadConfig<SharepointListReaderConfig> tableReadConfig = m_config.getTableReadConfig();
+        final var tableReadConfig = m_config.getTableReadConfig();
 
-        // TODO: true throws mapping exception because of strange index mapper
-        tableReadConfig.setRowIDIdx(-1);
+        tableReadConfig.setLimitRowsForSpec(m_limitScannedRowsEnabled.isSelected());
+        tableReadConfig.setMaxRowsForSpec((Long) m_limitScannedRowsNumber.getValue());
 
-        tableReadConfig.setUseColumnHeaderIdx(false);
-        tableReadConfig.setColumnHeaderIdx(0);
+        tableReadConfig.setSkipRows(m_skipRowsEnabled.isSelected());
+        tableReadConfig.setNumRowsToSkip((Long) m_skipRowsNumber.getValue());
+        tableReadConfig.setLimitRows(m_limitRowsEnabled.isSelected());
+        tableReadConfig.setMaxRows((Long) m_limitRowsNumber.getValue());
     }
 
     @Override
@@ -358,7 +446,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
         m_connection = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
         if (m_connection == null) {
-            throw new NotConfigurableException("Authentication required");
+            throw new NotConfigurableException("Authentication required!");
         }
 
         m_listSettingsPanel.settingsLoaded(m_connection);
@@ -370,8 +458,30 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
         m_itemAccessor.setTables(Collections.singletonList(input));
 
+        loadTableReadSettings();
+        // enable/disable spinners
+        controlSpinner(m_limitScannedRowsEnabled, m_limitScannedRowsNumber);
+        controlSpinner(m_skipRowsEnabled, m_skipRowsNumber);
+        controlSpinner(m_limitRowsEnabled, m_limitRowsNumber);
+
         ignoreEvents(false);
         refreshPreview(true);
+    }
+
+    /**
+     * Fill in the setting values in {@link TableReadConfig} using values from
+     * dialog.
+     */
+    private void loadTableReadSettings() {
+        final var tableReadConfig = m_config.getTableReadConfig();
+
+        m_limitScannedRowsEnabled.setSelected(tableReadConfig.limitRowsForSpec());
+        m_limitScannedRowsNumber.setValue(tableReadConfig.getMaxRowsForSpec());
+
+        m_skipRowsEnabled.setSelected(tableReadConfig.skipRows());
+        m_skipRowsNumber.setValue(tableReadConfig.getNumRowsToSkip());
+        m_limitRowsEnabled.setSelected(tableReadConfig.limitRows());
+        m_limitRowsNumber.setValue(tableReadConfig.getMaxRows());
     }
 
     /**
@@ -431,6 +541,36 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         setPreviewEnabled(enabled);
         if (enabled && refreshPreview) {
             configChanged();
+        }
+    }
+
+    private static final class SharepointListAccessorAccessor implements GenericItemAccessor<SharepointListAccessor> {
+
+        private List<SharepointListAccessor> m_clients;
+
+        private SharepointListAccessorAccessor(final List<SharepointListAccessor> clients) {
+            m_clients = clients;
+        }
+
+        private void setTables(final List<SharepointListAccessor> client) {
+            m_clients = client;
+        }
+
+        @Override
+        public void close() throws IOException {
+            // nothing to close
+        }
+
+        @Override
+        public List<SharepointListAccessor> getItems(final Consumer<StatusMessage> statusMessageConsumer)
+                throws IOException, InvalidSettingsException {
+            return m_clients;
+        }
+
+        @Override
+        public SharepointListAccessor getRootItem(final Consumer<StatusMessage> statusMessageConsumer)
+                throws IOException, InvalidSettingsException {
+            return m_clients.get(0);
         }
     }
 }
