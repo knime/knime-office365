@@ -70,29 +70,29 @@ import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec;
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
 public final class SharepointListReader
-        implements GenericTableReader<SharepointListAccessor, SharepointListReaderConfig, DataType, String> {
+        implements GenericTableReader<SharepointListClient, SharepointListReaderConfig, DataType, String> {
 
     @Override
     @SuppressWarnings("resource") // closing the read is the responsibility of the caller
-    public Read<String> read(final SharepointListAccessor in, final TableReadConfig<SharepointListReaderConfig> config)
+    public Read<String> read(final SharepointListClient in, final TableReadConfig<SharepointListReaderConfig> config)
             throws IOException {
         final var read = new SharepointListRead(in);
         return decorateForReading(read, config);
     }
 
     @Override
-    public TypedReaderTableSpec<DataType> readSpec(final SharepointListAccessor in,
+    public TypedReaderTableSpec<DataType> readSpec(final SharepointListClient in,
             final TableReadConfig<SharepointListReaderConfig> config, final ExecutionMonitor exec) throws IOException {
         return new TypedReaderTableSpec<>(Collections.emptyList());
     }
 
     @Override
-    public DataColumnSpec createIdentifierColumnSpec(final SharepointListAccessor item, final String name) {
+    public DataColumnSpec createIdentifierColumnSpec(final SharepointListClient item, final String name) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DataCell createIdentifierCell(final SharepointListAccessor item) {
+    public DataCell createIdentifierCell(final SharepointListClient item) {
         throw new UnsupportedOperationException();
     }
 

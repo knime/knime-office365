@@ -59,14 +59,14 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListAccessor;
+import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
 
 /**
- * “SharePoint List Reader” implementation of a {@link NodeDialogPane}.</br>
+ * "SharePoint List Reader" implementation of a {@link NodeDialogPane}.</br>
  * It takes care of creating and managing the table preview.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Jannik L�scher, KNIME GmbH, Konstanz, Germany
  */
 public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
@@ -112,7 +112,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     }
 
     private void loadSettings(final NodeSettingsRO settings, final PortObjectSpec[] specs,
-            final SharepointListAccessor input) throws NotConfigurableException {
+            final SharepointListClient input) throws NotConfigurableException {
 
     }
 

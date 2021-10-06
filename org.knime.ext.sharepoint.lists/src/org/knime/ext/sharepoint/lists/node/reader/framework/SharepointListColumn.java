@@ -44,14 +44,36 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2021-09-24 (loescher): created
+ *   2021-09-27 (loescher): created
  */
 package org.knime.ext.sharepoint.lists.node.reader.framework;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
 /**
- * A class used to setup get information from the Microsoft Graph API.
+ * @param <T>
+ *            the type of the default/canonical representation
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public final class SharepointListAccessor {
+abstract class SharepointListColumn<T> {
+
+    // TODO to be implemented
+
+    public static SharepointListColumn<?> of(final JsonObject spec) { // NOSONAR
+
+        return null;
+    }
+
+    /**
+     * @return the identifying name used for internal references and fields
+     */
+    public String getIdName() {
+        return "";
+    }
+
+    public abstract T getCannonicalRepresentation(final JsonElement data);
+
 }

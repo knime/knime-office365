@@ -84,25 +84,19 @@ public class SharepointListRead implements Read<String> {
 
     }
 
+    private long m_rowsRead = 0;
+
     private Iterator<RandomAccessibleDataRow> m_items;
-
-
-    private long m_rowsRead;
 
     /**
      * Constructor.
      *
      * @param client
      *            the client to read from and use for requests
-     * @param config
-     *            configuration
      */
-    public SharepointListRead(final SharepointListAccessor client) {
+    public SharepointListRead(final SharepointListClient client) {
         m_items = null;
-        m_rowsRead = 0;
-
     }
-
 
     @Override
     public RandomAccessible<String> next() throws IOException {
@@ -116,7 +110,8 @@ public class SharepointListRead implements Read<String> {
 
     @Override
     public OptionalLong getMaxProgress() {
-        return OptionalLong.empty(); // TODO something useful here
+        // TODO not found a solution yet to determine the no of rows via API
+        return OptionalLong.empty();
     }
 
     @Override
