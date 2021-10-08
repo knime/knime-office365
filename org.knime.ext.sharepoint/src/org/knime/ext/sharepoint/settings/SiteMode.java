@@ -44,30 +44,42 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-29 (Alexander Bondaletov): created
+ *   2021-10-05 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.filehandling;
+package org.knime.ext.sharepoint.settings;
 
-import com.microsoft.graph.authentication.IAuthenticationProvider;
-import com.microsoft.graph.http.IHttpRequest;
-import com.microsoft.graph.requests.extensions.GraphServiceClient;
+import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 
 /**
- * {@link IAuthenticationProvider} implementation that uses
- * {@link GraphServiceClient}
+ * {@link Enum} for the Site mode for Sharepoint nodes which make use of the
+ * {@link SiteSettingsPanel}.
  *
  * @author Alexander Bondaletov
  */
-public class GraphApiAuthenticationProvider implements IAuthenticationProvider {
+public enum SiteMode { //
+    /**
+     * Root site
+     */
+    ROOT("Root site"), //
+    /**
+     * Web URL
+     */
+    WEB_URL("Web URL"), //
+    /**
+     * Group site
+     */
+    GROUP("Group site");
 
-    private final String m_accessToken;
+    private String m_selectorLabel;
 
-    public GraphApiAuthenticationProvider(final String accessToken) {
-        m_accessToken = accessToken;
+    private SiteMode(final String selectorLable) {
+        m_selectorLabel = selectorLable;
     }
 
-    @Override
-    public void authenticateRequest(final IHttpRequest request) {
-        request.addHeader("Authorization", "Bearer " + m_accessToken);
+    /**
+     * @return the selectorLabel
+     */
+    public String getSelectorLabel() {
+        return m_selectorLabel;
     }
 }

@@ -68,7 +68,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 import org.knime.filehandling.core.connections.base.BaseFileSystemProvider;
 import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
 
@@ -132,7 +132,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
                 getFileSystemInternal().addToAttributeCache(target, new SharepointFileAttributes(target, resultItem));
             }
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(ex);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
     }
 
@@ -163,7 +163,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
         try {
             client.drives(source.getDriveId()).items(sourceItem.id).copy(name, parentRef).buildRequest().post();
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(ex);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
     }
 
@@ -185,7 +185,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
             // instead
             return stream != null ? stream : new ByteArrayInputStream(new byte[0]);
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(ex);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
     }
 
@@ -224,12 +224,12 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
                 }
             } catch (GraphServiceException e) {
                 if (e.getServiceError() != null
-                        && GraphApiUtil.NAME_ALREADY_EXISTS_CODE.equals(e.getServiceError().code)) {
+                        && FSGraphApiUtil.NAME_ALREADY_EXISTS_CODE.equals(e.getServiceError().code)) {
                     throw new FileAlreadyExistsException(dir.toString());
                 }
-                throw GraphApiUtil.unwrapIOE(e);
+                throw FSGraphApiUtil.unwrapClientEx(e);
             } catch (ClientException e) {
-                throw GraphApiUtil.unwrapIOE(e);
+                throw FSGraphApiUtil.unwrapClientEx(e);
             }
         } else {
             throw new UnsupportedOperationException("Cannot create drive");
@@ -272,7 +272,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
         try {
             client.drives(path.getDriveId()).items(item.id).buildRequest().delete();
         } catch (ClientException ex) {
-            GraphApiUtil.unwrapIOE(ex);
+            FSGraphApiUtil.unwrapClientEx(ex);
         }
     }
 

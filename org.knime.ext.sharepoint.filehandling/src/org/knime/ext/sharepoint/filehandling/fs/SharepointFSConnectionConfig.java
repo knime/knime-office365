@@ -50,6 +50,7 @@ package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.time.Duration;
 
+import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.filehandling.core.connections.meta.base.BaseFSConnectionConfig;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
@@ -191,31 +192,4 @@ public class SharepointFSConnectionConfig extends BaseFSConnectionConfig {
      * Sharepoint site mode
      *
      */
-    public enum SiteMode { //
-        /**
-         * Root site
-         */
-        ROOT("Root site"), //
-        /**
-         * Web URL
-         */
-        WEB_URL("Web URL"), //
-        /**
-         * Group site
-         */
-        GROUP("Group site");
-
-        private String m_selectorLabel;
-
-        private SiteMode(final String selectorLable) {
-            m_selectorLabel = selectorLable;
-        }
-
-        /**
-         * @return the selectorLabel
-         */
-        public String getSelectorLabel() {
-            return m_selectorLabel;
-        }
-    }
 }

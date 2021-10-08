@@ -1,3 +1,4 @@
+package org.knime.ext.sharepoint.dialog;
 /*
  * ------------------------------------------------------------------------
  *
@@ -46,7 +47,6 @@
  * History
  *   2020-05-17 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.node;
 
 import static java.util.stream.Collectors.toList;
 
@@ -67,19 +67,15 @@ import javax.swing.JRadioButton;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig.SiteMode;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
-import org.knime.ext.sharepoint.filehandling.node.LoadedItemsSelector.IdComboboxItem;
-import org.knime.ext.sharepoint.filehandling.node.SharepointConnectionSettings.SiteSettings;
-import org.knime.filehandling.core.connections.FSConnection;
-import org.knime.filehandling.core.util.CheckedExceptionSupplier;
-import org.knime.filehandling.core.util.IOESupplier;
+import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.SharepointSiteResolver;
+import org.knime.ext.sharepoint.dialog.LoadedItemsSelector.IdComboboxItem;
+import org.knime.ext.sharepoint.settings.SiteMode;
+import org.knime.ext.sharepoint.settings.SiteSettings;
 
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.models.extensions.Site;
-import com.microsoft.graph.requests.extensions.GraphServiceClient;
 import com.microsoft.graph.requests.extensions.IDirectoryObjectCollectionWithReferencesPage;
 import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
 
@@ -88,7 +84,7 @@ import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
  *
  * @author Alexander Bondaletov
  */
-final class SiteSettingsPanel extends JPanel {
+public final class SiteSettingsPanel extends JPanel {
 
     private static final long serialVersionUID = 1L;
 
@@ -99,15 +95,11 @@ final class SiteSettingsPanel extends JPanel {
     private LoadedItemsSelector m_groupSelector;
     private LoadedItemsSelector m_subsiteSelector;
 
-    private CheckedExceptionSupplier<FSConnection, IOException> m_fsConnectionSupplier;
-
     /**
      * @param settings
-     * @param connectionSupplier
      */
-    SiteSettingsPanel(final SiteSettings settings, final IOESupplier<FSConnection> connectionSupplier) {
+    public SiteSettingsPanel(final SiteSettings settings) {
         m_settings = settings;
-        m_fsConnectionSupplier = connectionSupplier;
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         add(createRadioSelectorPanel());
         add(createCardsPanel());
@@ -121,7 +113,7 @@ final class SiteSettingsPanel extends JPanel {
      * @param credentials
      *            The Microsoft Credential object.
      */
-    void settingsLoaded(final MicrosoftCredential credentials) {
+    public void settingsLoaded(final MicrosoftCredential credentials) {
         m_connection = credentials;
 
         m_subsiteSelector.onSettingsLoaded();
@@ -231,34 +223,20 @@ final class SiteSettingsPanel extends JPanel {
         }
 
         try {
-            return GraphServiceClient.builder()
-                    .authenticationProvider(SharepointConnectionNodeModel.createGraphAuthProvider(m_connection))
-                    .buildClient();
+            return GraphApiUtil.createClient(m_connection);
         } catch (IOException ex) {
             // FIXME: this means we are doing IO in the UI thread...
             throw new InvalidSettingsException(ex);
         }
     }
 
-    @SuppressWarnings("resource")
     private List<IdComboboxItem> fetchSubsites() throws InvalidSettingsException, IOException {
         m_settings.validateParentSiteSettings();
-        IGraphServiceClient client = createClient();
-        FSConnection connection = null;
-        SharepointFileSystem fileSystem = null;
-        try {
-            connection = m_fsConnectionSupplier.get();
-            fileSystem = (SharepointFileSystem) connection.getFileSystem();
-            return listSubsites(fileSystem.getParentSiteId(client), client, "");
-        } finally {
-            client.shutdown();
-            if (fileSystem != null) {
-                fileSystem.close();
-            }
-            if (connection != null) {
-                connection.close();
-            }
-        }
+        final IGraphServiceClient client = createClient();
+        final var siteResolver = new SharepointSiteResolver(client, m_settings.getMode(),
+                m_settings.getSubsiteModel().getStringValue(), m_settings.getWebURLModel().getStringValue(),
+                m_settings.getGroupModel().getStringValue());
+        return listSubsites(siteResolver.getParentSiteId(), client, "");
     }
 
     private List<IdComboboxItem> listSubsites(final String siteId, final IGraphServiceClient client,

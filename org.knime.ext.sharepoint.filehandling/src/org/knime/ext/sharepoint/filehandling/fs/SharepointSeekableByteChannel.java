@@ -56,7 +56,7 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.Set;
 
-import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 import org.knime.filehandling.core.connections.base.TempFileSeekableByteChannel;
 
 import com.microsoft.graph.concurrency.ChunkedUploadProvider;
@@ -127,7 +127,7 @@ class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<Sharepoi
                         new SharepointFileAttributes(remoteFile, item));
             }
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(ex);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
     }
 
@@ -164,7 +164,7 @@ class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<Sharepoi
                         new SharepointFileAttributes(remoteFile, m_lastDriveItem));
             }
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(m_lastException);
+            throw FSGraphApiUtil.unwrapClientEx(m_lastException);
         }
     }
 

@@ -46,7 +46,7 @@
  * History
  *   2020-05-25 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling.node;
+package org.knime.ext.sharepoint.dialog;
 
 import java.awt.Component;
 import java.awt.GridBagConstraints;

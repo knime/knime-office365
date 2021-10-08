@@ -69,6 +69,8 @@ import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
@@ -82,8 +84,7 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
 
-    private final SiteSettingsPanel m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings(),
-            this::createFSConnection);
+    private final SiteSettingsPanel m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
 
     private final WorkingDirectoryChooser m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir",
             this::createFSConnection);
@@ -110,7 +111,7 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
     private FSConnection createFSConnection() throws IOException {
         final SharepointConnectionSettings clonedSettings = m_settings.clone();
         return new SharepointFSConnection(clonedSettings
-                .toFSConnectionConfig(SharepointConnectionNodeModel.createGraphAuthProvider(m_connection)));
+                .toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(m_connection)));
     }
 
     private JComponent createTimeoutsPanel() {

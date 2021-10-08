@@ -53,7 +53,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 
-import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 import org.knime.filehandling.core.connections.base.UnixStylePath;
 
 import com.microsoft.graph.http.GraphServiceException;
@@ -160,7 +160,7 @@ public class SharepointPath extends UnixStylePath {
             if (e.getResponseCode() == 404) {
                 return null;
             }
-            throw GraphApiUtil.unwrapIOE(e);
+            throw FSGraphApiUtil.unwrapClientEx(e);
         }
     }
 

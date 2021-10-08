@@ -55,7 +55,7 @@ import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.models.extensions.Drive;
@@ -174,7 +174,8 @@ abstract class SharepointPathIterator implements Iterator<SharepointPath> {
         }
 
         private SharepointPath createPath(final Drive drive) {
-            SharepointPath path = m_fs.getPath(m_fs.getSeparator(), GraphApiUtil.escapeDriveName(drive.name));
+            SharepointPath path = m_fs.getPath(m_fs.getSeparator(),
+                    FSGraphApiUtil.escapeDriveName(drive.name));
 
             SharepointFileAttributes attrs = new SharepointFileAttributes(path, null);
             m_fs.addToAttributeCache(path, attrs);
@@ -217,7 +218,7 @@ abstract class SharepointPathIterator implements Iterator<SharepointPath> {
             try {
                 m_currentPage = req.children().buildRequest().get();
             } catch (ClientException e) {
-                throw GraphApiUtil.unwrapIOE(e);
+                throw FSGraphApiUtil.unwrapClientEx(e);
             }
 
             m_iterator = m_currentPage.getCurrentPage().iterator();
@@ -244,7 +245,7 @@ abstract class SharepointPathIterator implements Iterator<SharepointPath> {
             try {
                 m_currentPage = m_currentPage.getNextPage().buildRequest().get();
             } catch (ClientException e) {
-                throw GraphApiUtil.unwrapIOE(e);
+                throw FSGraphApiUtil.unwrapClientEx(e);
             }
             m_iterator = m_currentPage.getCurrentPage().iterator();
         }

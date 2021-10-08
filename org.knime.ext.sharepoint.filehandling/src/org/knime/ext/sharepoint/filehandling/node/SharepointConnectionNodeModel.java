@@ -50,7 +50,6 @@ package org.knime.ext.sharepoint.filehandling.node;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -65,15 +64,12 @@ import org.knime.core.node.port.PortType;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
+import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSDescriptorProvider;
 import org.knime.filehandling.core.connections.FSConnectionRegistry;
 import org.knime.filehandling.core.port.FileSystemPortObject;
 import org.knime.filehandling.core.port.FileSystemPortObjectSpec;
-
-import com.microsoft.graph.authentication.IAuthenticationProvider;
 
 /**
  * Node model for the Sharepoint Connector node.
@@ -101,7 +97,8 @@ final class SharepointConnectionNodeModel extends NodeModel {
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
         MicrosoftCredential connection = ((MicrosoftCredentialPortObjectSpec) inObjects[0].getSpec())
                 .getMicrosoftCredential();
-        m_fsConnection = new SharepointFSConnection(m_settings.toFSConnectionConfig(createGraphAuthProvider(connection)));
+        m_fsConnection = new SharepointFSConnection(
+                m_settings.toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(connection)));
         FSConnectionRegistry.getInstance().register(m_fsId, m_fsConnection);
         return new PortObject[] { new FileSystemPortObject(createSpec()) };
     }
@@ -161,25 +158,5 @@ final class SharepointConnectionNodeModel extends NodeModel {
             m_fsConnection = null;
         }
         m_fsId = null;
-    }
-
-    /**
-     * Creates {@link IAuthenticationProvider} from the given
-     * {@link MicrosoftCredential} object.
-     *
-     * @param connection
-     *            The Microsoft connection object.
-     * @return The {@link IAuthenticationProvider} instance.
-     * @throws MalformedURLException
-     */
-    static IAuthenticationProvider createGraphAuthProvider(final MicrosoftCredential connection) throws IOException {
-
-        if (!(connection instanceof OAuth2Credential)) {
-            throw new UnsupportedOperationException("Unsupported credential type: " + connection.getType());
-        }
-
-        final String accessToken = ((OAuth2Credential) connection).getAccessToken().getToken();
-
-        return new GraphApiAuthenticationProvider(accessToken);
     }
 }

@@ -55,12 +55,12 @@ import java.util.Map;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 import org.knime.ext.microsoft.authentication.port.oauth2.testing.OAuth2TestAuthenticator;
-import org.knime.ext.sharepoint.filehandling.GraphApiAuthenticationProvider;
+import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig.SiteMode;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSDescriptorProvider;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.filehandling.core.connections.FSLocationSpec;
 import org.knime.filehandling.core.connections.meta.FSType;
 import org.knime.filehandling.core.testing.DefaultFSTestInitializerProvider;
@@ -109,7 +109,7 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         final OAuth2Credential credential = OAuth2TestAuthenticator.authenticateWithUsernamePassword(
                 getParameter(config, "username"), //
                 getParameter(config, "password"));
-        return new GraphApiAuthenticationProvider(credential.getAccessToken().getToken());
+        return GraphApiUtil.createAuthenticationProvider(credential);
     }
 
     @Override

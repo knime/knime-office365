@@ -48,20 +48,17 @@
  */
 package org.knime.ext.sharepoint.filehandling.node;
 
-import java.net.MalformedURLException;
 import java.time.Duration;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
-import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig.SiteMode;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.connections.meta.FSConnectionConfig;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
@@ -228,197 +225,6 @@ class SharepointConnectionSettings implements Cloneable {
     }
 
     /**
-     * Class represents chosen site settings.
-     *
-     * @author Alexander Bondaletov
-     */
-    public static class SiteSettings {
-        private static final String KEY_SITE = "site";
-        private static final String KEY_GROUP = "group";
-        private static final String KEY_GROUP_NAME = "groupName";
-        private static final String KEY_MODE = "mode";
-        private static final String KEY_SUBSITE = "subsite";
-        private static final String KEY_SUBSITE_NAME = "subsiteName";
-        private static final String KEY_CONNECT_TO_SUBSITE = "connectToSubsite";
-
-        private final SettingsModelString m_webURL;
-        private final SettingsModelString m_group;
-        private final SettingsModelString m_groupName;
-        private final SettingsModelString m_mode;
-        private final SettingsModelString m_subsite;
-        private final SettingsModelString m_subsiteName;
-        private final SettingsModelBoolean m_connectToSubsite;
-
-        /**
-         * Creates new instance
-         */
-        public SiteSettings() {
-            m_webURL = new SettingsModelString(KEY_SITE, "");
-            m_group = new SettingsModelString(KEY_GROUP, "");
-            m_groupName = new SettingsModelString(KEY_GROUP_NAME, "");
-            m_mode = new SettingsModelString(KEY_MODE, SiteMode.ROOT.name());
-            m_subsite = new SettingsModelString(KEY_SUBSITE, "");
-            m_subsiteName = new SettingsModelString(KEY_SUBSITE_NAME, "");
-            m_connectToSubsite = new SettingsModelBoolean(KEY_CONNECT_TO_SUBSITE, false);
-
-            m_webURL.addChangeListener(e -> resetSubsite());
-            m_group.addChangeListener(e -> resetSubsite());
-            m_mode.addChangeListener(e -> resetSubsite());
-        }
-
-        private void resetSubsite() {
-            m_subsite.setStringValue("");
-            m_subsiteName.setStringValue("");
-            m_connectToSubsite.setBooleanValue(false);
-        }
-
-        /**
-         * Saves the settings in this instance to the given {@link NodeSettingsWO}
-         *
-         * @param settings
-         *            Node settings.
-         */
-        public void saveSettingsTo(final NodeSettingsWO settings) {
-            m_webURL.saveSettingsTo(settings);
-            m_group.saveSettingsTo(settings);
-            m_groupName.saveSettingsTo(settings);
-            m_mode.saveSettingsTo(settings);
-            m_subsite.saveSettingsTo(settings);
-            m_subsiteName.saveSettingsTo(settings);
-            m_connectToSubsite.saveSettingsTo(settings);
-        }
-
-        /**
-         * Validates the settings in a given {@link NodeSettingsRO}
-         *
-         * @param settings
-         *            Node settings.
-         * @throws InvalidSettingsException
-         */
-        public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-            m_webURL.validateSettings(settings);
-            m_group.validateSettings(settings);
-            m_groupName.validateSettings(settings);
-            m_subsite.validateSettings(settings);
-            m_subsiteName.validateSettings(settings);
-            m_mode.validateSettings(settings);
-            m_connectToSubsite.validateSettings(settings);
-        }
-
-        /**
-         * Validates settings consistency for this instance.
-         *
-         * @throws InvalidSettingsException
-         */
-        public void validate() throws InvalidSettingsException {
-            validateParentSiteSettings();
-            if (m_connectToSubsite.getBooleanValue() && m_subsite.getStringValue().isEmpty()) {
-                throw new InvalidSettingsException("Subsite is not selected.");
-            }
-        }
-
-        /**
-         * Validates parent site settings (site/group settings depending on the current
-         * mode)
-         *
-         * @throws InvalidSettingsException
-         */
-        public void validateParentSiteSettings() throws InvalidSettingsException {
-            SiteMode mode = getMode();
-            if (mode == SiteMode.GROUP && m_group.getStringValue().isEmpty()) {
-                throw new InvalidSettingsException("Group is not selected.");
-            }
-            if (mode == SiteMode.WEB_URL) {
-                if (m_webURL.getStringValue().isEmpty()) {
-                    throw new InvalidSettingsException("Web URL is not specified.");
-                }
-                try {
-                    GraphApiUtil.getSiteIdFromSharepointSiteWebURL(m_webURL.getStringValue());
-                } catch (MalformedURLException ex) {
-                    throw new InvalidSettingsException(ex.getMessage());
-                }
-            }
-        }
-
-        /**
-         * Loads settings from the given {@link NodeSettingsRO}
-         *
-         * @param settings
-         *            Node settings.
-         * @throws InvalidSettingsException
-         */
-        public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-            m_webURL.loadSettingsFrom(settings);
-            m_group.loadSettingsFrom(settings);
-            m_groupName.loadSettingsFrom(settings);
-            m_mode.loadSettingsFrom(settings);
-            m_subsite.loadSettingsFrom(settings);
-            m_subsiteName.loadSettingsFrom(settings);
-            m_connectToSubsite.loadSettingsFrom(settings);
-        }
-
-        /**
-         * @return the web URL model
-         */
-        public SettingsModelString getWebURLModel() {
-            return m_webURL;
-        }
-
-        /**
-         * @return the group model
-         */
-        public SettingsModelString getGroupModel() {
-            return m_group;
-        }
-
-        /**
-         * @return the groupName model
-         */
-        public SettingsModelString getGroupNameModel() {
-            return m_groupName;
-        }
-
-        /**
-         * @return the mode model
-         */
-        public SettingsModelString getModeModel() {
-            return m_mode;
-        }
-
-        /**
-         * @return the mode
-         */
-        public SiteMode getMode() {
-            try {
-                return SiteMode.valueOf(m_mode.getStringValue());
-            } catch (IllegalArgumentException e) {
-                return SiteMode.ROOT;
-            }
-        }
-
-        /**
-         * @return the subsite model
-         */
-        public SettingsModelString getSubsiteModel() {
-            return m_subsite;
-        }
-
-        /**
-         * @return the subsiteName model
-         */
-        public SettingsModelString getSubsiteNameModel() {
-            return m_subsiteName;
-        }
-
-        /**
-         * @return the connectToSubsite model
-         */
-        public SettingsModelBoolean getConnectToSubsiteModel() {
-            return m_connectToSubsite;
-        }
-    }
-
-    /**
      *
      * @param authProvider
      *            The authentication provider.
@@ -436,6 +242,7 @@ class SharepointConnectionSettings implements Cloneable {
                 && !m_siteSettings.getSubsiteModel().getStringValue().isEmpty()) {
             config.setSubsite(m_siteSettings.getSubsiteModel().getStringValue());
         }
+
         return config;
     }
 }

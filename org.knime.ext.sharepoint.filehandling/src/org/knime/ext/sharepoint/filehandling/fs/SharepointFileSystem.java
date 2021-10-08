@@ -59,7 +59,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.SharepointSiteResolver;
+import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 import org.knime.filehandling.core.connections.base.BaseFileSystem;
 
 import com.microsoft.graph.core.ClientException;
@@ -74,7 +75,6 @@ import com.microsoft.graph.models.extensions.Drive;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.requests.extensions.GraphServiceClient;
 import com.microsoft.graph.requests.extensions.IDriveCollectionPage;
-import com.microsoft.graph.requests.extensions.ISiteRequestBuilder;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -122,9 +122,11 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
             patchHttpProvider();
 
-            m_siteId = getTargetSiteId(m_client);
+            final var siteResolver = new SharepointSiteResolver(m_client, m_config.getMode(), m_config.getSubsite(),
+                    m_config.getWebURL(), m_config.getGroup());
+            m_siteId = siteResolver.getTargetSiteId();
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(ex);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
 
         m_drives = new HashMap<>();
@@ -176,13 +178,13 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
                 storeDrives(result.getCurrentPage());
             }
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(ex);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
     }
 
     private void storeDrives(final List<Drive> drives) {
         for (Drive drive : drives) {
-            m_drives.put(GraphApiUtil.escapeDriveName(drive.name), drive);
+            m_drives.put(FSGraphApiUtil.escapeDriveName(drive.name), drive);
         }
     }
 
@@ -231,52 +233,5 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
     @Override
     public Iterable<Path> getRootDirectories() {
         return Collections.singletonList(getPath(PATH_SEPARATOR));
-    }
-
-    /**
-     * Returns the selected site or subsite id.
-     *
-     * @param client
-     *            The client.
-     * @return The site id.
-     * @throws IOException
-     */
-    public String getTargetSiteId(final IGraphServiceClient client) throws IOException {
-        if (m_config.getSubsite() != null) {
-            return m_config.getSubsite();
-        }
-
-        return getParentSiteId(client);
-    }
-
-    /**
-     * The selected site id.
-     *
-     * @param client
-     *            The client
-     * @return The site id.
-     * @throws IOException
-     */
-    @SuppressWarnings("null")
-    public String getParentSiteId(final IGraphServiceClient client) throws IOException {
-        ISiteRequestBuilder req = null;
-
-        switch (m_config.getMode()) {
-        case ROOT:
-            req = client.sites(ROOT_SITE);
-            break;
-        case WEB_URL:
-            req = client.sites(GraphApiUtil.getSiteIdFromSharepointSiteWebURL(m_config.getWebURL()));
-            break;
-        case GROUP:
-            req = client.groups(m_config.getGroup()).sites(ROOT_SITE);
-            break;
-        }
-
-        try {
-            return req.buildRequest().get().id;
-        } catch (ClientException e) {
-            throw GraphApiUtil.unwrapIOE(e);
-        }
     }
 }

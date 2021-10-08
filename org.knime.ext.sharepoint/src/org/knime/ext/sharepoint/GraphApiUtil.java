@@ -46,40 +46,38 @@
  * History
  *   2020-05-10 (Alexander Bondaletov): created
  */
-package org.knime.ext.sharepoint.filehandling;
+package org.knime.ext.sharepoint;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.AccessDeniedException;
 
-import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 
 import com.google.gson.JsonObject;
+import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
-import com.microsoft.graph.http.GraphError;
-import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.DirectoryObject;
+import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.requests.extensions.GraphServiceClient;
 
 /**
  * Utility class for Graph API.
  *
  * @author Alexander Bondaletov
  */
-public class GraphApiUtil {
+public final class GraphApiUtil {
     /**
      * oDataType corresponds to a Group
      */
     public static final String GROUP_DATA_TYPE = "#microsoft.graph.group";
-    /**
-     * Error code of the <code>nameAlreadyExists</code>
-     * {@link GraphServiceException}.
-     */
-    public static final String NAME_ALREADY_EXISTS_CODE = "nameAlreadyExists";
 
     private static final String PROP_DISPLAY_NAME = "displayName";
-    private static final String SEPARATOR_REPLACEMENT = "$_$";
-    private static final String ACCESS_DENIED_CODE = "accessDenied";
+
+    private GraphApiUtil() {
+        // hide constructor for Utils class
+    }
 
     /**
      *
@@ -87,24 +85,17 @@ public class GraphApiUtil {
      * Attempts to unwrap provided {@link ClientException}.
      * </p>
      * <p>
-     * Firstly, it iterates through the whole 'cause-chain' in attempt to find
+     * It iterates through the whole 'cause-chain' in attempt to find
      * {@link IOException} and throws it if one is found.<br>
      * </p>
      * <p>
-     * Secondly, if provided exception is instance of {@link GraphServiceException}
-     * then {@link GraphError} code is checked and {@link AccessDeniedException} is
-     * thrown when necessary.<br>
-     * </p>
-     * <p>
-     * Otherwise, returns {@link WrappedGraphException} with user-friendly error
-     * message from {@link GraphServiceException}, or the original exception in case
-     * it is not an instance of {@link GraphServiceException}.<br>
+     * In case no {@link IOException} occurs the original exception is returned.
      * </p>
      *
      * @param ex
      *            The exception.
-     * @return {@link WrappedGraphException} instance or the original exception in
-     *         case it is not an instance of {@link GraphServiceException}.
+     * @return {@link IOException} instance or the original exception
+     *
      * @throws IOException
      */
     public static RuntimeException unwrapIOE(final ClientException ex) throws IOException {
@@ -114,16 +105,6 @@ public class GraphApiUtil {
                 throw (IOException) cause;
             }
             cause = cause.getCause();
-        }
-
-        if (ex instanceof GraphServiceException) {
-            GraphError error = ((GraphServiceException) ex).getServiceError();
-            if (ACCESS_DENIED_CODE.equals(error.code)) {
-                AccessDeniedException ade = new AccessDeniedException(error.message);
-                ade.initCause(ex);
-                throw ade;
-            }
-            return new WrappedGraphException((GraphServiceException) ex);
         }
 
         return ex;
@@ -145,31 +126,6 @@ public class GraphApiUtil {
     }
 
     /**
-     * Escapes the drive name by replacing '/' characters with '$_$' sequence.
-     *
-     * @param name
-     *            The drive name.
-     * @return Escaped drive name.
-     */
-    public static final String escapeDriveName(final String name) {
-        return name.replace(SharepointFileSystem.PATH_SEPARATOR, SEPARATOR_REPLACEMENT);
-    }
-
-    /**
-     * Wrapped {@link GraphServiceException} with more user-friendly error message
-     * extracted
-     *
-     * @author Alexander Bondaletov
-     */
-    public static class WrappedGraphException extends RuntimeException {
-        private static final long serialVersionUID = 1L;
-
-        private WrappedGraphException(final GraphServiceException ex) {
-            super(ex.getServiceError().message, ex);
-        }
-    }
-
-    /**
      *
      * @param urlString
      *            Web URL that a user entered, which points to a Sharepoint site.
@@ -177,7 +133,7 @@ public class GraphApiUtil {
      * @throws MalformedURLException
      */
     public static String getSiteIdFromSharepointSiteWebURL(final String urlString) throws MalformedURLException {
-        URL url = new URL(urlString);
+        final var url = new URL(urlString);
         String result = url.getHost();
 
         if (url.getPath() != null && !url.getPath().isEmpty()) {
@@ -186,4 +142,40 @@ public class GraphApiUtil {
 
         return result;
     }
+
+    /**
+     * Creates a {@link IGraphServiceClient} with a {@link MicrosoftCredential}.
+     *
+     * @param connection
+     *            the {@link MicrosoftCredential}
+     * @return the {@link IGraphServiceClient}
+     * @throws IOException
+     */
+    @SuppressWarnings("deprecation")
+    public static IGraphServiceClient createClient(final MicrosoftCredential connection) throws IOException {
+        final IAuthenticationProvider authProvider = createAuthenticationProvider(connection);
+
+        return GraphServiceClient.builder().authenticationProvider(authProvider).buildClient();
+    }
+
+    /**
+     * Creates a {@link IAuthenticationProvider} with a {@link MicrosoftCredential}.
+     *
+     * @param connection
+     *            the {@link MicrosoftCredential}
+     * @return the {@link IAuthenticationProvider}
+     * @throws IOException
+     */
+    @SuppressWarnings("deprecation")
+    public static IAuthenticationProvider createAuthenticationProvider(final MicrosoftCredential connection)
+            throws IOException {
+        if (!(connection instanceof OAuth2Credential)) {
+            throw new UnsupportedOperationException("Unsupported credential type: " + connection.getType());
+        }
+
+        final String accessToken = ((OAuth2Credential) connection).getAccessToken().getToken();
+
+        return (r -> r.addHeader("Authorization", "Bearer " + accessToken));
+    }
+
 }

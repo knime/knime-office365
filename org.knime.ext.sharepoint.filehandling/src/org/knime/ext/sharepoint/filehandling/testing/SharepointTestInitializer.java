@@ -51,7 +51,7 @@ package org.knime.ext.sharepoint.filehandling.testing;
 import java.io.IOException;
 import java.nio.file.Files;
 
-import org.knime.ext.sharepoint.filehandling.GraphApiUtil;
+import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointPath;
@@ -104,7 +104,7 @@ public class SharepointTestInitializer extends DefaultFSTestInitializer<Sharepoi
             m_client.drives(driveId).items(parentId).itemWithPath(SharepointPath.toUrlString(name)).content()
                     .buildRequest().put(content.getBytes());
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(ex);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
 
         return path;
@@ -144,7 +144,7 @@ public class SharepointTestInitializer extends DefaultFSTestInitializer<Sharepoi
 
             m_client.drives(scratchDir.getDriveId()).items(scratchDir.getDriveItem().id).buildRequest().delete();
         } catch (ClientException ex) {
-            throw GraphApiUtil.unwrapIOE(ex);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
 
         getFileSystem().clearAttributesCache();
