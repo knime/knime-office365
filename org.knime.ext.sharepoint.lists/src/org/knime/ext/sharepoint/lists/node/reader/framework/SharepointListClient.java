@@ -48,6 +48,8 @@
  */
 package org.knime.ext.sharepoint.lists.node.reader.framework;
 
+import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -63,10 +65,16 @@ import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 import org.knime.core.util.Pair;
+import org.knime.ext.sharepoint.SharepointSiteResolver;
+import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel.ListSettings;
+import org.knime.ext.sharepoint.lists.node.reader.SharepointListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListRead.RandomAccessibleDataRow;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 
 import com.google.gson.JsonElement;
+import com.microsoft.graph.core.DefaultConnectionConfig;
+import com.microsoft.graph.core.IConnectionConfig;
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
@@ -79,26 +87,26 @@ import com.microsoft.graph.requests.extensions.IListItemCollectionPage;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 public final class SharepointListClient {
-    // TODO to be removed with AP-17507
-    static final String LIST_LONG = "07540548-5b44-4430-a1ab-9de37a102e79";
-    static final String LIST_SHORT = "d999e2ab-89ac-4611-b99e-20937224de3a";
 
     private static final List<Option> OPTIONS_ITEMS = Collections.singletonList(new QueryOption("expand", "fields"));
 
-    // TODO check if we do want to filter anything at all
     private static final Set<String> DISALLOW_LIST = Set.of("linktitlenomenu", "linktitle");
 
     private static final Predicate<SharepointListColumn<?>> ALLOWED = c -> !DISALLOW_LIST.contains(c.getIdName());
 
     private static final Pair<Integer, SharepointListColumn<?>> MISSING = Pair.create(-1, null);
 
-    private final List<SharepointListColumn<?>> m_columns;
+    private List<SharepointListColumn<?>> m_columns;
 
     private final IGraphServiceClient m_client;
 
-    private final String m_siteId;
+    private String m_siteId;
 
-    private final String m_listId;
+    private String m_listId;
+
+    private int m_settingsHash;
+
+    private IConnectionConfig m_connectionConfig;
 
     /**
      * Create an object used to setup and get information from the Microsoft Graph
@@ -106,56 +114,99 @@ public final class SharepointListClient {
      *
      * @param client
      *            the {@link IGraphServiceClient} used to make the API calls
-     * @param siteId
-     *            the Id of the site
-     * @param listId
-     *            the Id of the list
+     * @param settings
+     *            the {@link SharepointListSettings} used to setup the client
      */
-    // TODO unused parameters be used with AP-17507
-    public SharepointListClient(final IGraphServiceClient client, final String siteId, final String listId) {//
+    public SharepointListClient(final IGraphServiceClient client, final SharepointListSettings settings) {
         m_client = client;
-        m_siteId = "root";
-        m_listId = LIST_SHORT;
-        m_columns = getColumns();
+        m_connectionConfig = new DefaultConnectionConfig();
+        updateHttpConfig(settings);
+    }
+
+    private void updateHttpConfig(final SharepointListSettings settings) {
+        m_connectionConfig.setConnectTimeout(toMilis(settings.getConnectionTimeout()));
+        m_connectionConfig.setReadTimeout(toMilis(settings.getReadTimeout()));
+        m_client.getHttpProvider().setConnectionConfig(m_connectionConfig);
+    }
+
+    private static int toMilis(final int duration) {
+        return Math.toIntExact(Duration.ofSeconds(duration).toMillisPart());
     }
 
     /**
+     * @param listSettings
+     *            the {@link ListSettings} used to decide the accessed list
      * @return a {@link List} of {@link SharepointListColumn}.
+     * @throws IOException
+     *             if the columns couldn't be read (most likely due to the list not
+     *             existing in the settings configuration)
      */
-    private List<SharepointListColumn<?>> getColumns() {
-        final List<SharepointListColumn<?>> columns = StreamSupport
-                .stream(Spliterators.spliteratorUnknownSize(new ColumnIterator(),
-                        Spliterator.ORDERED | Spliterator.IMMUTABLE | Spliterator.NONNULL), false)//
-                .map(JsonElement::getAsJsonObject)//
-                .map(SharepointListColumn::of)//
-                .filter(ALLOWED)//
-                .collect(Collectors.toUnmodifiableList());
-        // check for columns with duplicate display names and make the column names
-        // unique if necessary
-        final var columnNames = new LinkedHashMap<String, List<SharepointListColumn<?>>>();
-        for (final var col : columns) {
-            columnNames.computeIfAbsent(col.getDisplayName(), k -> new LinkedList<>()).add(col);
+    public List<SharepointListColumn<?>> getColumns(final SharepointListSettings listSettings) throws IOException {
+        setSiteAndListId(listSettings.getSiteSettings());
+        updateHttpConfig(listSettings);
+
+        // have the columns be read or the settings changed?
+        if (m_columns == null || listSettings.getSiteSettings().hashCode() != m_settingsHash) {
+            m_settingsHash = listSettings.getSiteSettings().hashCode();
+            try {
+                m_columns = StreamSupport
+                        .stream(Spliterators.spliteratorUnknownSize(new ColumnIterator(),
+                                Spliterator.ORDERED | Spliterator.IMMUTABLE | Spliterator.NONNULL), false)//
+                        .map(JsonElement::getAsJsonObject)//
+                        .map(SharepointListColumn::of)//
+                        .filter(ALLOWED)//
+                        .collect(Collectors.toUnmodifiableList());
+                // check for columns with duplicate display names and make the column names
+                // unique if necessary
+                final var columnNames = new LinkedHashMap<String, List<SharepointListColumn<?>>>();
+                for (final var col : m_columns) {
+                    columnNames.computeIfAbsent(col.getDisplayName(), k -> new LinkedList<>()).add(col);
+                }
+                columnNames.values().stream()//
+                        .filter(l -> l.size() >= 2)//
+                        .flatMap(List::stream)//
+                        .forEach(SharepointListColumn::makeColumnNameUnique);
+            } catch (GraphServiceException e) {
+                throw new IOException("Could not read list: " + e.getError().error.message, e);
+            }
         }
-        columnNames.values().stream()//
-                .filter(l -> l.size() >= 2)//
-                .flatMap(List::stream)//
-                .forEach(SharepointListColumn::makeColumnNameUnique);
-        return columns;
+
+        return m_columns;
     }
 
     /**
+     * Returns an {@link Iterator} of {@link RandomAccessibleDataRow}.
+     *
+     * @param settings
+     *            the {@link SharepointListSettings} used to decide the accessed
+     *            list
      * @return an iterator that allows iteration over all items in a list and
      *         returns them as {@link RandomAccessible}s
+     * @throws IOException
      */
-    public Iterator<RandomAccessibleDataRow> getItems() {
+    public Iterator<RandomAccessibleDataRow> getItems(final SharepointListSettings settings) throws IOException {
+        setSiteAndListId(settings.getSiteSettings());
+        updateHttpConfig(settings);
         return new ItemIterator();
     }
 
     /**
-     * @return the {@link List} of {@link SharepointListColumn}
+     * Sets the site Id and the list Id based on the current settings.
+     *
+     * @param listSettings
+     *            the {@link ListSettings} used to determine the site and list Id
+     * @throws IOException
      */
-    public List<SharepointListColumn<?>> getColumnList() {// NOSONAR: no better syntax possible
-        return m_columns;
+    private void setSiteAndListId(final ListSettings listSettings) throws IOException {
+        final var siteResolver = new SharepointSiteResolver(m_client, listSettings.getMode(),
+                listSettings.getSubsiteModel().getStringValue(), listSettings.getWebURLModel().getStringValue(),
+                listSettings.getGroupModel().getStringValue());
+        m_siteId = siteResolver.getTargetSiteId();
+        m_listId = listSettings.getListModel().getStringValue();
+
+        if (m_listId.isEmpty()) {
+            throw new IllegalStateException("Please select a list.");
+        }
     }
 
     private class ColumnIterator implements Iterator<JsonElement> {
@@ -218,7 +269,7 @@ public final class SharepointListClient {
 
         private boolean m_finishedRead = false;
 
-        public ItemIterator() {
+        public ItemIterator() throws IOException {
             m_idIndexMapping = createColumnAssignment();
         }
 
@@ -245,13 +296,13 @@ public final class SharepointListClient {
                     .getAsJsonObject()//
                     .entrySet();
 
-            properties.stream().forEach(p -> {
+            for (final var p : properties) {
                 final var lookup = m_idIndexMapping.getOrDefault(p.getKey().toLowerCase(), MISSING);
                 if (lookup != MISSING) {
                     res[lookup.getFirst()] = lookup.getSecond()// [columnIndex] = column
                             .getCanonicalRepresentation(p.getValue());
                 }
-            });
+            }
 
             return new RandomAccessibleDataRow(res);
         }
@@ -282,4 +333,5 @@ public final class SharepointListClient {
                             i -> Pair.create(i, m_columns.get(i)), (a, b) -> b));
         }
     }
+
 }

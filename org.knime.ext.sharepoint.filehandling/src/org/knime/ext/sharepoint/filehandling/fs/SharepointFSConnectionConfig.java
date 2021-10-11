@@ -188,8 +188,4 @@ public class SharepointFSConnectionConfig extends BaseFSConnectionConfig {
         m_readTimeOut = readTimeOut;
     }
 
-    /**
-     * Sharepoint site mode
-     *
-     */
 }

@@ -51,13 +51,12 @@ package org.knime.ext.sharepoint.filehandling.node;
 import java.time.Duration;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
+import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
 import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.connections.meta.FSConnectionConfig;
 
@@ -69,25 +68,20 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
  * @author Alexander Bondaletov
  */
 @SuppressWarnings("deprecation")
-public final class SharepointConnectionSettings implements Cloneable {
+class SharepointConnectionSettings extends AbstractSharePointSettings<SiteSettings, SharepointConnectionSettings> {
 
     private static final String KEY_WORKING_DIRECTORY = "workingDirectory";
-    private static final String KEY_CONNECTION_TIMEOUT = "connectionTimeout";
-    private static final String KEY_READ_TIMEOUT = "readTimeout";
-    private static final String KEY_SITE_SITTINGS = "site";
 
-    private final SiteSettings m_siteSettings;
     private final SettingsModelString m_workingDirectory;
-    private final SettingsModelIntegerBounded m_connectionTimeout;
-    private final SettingsModelIntegerBounded m_readTimeout;
 
-    public SharepointConnectionSettings() {
-        m_siteSettings = new SiteSettings();
-
+    SharepointConnectionSettings() {
+        super(new SiteSettings());
         m_workingDirectory = new SettingsModelString(KEY_WORKING_DIRECTORY, SharepointFileSystem.PATH_SEPARATOR);
-        m_connectionTimeout = new SettingsModelIntegerBounded(KEY_CONNECTION_TIMEOUT, SharepointFSConnectionConfig.DEFAULT_TIMEOUT, 0,
-                Integer.MAX_VALUE);
-        m_readTimeout = new SettingsModelIntegerBounded(KEY_READ_TIMEOUT, SharepointFSConnectionConfig.DEFAULT_TIMEOUT, 0, Integer.MAX_VALUE);
+    }
+
+    private SharepointConnectionSettings(final SharepointConnectionSettings toCopy) {
+        super(toCopy);
+        m_workingDirectory = toCopy.getWorkingDirectoryModel();
     }
 
     /**
@@ -96,11 +90,10 @@ public final class SharepointConnectionSettings implements Cloneable {
      * @param settings
      *            Node settings.
      */
+    @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
+        super.saveSettingsTo(settings);
         m_workingDirectory.saveSettingsTo(settings);
-        m_connectionTimeout.saveSettingsTo(settings);
-        m_readTimeout.saveSettingsTo(settings);
-        m_siteSettings.saveSettingsTo(settings.addNodeSettings(KEY_SITE_SITTINGS));
     }
 
     /**
@@ -110,14 +103,11 @@ public final class SharepointConnectionSettings implements Cloneable {
      *            Node settings.
      * @throws InvalidSettingsException
      */
+    @Override
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+        super.validateSettings(settings);
         m_workingDirectory.validateSettings(settings);
-        m_connectionTimeout.validateSettings(settings);
-        m_readTimeout.validateSettings(settings);
-
-        SharepointConnectionSettings temp = new SharepointConnectionSettings();
-        temp.loadSettingsFrom(settings);
-        temp.validate();
+        validate();
     }
 
     /**
@@ -126,8 +116,6 @@ public final class SharepointConnectionSettings implements Cloneable {
      * @throws InvalidSettingsException
      */
     public void validate() throws InvalidSettingsException {
-        m_siteSettings.validate();
-
         if (m_workingDirectory.getStringValue().isEmpty()) {
             throw new InvalidSettingsException("Working directory must be specified.");
         }
@@ -146,18 +134,10 @@ public final class SharepointConnectionSettings implements Cloneable {
      *            Node settings.
      * @throws InvalidSettingsException
      */
+    @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
+        super.loadSettingsFrom(settings);
         m_workingDirectory.loadSettingsFrom(settings);
-        m_connectionTimeout.loadSettingsFrom(settings);
-        m_readTimeout.loadSettingsFrom(settings);
-        m_siteSettings.loadSettingsFrom(settings.getNodeSettings(KEY_SITE_SITTINGS));
-    }
-
-    /**
-     * @return the siteSettings
-     */
-    public SiteSettings getSiteSettings() {
-        return m_siteSettings;
     }
 
     /**
@@ -175,53 +155,11 @@ public final class SharepointConnectionSettings implements Cloneable {
      * @return the workingDirectory
      */
     public String getWorkingDirectory(final String defaultDir) {
-        String workDir = m_workingDirectory.getStringValue();
+        final var workDir = m_workingDirectory.getStringValue();
         if (workDir.isEmpty()) {
             return defaultDir;
         }
         return workDir;
-    }
-
-    /**
-     * @return the connectionTimeout settings model
-     */
-    public SettingsModelIntegerBounded getConnectionTimeoutModel() {
-        return m_connectionTimeout;
-    }
-
-    /**
-     * @return the connectionTimeout
-     */
-    public int getConnectionTimeout() {
-        return m_connectionTimeout.getIntValue();
-    }
-
-    /**
-     * @return the readTimeout settings model
-     */
-    public SettingsModelIntegerBounded getReadTimeoutModel() {
-        return m_readTimeout;
-    }
-
-    /**
-     * @return the readTimeout
-     */
-    public int getReadTimeout() {
-        return m_readTimeout.getIntValue();
-    }
-
-    @Override
-    public SharepointConnectionSettings clone() {
-        NodeSettings transferSettings = new NodeSettings("ignored");
-        saveSettingsTo(transferSettings);
-
-        final SharepointConnectionSettings clone = new SharepointConnectionSettings();
-        try {
-            clone.loadSettingsFrom(transferSettings);
-        } catch (InvalidSettingsException ex) {
-            throw new IllegalStateException(ex);
-        }
-        return clone;
     }
 
     /**
@@ -231,18 +169,23 @@ public final class SharepointConnectionSettings implements Cloneable {
      * @return The {@link FSConnectionConfig} for Sharepoint
      */
     public SharepointFSConnectionConfig toFSConnectionConfig(final IAuthenticationProvider authProvider) {
-        final SharepointFSConnectionConfig config = new SharepointFSConnectionConfig(
-                getWorkingDirectory(SharepointFileSystem.PATH_SEPARATOR), authProvider);
+        final var config = new SharepointFSConnectionConfig(getWorkingDirectory(SharepointFileSystem.PATH_SEPARATOR),
+                authProvider);
         config.setReadTimeOut(Duration.ofSeconds(getReadTimeout()));
         config.setConnectionTimeOut(Duration.ofSeconds(getConnectionTimeout()));
-        config.setMode(m_siteSettings.getMode());
-        config.setGroup(m_siteSettings.getGroupModel().getStringValue());
-        config.setWebURL(m_siteSettings.getWebURLModel().getStringValue());
-        if (m_siteSettings.getConnectToSubsiteModel().getBooleanValue()
-                && !m_siteSettings.getSubsiteModel().getStringValue().isEmpty()) {
-            config.setSubsite(m_siteSettings.getSubsiteModel().getStringValue());
+        config.setMode(getSiteSettings().getMode());
+        config.setGroup(getSiteSettings().getGroupModel().getStringValue());
+        config.setWebURL(getSiteSettings().getWebURLModel().getStringValue());
+        if (getSiteSettings().getConnectToSubsiteModel().getBooleanValue()
+                && !getSiteSettings().getSubsiteModel().getStringValue().isEmpty()) {
+            config.setSubsite(getSiteSettings().getSubsiteModel().getStringValue());
         }
-
         return config;
     }
+
+    @Override
+    public SharepointConnectionSettings copy(final SharepointConnectionSettings settings) {
+        return new SharepointConnectionSettings(settings);
+    }
+
 }

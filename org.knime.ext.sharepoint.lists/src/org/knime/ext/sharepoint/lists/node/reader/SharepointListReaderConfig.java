@@ -58,20 +58,37 @@ import org.knime.filehandling.core.node.table.reader.config.ReaderSpecificConfig
  */
 public final class SharepointListReaderConfig implements ReaderSpecificConfig<SharepointListReaderConfig> {
 
-    // TODO put the site settings in here?
-
+    private SharepointListSettings m_sharepointListSettings;
 
     /**
      * Constructor.
      */
     public SharepointListReaderConfig() {
+        m_sharepointListSettings = new SharepointListSettings();
     }
 
     private SharepointListReaderConfig(final SharepointListReaderConfig toCopy) {
+        m_sharepointListSettings = toCopy.getSharepointListSettings();
     }
 
     @Override
     public SharepointListReaderConfig copy() {
         return new SharepointListReaderConfig(this);
     }
+
+    /**
+     * @param settings
+     *            the {@link SharepointListSettings}
+     */
+    public void setSharepointListSettings(final SharepointListSettings settings) {
+        m_sharepointListSettings = settings;
+    }
+
+    /**
+     * @return the {@link SharepointListSettings}
+     */
+    public SharepointListSettings getSharepointListSettings() {
+        return m_sharepointListSettings;
+    }
+
 }

@@ -50,6 +50,7 @@ package org.knime.ext.sharepoint.lists.node.reader;
 
 import org.knime.core.data.DataType;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettings;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
@@ -81,6 +82,8 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
      * Singleton instance.
      */
     INSTANCE;
+
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListReaderConfigSerializer.class);
 
     private static final String CFG_SETTINGS_ID = "sharepoint_list_reader";
 
@@ -133,15 +136,17 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
     @Override
     public ConfigID createFromConfig(final SharepointListReaderMultiTableReadConfig config) {
         final var settings = new NodeSettings(CFG_SETTINGS_ID);
+        saveConfigIDSettingsTab(config, settings.addNodeSettings(CFG_SETTINGS_TAB));
         saveConfigIDAdvancedTab(config, settings.addNodeSettings(SUB_CFG_ADVANCED));
         saveConfigIDLimitRowsTab(config, settings.addNodeSettings(SUB_CFG_LIMIT_ROWS));
-        // TODO create NodeSettings for each tab
 
         return new NodeSettingsConfigID(settings);
     }
 
     private static void saveConfigIDSettingsTab(final SharepointListReaderMultiTableReadConfig config,
             final NodeSettingsWO settings) {
+        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
+        sls.saveSettingsTo(settings);
     }
 
     private static void saveConfigIDAdvancedTab(final SharepointListReaderMultiTableReadConfig config,
@@ -168,6 +173,7 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
     @Override
     public void loadInDialog(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings,
             final PortObjectSpec[] specs) throws NotConfigurableException {
+        loadSettingsTabInDialog(config, SettingsUtils.getOrEmpty(settings, CFG_SETTINGS_TAB));
         loadAdvancedTabInDialog(config, SettingsUtils.getOrEmpty(settings, SUB_CFG_ADVANCED));
         loadLimitRowsTabInDialog(config, SettingsUtils.getOrEmpty(settings, SUB_CFG_LIMIT_ROWS));
         if (settings.containsKey(CFG_TABLE_SPEC_CONFIG)) {
@@ -188,6 +194,12 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
 
     private static void loadSettingsTabInDialog(final SharepointListReaderMultiTableReadConfig config,
             final NodeSettingsRO settings) {
+        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
+        try {
+            sls.loadSettingsFrom(settings);
+        } catch (InvalidSettingsException ex) {
+            LOGGER.debug("Unexpected InvalidSettingsException occured", ex);
+        }
     }
 
     private static void loadAdvancedTabInDialog(final SharepointListReaderMultiTableReadConfig config,
@@ -210,7 +222,7 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
     @Override
     public void loadInModel(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings)
             throws InvalidSettingsException {
-        loadSettingsTabInModel(config, settings);
+        loadSettingsTabInModel(config, settings.getNodeSettings(CFG_SETTINGS_TAB));
         loadAdvancedTabInModel(config, settings.getNodeSettings(SUB_CFG_ADVANCED));
         loadLimitRowsTabInModel(config, settings.getNodeSettings(SUB_CFG_LIMIT_ROWS));
         if (settings.containsKey(CFG_TABLE_SPEC_CONFIG)) {
@@ -222,7 +234,8 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
 
     private static void loadSettingsTabInModel(final SharepointListReaderMultiTableReadConfig config,
             final NodeSettingsRO settings) throws InvalidSettingsException {
-
+        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
+        sls.loadSettingsFrom(settings);
     }
 
     private static void loadAdvancedTabInModel(final SharepointListReaderMultiTableReadConfig config,
@@ -243,17 +256,18 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
 
     @Override
     public void saveInModel(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsWO settings) {
-        saveSettingsTab(config, settings);
+        saveSettingsTab(config, SettingsUtils.getOrAdd(settings, CFG_SETTINGS_TAB));
         saveAdvancedTab(config, settings.addNodeSettings(SUB_CFG_ADVANCED));
         saveLimitRowsTab(config, settings.addNodeSettings(SUB_CFG_LIMIT_ROWS));
         if (config.hasTableSpecConfig()) {
             m_tableSpecSerializer.save(config.getTableSpecConfig(), settings.addNodeSettings(CFG_TABLE_SPEC_CONFIG));
         }
-        saveSettingsTab(config, SettingsUtils.getOrAdd(settings, CFG_SETTINGS_TAB));
     }
 
     private static void saveSettingsTab(final SharepointListReaderMultiTableReadConfig config,
             final NodeSettingsWO settings) {
+        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
+        sls.saveSettingsTo(settings);
     }
 
     private static void saveAdvancedTab(final SharepointListReaderMultiTableReadConfig config,
@@ -282,6 +296,7 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
     @Override
     public void validate(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings)
             throws InvalidSettingsException {
+        validateSettingsTab(settings.getNodeSettings(CFG_SETTINGS_TAB));
         validateAdvancedTab(settings.getNodeSettings(SUB_CFG_ADVANCED));
         validateLimitRowsTab(settings.getNodeSettings(SUB_CFG_LIMIT_ROWS));
         if (settings.containsKey(CFG_TABLE_SPEC_CONFIG)) {
@@ -289,8 +304,9 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
         }
     }
 
-    public static void validateSettingsTab(final NodeSettingsRO settings) throws InvalidSettingsException {
-        // TODO
+    private static void validateSettingsTab(final NodeSettingsRO settings) throws InvalidSettingsException {
+        final var sls = new SharepointListSettings();
+        sls.validateSettings(settings);
     }
 
     public static void validateAdvancedTab(final NodeSettingsRO settings) throws InvalidSettingsException {

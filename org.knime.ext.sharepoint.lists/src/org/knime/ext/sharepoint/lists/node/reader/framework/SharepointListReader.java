@@ -77,14 +77,14 @@ public final class SharepointListReader
     @SuppressWarnings("resource") // closing the read is the responsibility of the caller
     public Read<Object> read(final SharepointListClient in, final TableReadConfig<SharepointListReaderConfig> config)
             throws IOException {
-        final var read = new SharepointListRead(in);
+        final var read = new SharepointListRead(in, config.getReaderSpecificConfig().getSharepointListSettings());
         return decorateForReading(read, config);
     }
 
     @Override
     public TypedReaderTableSpec<DataType> readSpec(final SharepointListClient in,
             final TableReadConfig<SharepointListReaderConfig> config, final ExecutionMonitor exec) throws IOException {
-        final var columnSpecs = in.getColumnList().stream()
+        final var columnSpecs = in.getColumns(config.getReaderSpecificConfig().getSharepointListSettings()).stream()
                 .map(SharepointListReader::getColumnSpec)//
                 .collect(Collectors.toList());
 

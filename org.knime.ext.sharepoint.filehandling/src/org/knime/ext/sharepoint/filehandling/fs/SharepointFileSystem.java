@@ -90,7 +90,6 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      * Character to use as path separator
      */
     public static final String PATH_SEPARATOR = "/";
-    private static final String ROOT_SITE = "root";
 
     private final IGraphServiceClient m_client;
     private final String m_siteId;

@@ -48,30 +48,26 @@
  */
 package org.knime.ext.sharepoint.filehandling.node;
 
-import java.awt.FlowLayout;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.io.IOException;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
+import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
+import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
 
@@ -85,6 +81,9 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
     private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
 
     private final SiteSettingsPanel m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
+
+    private final TimeoutPanel<SiteSettings, SharepointConnectionSettings> m_timeoutPanel = new TimeoutPanel<SiteSettings, SharepointConnectionSettings>(
+            m_settings);
 
     private final WorkingDirectoryChooser m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir",
             this::createFSConnection);
@@ -109,49 +108,13 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
     }
 
     private FSConnection createFSConnection() throws IOException {
-        final SharepointConnectionSettings clonedSettings = m_settings.clone();
+        final SharepointConnectionSettings clonedSettings = m_settings.copy(m_settings);
         return new SharepointFSConnection(clonedSettings
                 .toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(m_connection)));
     }
 
     private JComponent createTimeoutsPanel() {
-        final DialogComponentNumber connectionTimeout = new DialogComponentNumber(
-                m_settings.getConnectionTimeoutModel(), "", 1);
-        connectionTimeout.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
-        final DialogComponentNumber readTimeout = new DialogComponentNumber(m_settings.getReadTimeoutModel(), "", 1);
-        readTimeout.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
-
-        final JPanel panel = new JPanel(new GridBagLayout());
-        final GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.WEST;
-        c.fill = GridBagConstraints.NONE;
-        c.weightx = 0;
-        c.weighty = 0;
-        c.gridx = 0;
-        c.gridy = 0;
-        panel.add(new JLabel("Connection timeout (seconds): "), c);
-
-        c.gridy = 1;
-        panel.add(new JLabel("Read timeout (seconds): "), c);
-
-        c.weightx = 1;
-        c.gridx = 1;
-        c.gridy = 0;
-        panel.add(connectionTimeout.getComponentPanel(), c);
-
-        c.gridy = 1;
-        panel.add(readTimeout.getComponentPanel(), c);
-
-        c.fill = GridBagConstraints.BOTH;
-        c.gridx = 0;
-        c.gridy++;
-        c.gridwidth = 2;
-        c.weightx = 1;
-        c.weighty = 1;
-        panel.add(Box.createVerticalGlue(), c);
-
-        panel.setBorder(BorderFactory.createTitledBorder("Connection settings"));
-        return panel;
+        return m_timeoutPanel;
     }
 
     private void validateSettingsBeforeSave() throws InvalidSettingsException {

@@ -48,14 +48,13 @@
  */
 package org.knime.ext.sharepoint.settings;
 
-import java.net.MalformedURLException;
+import java.util.Objects;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.ext.sharepoint.GraphApiUtil;
 
 /**
  * Class represents chosen site settings.
@@ -63,24 +62,37 @@ import org.knime.ext.sharepoint.GraphApiUtil;
  * @author Alexander Bondaletov
  */
 public class SiteSettings {
+
     private static final String KEY_SITE = "site";
+
     private static final String KEY_GROUP = "group";
+
     private static final String KEY_GROUP_NAME = "groupName";
+
     private static final String KEY_MODE = "mode";
+
     private static final String KEY_SUBSITE = "subsite";
+
     private static final String KEY_SUBSITE_NAME = "subsiteName";
+
     private static final String KEY_CONNECT_TO_SUBSITE = "connectToSubsite";
 
     private final SettingsModelString m_webURL;
+
     private final SettingsModelString m_group;
+
     private final SettingsModelString m_groupName;
+
     private final SettingsModelString m_mode;
+
     private final SettingsModelString m_subsite;
+
     private final SettingsModelString m_subsiteName;
+
     private final SettingsModelBoolean m_connectToSubsite;
 
     /**
-     * Creates new instance
+     * Creates new instance.
      */
     public SiteSettings() {
         m_webURL = new SettingsModelString(KEY_SITE, "");
@@ -94,6 +106,22 @@ public class SiteSettings {
         m_webURL.addChangeListener(e -> resetSubsite());
         m_group.addChangeListener(e -> resetSubsite());
         m_mode.addChangeListener(e -> resetSubsite());
+    }
+
+    /**
+     * Creates new instance from {@link SiteSettings}.
+     *
+     * @param toCopy
+     *            the {@link SiteSettings} to be copied
+     */
+    public SiteSettings(final SiteSettings toCopy) {
+        m_webURL = toCopy.getWebURLModel();
+        m_group = toCopy.getGroupModel();
+        m_groupName = toCopy.getGroupNameModel();
+        m_mode = toCopy.getModeModel();
+        m_subsite = toCopy.getSubsiteModel();
+        m_subsiteName = toCopy.getSubsiteNameModel();
+        m_connectToSubsite = toCopy.getConnectToSubsiteModel();
     }
 
     private void resetSubsite() {
@@ -154,18 +182,13 @@ public class SiteSettings {
      * @throws InvalidSettingsException
      */
     public void validateParentSiteSettings() throws InvalidSettingsException {
-        SiteMode mode = getMode();
+        final SiteMode mode = getMode();
         if (mode == SiteMode.GROUP && m_group.getStringValue().isEmpty()) {
             throw new InvalidSettingsException("Group is not selected.");
         }
         if (mode == SiteMode.WEB_URL) {
             if (m_webURL.getStringValue().isEmpty()) {
                 throw new InvalidSettingsException("Web URL is not specified.");
-            }
-            try {
-                GraphApiUtil.getSiteIdFromSharepointSiteWebURL(m_webURL.getStringValue());
-            } catch (MalformedURLException ex) {
-                throw new InvalidSettingsException(ex.getMessage());
             }
         }
     }
@@ -245,5 +268,33 @@ public class SiteSettings {
      */
     public SettingsModelBoolean getConnectToSubsiteModel() {
         return m_connectToSubsite;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(m_connectToSubsite.getBooleanValue(), m_group.getStringValue(),
+                m_groupName.getStringValue(), m_mode.getStringValue(), m_subsite.getStringValue(),
+                m_subsiteName.getStringValue(), m_webURL.getStringValue());
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final var other = (SiteSettings) obj;
+        return Objects.equals(m_connectToSubsite.getBooleanValue(), other.m_connectToSubsite.getBooleanValue())
+                && Objects.equals(m_group.getStringValue(), other.m_group.getStringValue())
+                && Objects.equals(m_groupName.getStringValue(), other.m_groupName.getStringValue())
+                && Objects.equals(m_mode.getStringValue(), other.m_mode.getStringValue())
+                && Objects.equals(m_subsite.getStringValue(), other.m_subsite.getStringValue())
+                && Objects.equals(m_subsiteName.getStringValue(), other.m_subsiteName.getStringValue())
+                && Objects.equals(m_webURL.getStringValue(), other.m_webURL.getStringValue());
     }
 }

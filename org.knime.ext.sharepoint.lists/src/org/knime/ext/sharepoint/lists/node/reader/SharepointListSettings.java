@@ -44,90 +44,33 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   Nov 14, 2020 (Tobias): created
+ *   2021-09-29 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.reader.framework;
+package org.knime.ext.sharepoint.lists.node.reader;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.OptionalLong;
-
-import org.knime.ext.sharepoint.lists.node.reader.SharepointListSettings;
-import org.knime.filehandling.core.node.table.reader.randomaccess.AbstractRandomAccessible;
-import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
-import org.knime.filehandling.core.node.table.reader.read.Read;
+import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel.ListSettings;
+import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
 
 /**
- * {@link Read} implementation that works with {@link SharepointListClient}s.
+ * Settings for nodes which make use of Sharepoint lists.
  *
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public class SharepointListRead implements Read<Object> {
-
-    static class RandomAccessibleDataRow extends AbstractRandomAccessible<Object> {
-
-        private final Object[] m_row;
-
-        RandomAccessibleDataRow(final Object[] dataRow) {
-            m_row = dataRow;
-        }
-
-        @Override
-        public int size() {
-            return m_row.length;
-        }
-
-        @Override
-        public Object get(final int idx) {
-            return m_row[idx];
-        }
-
-    }
-
-    private long m_rowsRead = 0;
-
-    private Iterator<RandomAccessibleDataRow> m_items;
+public final class SharepointListSettings extends AbstractSharePointSettings<ListSettings, SharepointListSettings> {
 
     /**
      * Constructor.
-     *
-     * @param client
-     *            the client to read from and use for requests
-     * @param settings
-     *            the {@link SharepointListSettings}
-     * @throws IOException
      */
-    public SharepointListRead(final SharepointListClient client, final SharepointListSettings settings)
-            throws IOException {
-        m_items = client.getItems(settings);
-        m_rowsRead = 0;
+    SharepointListSettings() {
+        super(new ListSettings());
+    }
 
+    private SharepointListSettings(final SharepointListSettings toCopy) {
+        super(toCopy);
     }
 
     @Override
-    public RandomAccessible<Object> next() throws IOException {
-        if (m_items.hasNext()) {
-            m_rowsRead++;
-            return m_items.next();
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    public OptionalLong getMaxProgress() {
-        // TODO not found a solution yet to determine the no of rows via API
-        return OptionalLong.empty();
-    }
-
-    @Override
-    public long getProgress() {
-        return m_rowsRead;
-    }
-
-    @Override
-    public void close() throws IOException {
-        // nothing to close
+    public SharepointListSettings copy(final SharepointListSettings settings) {
+        return new SharepointListSettings(settings);
     }
 }

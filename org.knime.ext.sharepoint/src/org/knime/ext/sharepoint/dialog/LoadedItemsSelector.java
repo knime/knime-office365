@@ -52,6 +52,7 @@ import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -70,6 +71,7 @@ import javax.swing.JPanel;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.util.SwingWorkerWithContext;
+import org.knime.ext.sharepoint.settings.SiteMode;
 
 import com.microsoft.graph.http.GraphServiceException;
 
@@ -80,20 +82,70 @@ import com.microsoft.graph.http.GraphServiceException;
  *
  * @author Alexander Bondaletov
  */
-abstract class LoadedItemsSelector extends JPanel {
+public abstract class LoadedItemsSelector extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final SettingsModelString m_idModel;
+
     private final SettingsModelString m_titleModel;
+
     private final SettingsModelBoolean m_checkedModel;
+
+    private SettingsModelString m_modeModel;
+
+    private SettingsModelString m_urlModel;
+
+    private SettingsModelString m_groupModel;
+
+    private SettingsModelString m_subSiteModel;
+
+    private SettingsModelBoolean m_connectToSubsite;
+
     private final DefaultComboBoxModel<IdComboboxItem> m_comboModel;
+
     private final JComboBox<IdComboboxItem> m_combobox;
+
     private final JButton m_fetchBtn;
+
     private final JButton m_cancelBtn;
 
-    private SwingWorkerWithContext<List<IdComboboxItem>, Void> m_fetchWorker;
+    private LoadedItemSelectorSwingWorker m_fetchWorker;
+
     private boolean m_enabled = true;
-    private boolean ignoreListeners = false;
+
+    private boolean m_ignoreListeners = false;
+
+    /**
+     * Constructor.
+     *
+     * @param idModel
+     *            Settings model holding id value
+     * @param titleModel
+     *            Settings model holding title value
+     * @param caption
+     *            The caption label
+     * @param modeModel
+     *            Settings model holding mode model
+     * @param urlModel
+     *            Settings model holding URL model
+     * @param groupModel
+     *            Settings model holding group model
+     * @param subsiteModel
+     *            Settings model holding subsite model
+     * @param connectToSubsite
+     *            Settings model holding connect to subsite model
+     */
+    protected LoadedItemsSelector(final SettingsModelString idModel, final SettingsModelString titleModel,
+            final String caption, final SettingsModelString modeModel, final SettingsModelString urlModel,
+            final SettingsModelString groupModel, final SettingsModelString subsiteModel,
+            final SettingsModelBoolean connectToSubsite) { // NOSONAR
+        this(idModel, titleModel, caption, null);
+        m_modeModel = modeModel;
+        m_urlModel = urlModel;
+        m_groupModel = groupModel;
+        m_subSiteModel = subsiteModel;
+        m_connectToSubsite = connectToSubsite;
+    }
 
     /**
      * @param idModel
@@ -106,7 +158,7 @@ abstract class LoadedItemsSelector extends JPanel {
      *            Optional settings model holding "checked" value.
      *
      */
-    public LoadedItemsSelector(final SettingsModelString idModel, final SettingsModelString titleModel,
+    protected LoadedItemsSelector(final SettingsModelString idModel, final SettingsModelString titleModel,
             final String caption, final SettingsModelBoolean checkedModel) {
         m_idModel = idModel;
         m_titleModel = titleModel;
@@ -131,7 +183,7 @@ abstract class LoadedItemsSelector extends JPanel {
 
         final Component labelOrCheckbox;
         if (m_checkedModel != null) {
-            JCheckBox checkedInput = new JCheckBox(caption);
+            final var checkedInput = new JCheckBox(caption);
             checkedInput.addActionListener(e -> {
                 boolean checked = checkedInput.isSelected();
                 m_checkedModel.setBooleanValue(checked);
@@ -141,7 +193,7 @@ abstract class LoadedItemsSelector extends JPanel {
                 }
             });
             m_checkedModel.addChangeListener(e -> {
-                boolean checked = m_checkedModel.getBooleanValue();
+                final var checked = m_checkedModel.getBooleanValue();
                 checkedInput.setSelected(checked);
                 setEnabled(checked);
             });
@@ -150,13 +202,10 @@ abstract class LoadedItemsSelector extends JPanel {
             setEnabled(m_checkedModel.getBooleanValue());
             labelOrCheckbox = checkedInput;
         } else {
-            final Box paddedBox = new Box(BoxLayout.X_AXIS);
-            paddedBox.add(Box.createHorizontalStrut(5));
-            paddedBox.add(new JLabel(caption));
-            labelOrCheckbox = paddedBox;
+            labelOrCheckbox = createLabelBox(caption);
         }
 
-        GridBagConstraints c = new GridBagConstraints();
+        final var c = new GridBagConstraints();
         setLayout(new GridBagLayout());
         c.gridx = 0;
         c.gridy = 0;
@@ -172,7 +221,6 @@ abstract class LoadedItemsSelector extends JPanel {
         c.weightx = 0.5;
         add(m_combobox, c);
 
-
         c.fill = GridBagConstraints.NONE;
         c.anchor = GridBagConstraints.LINE_END;
         c.gridx += 1;
@@ -183,13 +231,20 @@ abstract class LoadedItemsSelector extends JPanel {
         add(m_cancelBtn, c);
     }
 
+    private static Box createLabelBox(final String caption) {
+        final var paddedBox = new Box(BoxLayout.X_AXIS);
+        paddedBox.add(Box.createHorizontalStrut(5));
+        paddedBox.add(new JLabel(caption));
+        return paddedBox;
+    }
+
     private void onSelectionChanged() {
-        if (ignoreListeners) {
+        if (m_ignoreListeners) {
             return;
         }
 
-        String id = "";
-        String title = "";
+        var id = "";
+        var title = "";
         IdComboboxItem selected = (IdComboboxItem) m_comboModel.getSelectedItem();
         if (selected != null) {
             id = selected.getId();
@@ -200,36 +255,94 @@ abstract class LoadedItemsSelector extends JPanel {
         m_titleModel.setStringValue(title);
     }
 
+    private final class LoadedItemSelectorSwingWorker extends SwingWorkerWithContext<List<IdComboboxItem>, Void> {
+
+        @Override
+        protected List<IdComboboxItem> doInBackgroundWithContext() throws Exception {
+            return fetchItemsPossible() ? fetchItems() : Collections.emptyList();
+        }
+
+        private boolean fetchItemsPossible() {
+            if (m_modeModel != null) {
+                final var subsiteActiveAndNotEmpty = m_connectToSubsite
+                        .getBooleanValue() == !m_subSiteModel.getStringValue().isEmpty();
+                switch (SiteMode.valueOf(m_modeModel.getStringValue())) {
+                case ROOT:
+                    setEnabled(subsiteActiveAndNotEmpty);
+                    return subsiteActiveAndNotEmpty;
+                case WEB_URL:
+                    final boolean urlModelIsEmpty = m_urlModel.getStringValue().isEmpty();
+                    setEnabled(subsiteActiveAndNotEmpty);
+                    return !urlModelIsEmpty && subsiteActiveAndNotEmpty;
+                case GROUP:
+                    final boolean groupModelIsEmpty = m_groupModel.getStringValue().isEmpty();
+                    setEnabled(!groupModelIsEmpty == subsiteActiveAndNotEmpty);
+                    return !groupModelIsEmpty && subsiteActiveAndNotEmpty;
+                default:
+                    return false;
+                }
+            } else {
+                return true;
+            }
+        }
+
+        @Override
+        protected void doneWithContext() {
+            m_combobox.setEnabled(m_enabled);
+            m_cancelBtn.setVisible(false);
+            m_fetchBtn.setVisible(true);
+
+            if (isCancelled()) {
+                return;
+            }
+
+            try {
+                onItemsLoaded(get());
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            } catch (ExecutionException ex) {
+                if (m_checkedModel != null) {
+                    m_checkedModel.setBooleanValue(false);
+                }
+                showError(ex);
+            }
+        }
+
+        private void showError(final Exception ex) {
+            String message = ex.getMessage();
+
+            if (ex instanceof GraphServiceException) {
+                message = ((GraphServiceException) ex).getServiceError().message;
+            } else if (ex.getCause() instanceof GraphServiceException) {
+                message = ((GraphServiceException) ex.getCause()).getServiceError().message;
+            }
+
+            JOptionPane.showMessageDialog(getRootPane(), message, "Error", JOptionPane.ERROR_MESSAGE);
+        }
+
+        private void onItemsLoaded(final List<IdComboboxItem> sites) {
+            m_ignoreListeners = true;
+            final var selectedItem = m_comboModel.getSelectedItem();
+            m_comboModel.removeAllElements();
+            for (IdComboboxItem s : sites) {
+                m_comboModel.addElement(s);
+            }
+
+            m_comboModel.setSelectedItem(selectedItem);
+
+            updateComboFromSettings(true);
+            m_ignoreListeners = false;
+
+            onSelectionChanged();
+            //In case we only have 1 element we will choose this
+            if (sites.size() == 1) {
+                m_combobox.setSelectedIndex(0);
+            }
+        }
+    }
+
     private void onFetch() {
-        m_fetchWorker = new SwingWorkerWithContext<List<IdComboboxItem>, Void>() {
-
-            @Override
-            protected List<IdComboboxItem> doInBackgroundWithContext() throws Exception {
-                return fetchItems();
-            }
-
-            @Override
-            protected void doneWithContext() {
-                m_combobox.setEnabled(m_enabled);
-                m_cancelBtn.setVisible(false);
-                m_fetchBtn.setVisible(true);
-
-                if (isCancelled()) {
-                    return;
-                }
-
-                try {
-                    onItemsLoaded(get());
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                } catch (ExecutionException ex) {
-                    if (m_checkedModel != null) {
-                        m_checkedModel.setBooleanValue(false);
-                    }
-                    showError(ex);
-                }
-            }
-        };
+        m_fetchWorker = new LoadedItemSelectorSwingWorker();
 
         m_combobox.setEnabled(false);
         m_cancelBtn.setVisible(true);
@@ -238,38 +351,13 @@ abstract class LoadedItemsSelector extends JPanel {
         m_fetchWorker.execute();
     }
 
-    private void onItemsLoaded(final List<IdComboboxItem> sites) {
-        ignoreListeners = true;
-        m_comboModel.removeAllElements();
-        for (IdComboboxItem s : sites) {
-            m_comboModel.addElement(s);
-        }
-
-        updateComboFromSettings(true);
-        ignoreListeners = false;
-
-        onSelectionChanged();
-    }
-
-    private void showError(final Exception ex) {
-        String message = ex.getMessage();
-
-        if (ex instanceof GraphServiceException) {
-            message = ((GraphServiceException) ex).getServiceError().message;
-        } else if (ex.getCause() instanceof GraphServiceException) {
-            message = ((GraphServiceException) ex.getCause()).getServiceError().message;
-        }
-
-        JOptionPane.showMessageDialog(getRootPane(), message, "Error", JOptionPane.ERROR_MESSAGE);
-    }
-
     /**
      * Fetches available options.
      *
      * @return The list of available options.
      * @throws Exception
      */
-    protected abstract List<IdComboboxItem> fetchItems() throws Exception;
+    public abstract List<IdComboboxItem> fetchItems() throws Exception;
 
     /**
      * @return the comboModel
@@ -286,13 +374,13 @@ abstract class LoadedItemsSelector extends JPanel {
     }
 
     private void updateComboFromSettings(final boolean afterFetch) {
-        String id = m_idModel.getStringValue();
+        final var id = m_idModel.getStringValue();
         if (id.isEmpty()) {
             m_comboModel.setSelectedItem(null);
             return;
         }
 
-        IdComboboxItem item = new IdComboboxItem(id, m_titleModel.getStringValue());
+        var item = new IdComboboxItem(id, m_titleModel.getStringValue());
         if (m_comboModel.getIndexOf(item) < 0) {
             if (!afterFetch) {
                 m_comboModel.addElement(item);
@@ -303,9 +391,6 @@ abstract class LoadedItemsSelector extends JPanel {
         m_comboModel.setSelectedItem(item);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void setEnabled(final boolean enabled) {
         m_enabled = enabled;
@@ -325,7 +410,14 @@ abstract class LoadedItemsSelector extends JPanel {
         }
     }
 
-    static class IdComboboxItem {
+    /**
+     * Triggers the fetching manually.
+     */
+    public void fetch() {
+        onFetch();
+    }
+
+    public static final class IdComboboxItem {
 
         private String m_id;
         private String m_title;
@@ -356,9 +448,6 @@ abstract class LoadedItemsSelector extends JPanel {
             return m_title;
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         public String toString() {
             if (m_title != null) {
@@ -367,9 +456,6 @@ abstract class LoadedItemsSelector extends JPanel {
             return m_id;
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         public boolean equals(final Object obj) {
             if (obj instanceof IdComboboxItem) {
@@ -379,9 +465,6 @@ abstract class LoadedItemsSelector extends JPanel {
             return false;
         }
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         public int hashCode() {
             return m_id.hashCode();
@@ -391,9 +474,6 @@ abstract class LoadedItemsSelector extends JPanel {
     private class IdComboboxCellRenderer extends DefaultListCellRenderer {
         private static final long serialVersionUID = 1L;
 
-        /**
-         * {@inheritDoc}
-         */
         @Override
         public Component getListCellRendererComponent(final JList<?> list, final Object value, final int index,
                 final boolean isSelected, final boolean cellHasFocus) {

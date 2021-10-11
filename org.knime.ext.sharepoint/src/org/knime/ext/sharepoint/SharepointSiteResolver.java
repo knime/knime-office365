@@ -106,7 +106,7 @@ public final class SharepointSiteResolver {
      * @throws IOException
      */
     public String getTargetSiteId() throws IOException {
-        return m_subSite != null ? m_subSite : getParentSiteId();
+        return (m_subSite == null || m_subSite.isEmpty()) ? getParentSiteId() : m_subSite;
     }
 
     /**
@@ -124,9 +124,15 @@ public final class SharepointSiteResolver {
             req = m_client.sites(ROOT_SITE);
             break;
         case WEB_URL:
+            if (m_webUrl.isEmpty()) {
+                throw new IllegalStateException("Web URL is not specified.");
+            }
             req = m_client.sites(GraphApiUtil.getSiteIdFromSharepointSiteWebURL(m_webUrl));
             break;
         case GROUP:
+            if (m_group.isEmpty()) {
+                throw new IllegalStateException("Please select a group.");
+            }
             req = m_client.groups(m_group).sites(ROOT_SITE);
             break;
         }

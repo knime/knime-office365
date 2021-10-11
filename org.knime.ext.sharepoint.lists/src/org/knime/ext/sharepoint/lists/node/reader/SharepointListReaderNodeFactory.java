@@ -48,35 +48,18 @@
  */
 package org.knime.ext.sharepoint.lists.node.reader;
 
-import java.util.Optional;
-
-import org.knime.core.node.BufferedDataTable;
-import org.knime.core.node.ConfigurableNodeFactory;
 import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
 import org.knime.core.node.context.NodeCreationConfiguration;
-import org.knime.core.node.context.ports.PortsConfiguration;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
 
 /**
  * Factory implementation of the “SharePoint List Reader” node.
  *
  * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
-public class SharepointListReaderNodeFactory extends ConfigurableNodeFactory<SharepointListReaderNodeModel> {
+public class SharepointListReaderNodeFactory extends NodeFactory<SharepointListReaderNodeModel> {
 
-    @Override
-    protected Optional<PortsConfigurationBuilder> createPortsConfigBuilder() {
-        final var b = new PortsConfigurationBuilder();
-        b.addFixedInputPortGroup("Microsoft Authentication", MicrosoftCredentialPortObject.TYPE);
-        b.addFixedOutputPortGroup("Table", BufferedDataTable.TYPE);
-        return Optional.of(b);
-    }
-
-    @Override
-    protected SharepointListReaderNodeModel createNodeModel(final NodeCreationConfiguration creationConfig) {
-        return new SharepointListReaderNodeModel(getPortConfig(creationConfig));
-    }
 
     @Override
     protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration creationConfig) {
@@ -98,8 +81,14 @@ public class SharepointListReaderNodeFactory extends ConfigurableNodeFactory<Sha
         return null;
     }
 
-    private static PortsConfiguration getPortConfig(final NodeCreationConfiguration creationConfig) {
-        return creationConfig.getPortConfig().orElseThrow();
+    @Override
+    public SharepointListReaderNodeModel createNodeModel() {
+        return new SharepointListReaderNodeModel();
+    }
+
+    @Override
+    protected NodeDialogPane createNodeDialogPane() {
+        return new SharepointListReaderNodeDialog();
     }
 
 }

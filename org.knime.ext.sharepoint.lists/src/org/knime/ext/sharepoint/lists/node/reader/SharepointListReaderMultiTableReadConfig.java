@@ -72,6 +72,8 @@ final class SharepointListReaderMultiTableReadConfig extends
 
         tableReadConfig.setUseColumnHeaderIdx(false);
         tableReadConfig.setColumnHeaderIdx(0);
+        tableReadConfig.setMaxRows(0);
+        tableReadConfig.setLimitRowsForSpec(false);
     }
 
 

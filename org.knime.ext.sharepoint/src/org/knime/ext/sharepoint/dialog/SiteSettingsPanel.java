@@ -54,6 +54,7 @@ import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -65,6 +66,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
@@ -72,6 +74,9 @@ import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.dialog.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.ext.sharepoint.settings.SiteSettings;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
+import org.knime.filehandling.core.defaultnodesettings.status.DefaultStatusMessage;
+import org.knime.filehandling.core.defaultnodesettings.status.StatusView;
 
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
@@ -84,15 +89,22 @@ import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
  *
  * @author Alexander Bondaletov
  */
-public final class SiteSettingsPanel extends JPanel {
+public class SiteSettingsPanel extends JPanel {
+
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(SiteSettingsPanel.class);
 
     private static final long serialVersionUID = 1L;
 
     private final SiteSettings m_settings;
+
     private MicrosoftCredential m_connection;
 
     private JPanel m_cards;
+
+    private final StatusView m_errorLabel = new StatusView(500);
+
     private LoadedItemsSelector m_groupSelector;
+
     private LoadedItemsSelector m_subsiteSelector;
 
     /**
@@ -101,10 +113,15 @@ public final class SiteSettingsPanel extends JPanel {
     public SiteSettingsPanel(final SiteSettings settings) {
         m_settings = settings;
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
-        add(createRadioSelectorPanel());
-        add(createCardsPanel());
-        add(createSubsitePanel());
-        setBorder(BorderFactory.createTitledBorder("Sharepoint site"));
+        final var panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
+        panel.add(createRadioSelectorPanel());
+        panel.add(createCardsPanel());
+        panel.add(createSubsitePanel());
+        panel.add(m_errorLabel.getPanel());
+        panel.setBorder(BorderFactory.createTitledBorder("Sharepoint site"));
+
+        add(panel);
     }
 
     /**
@@ -144,11 +161,10 @@ public final class SiteSettingsPanel extends JPanel {
 
         rb.addActionListener(e -> {
             m_settings.getModeModel().setStringValue(mode.name());
-
+            m_errorLabel.clearStatus();
             if (mode == SiteMode.GROUP) {
-                m_groupSelector.fetchOnce();
+                m_groupSelector.fetch();
             }
-
             showModePanel(mode);
         });
 
@@ -162,8 +178,26 @@ public final class SiteSettingsPanel extends JPanel {
         ((CardLayout) m_cards.getLayout()).show(m_cards, mode.name());
     }
 
+    /**
+     * Sets the error message in case of any error during
+     * {@link LoadedItemsSelector#fetchItems()}
+     *
+     * @param e
+     *            the thrown {@link Exception}
+     */
+    protected void setErrorMessage(final Exception e) {
+        m_errorLabel.setStatus(DefaultStatusMessage.mkError(ExceptionUtil.getDeepestErrorMessage(e, false)));
+    }
+
+    /**
+     * Clears the error message.
+     */
+    protected void clearStatusMessage() {
+        m_errorLabel.clearStatus();
+    }
+
     private JPanel createCardsPanel() {
-        DialogComponentString siteInput = new DialogComponentString(m_settings.getWebURLModel(), "URL:", false, 50);
+        final var siteInput = new DialogComponentString(m_settings.getWebURLModel(), "URL:", false, 50);
         siteInput.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
 
         m_groupSelector = new LoadedItemsSelector(m_settings.getGroupModel(), m_settings.getGroupNameModel(), "Group:",
@@ -171,8 +205,15 @@ public final class SiteSettingsPanel extends JPanel {
             private static final long serialVersionUID = 1L;
 
             @Override
-            protected List<IdComboboxItem> fetchItems() throws Exception {
-                return fetchGroups();
+            public List<IdComboboxItem> fetchItems() throws Exception {
+                m_errorLabel.clearStatus();
+                try {
+                    return fetchGroups();
+                } catch (Exception e) { // NOSONAR we want to catch all exceptions
+                    LOGGER.debug("An error occured while fetching the groups", e);
+                    setErrorMessage(e);
+                    return Collections.emptyList();
+                }
             }
         };
 
@@ -189,8 +230,15 @@ public final class SiteSettingsPanel extends JPanel {
             private static final long serialVersionUID = 1L;
 
             @Override
-            protected List<IdComboboxItem> fetchItems() throws Exception {
-                return fetchSubsites();
+            public List<IdComboboxItem> fetchItems() throws Exception {
+                m_errorLabel.clearStatus();
+                try {
+                    return fetchSubsites();
+                } catch (Exception e) { // NOSONAR we want to catch all exceptions
+                    LOGGER.debug("An error occured while fetching the subsites", e);
+                    setErrorMessage(e);
+                    return Collections.emptyList();
+                }
 
             }
         };
@@ -199,7 +247,7 @@ public final class SiteSettingsPanel extends JPanel {
     }
 
     private List<IdComboboxItem> fetchGroups() throws InvalidSettingsException {
-        IGraphServiceClient client = createClient();
+        final IGraphServiceClient client = createClient();
 
         try {
             List<DirectoryObject> objects = new ArrayList<>();
@@ -215,11 +263,12 @@ public final class SiteSettingsPanel extends JPanel {
         } finally {
             client.shutdown();
         }
+
     }
 
-    private IGraphServiceClient createClient() throws InvalidSettingsException {
+    protected IGraphServiceClient createClient() throws InvalidSettingsException {
         if (m_connection == null) {
-            throw new InvalidSettingsException("Settings isn't loaded");
+            throw new InvalidSettingsException("Settings aren't loaded");
         }
 
         try {
@@ -241,7 +290,7 @@ public final class SiteSettingsPanel extends JPanel {
 
     private List<IdComboboxItem> listSubsites(final String siteId, final IGraphServiceClient client,
             final String prefix) {
-        List<IdComboboxItem> result = new ArrayList<>();
+        final List<IdComboboxItem> result = new ArrayList<>();
 
         ISiteCollectionPage resp = client.sites(siteId).sites().buildRequest().get();
         for (Site site : resp.getCurrentPage()) {
@@ -259,12 +308,19 @@ public final class SiteSettingsPanel extends JPanel {
     }
 
     private List<IdComboboxItem> processSite(final Site site, final IGraphServiceClient client, final String prefix) {
-        List<IdComboboxItem> result = new ArrayList<>();
-        String name = prefix + site.name;
+        final List<IdComboboxItem> result = new ArrayList<>();
+        final String name = prefix + site.name;
 
         result.add(new IdComboboxItem(site.id, name));
         result.addAll(listSubsites(site.id, client, prefix + site.name + " > "));
         return result;
+    }
+
+    /**
+     * Clears the status when opening the dialog.
+     */
+    public void onOpen() {
+        m_errorLabel.clearStatus();
     }
 
 }
