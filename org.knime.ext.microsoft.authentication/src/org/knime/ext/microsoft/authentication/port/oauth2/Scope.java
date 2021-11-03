@@ -79,6 +79,11 @@ public enum Scope {
             "https://%s.blob.core.windows.net/user_impersonation"),
 
     /**
+     * Azure SQL Database scope
+     */
+    AZURE_SQL_DATABASE("Azure SQL Database", "https://database.windows.net/user_impersonation"),
+
+    /**
      * Power BI
      */
     POWER_BI("Power BI", "https://analysis.windows.net/powerbi/api/Dataset.ReadWrite.All "
@@ -113,6 +118,11 @@ public enum Scope {
         return m_title;
     }
 
+    /**
+     * @param scope
+     *            the string representation of the scope
+     * @return the {@link Scope} enum instance
+     */
     public static Scope fromScope(final String scope) {
         return SCOPES.get(scope);
     }

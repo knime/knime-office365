@@ -155,11 +155,12 @@ public class ScopesEditComponent extends JPanel {
         Set<String> scopes = toSet(m_scopes);
 
         if (selected) {
-            if (scope == Scope.AZURE_BLOB_STORAGE || scope == Scope.POWER_BI) {
+            if (scope == Scope.AZURE_BLOB_STORAGE || scope == Scope.POWER_BI || scope == Scope.AZURE_SQL_DATABASE) {
                 scopes.clear();
             } else {
                 scopes.remove(Scope.AZURE_BLOB_STORAGE.getScope());
                 scopes.remove(Scope.POWER_BI.getScope());
+                scopes.remove(Scope.AZURE_SQL_DATABASE.getScope());
             }
 
             scopes.add(scope.getScope());
