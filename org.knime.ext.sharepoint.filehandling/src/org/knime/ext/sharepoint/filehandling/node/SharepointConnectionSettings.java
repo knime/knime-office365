@@ -69,7 +69,7 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
  * @author Alexander Bondaletov
  */
 @SuppressWarnings("deprecation")
-class SharepointConnectionSettings implements Cloneable {
+public final class SharepointConnectionSettings implements Cloneable {
 
     private static final String KEY_WORKING_DIRECTORY = "workingDirectory";
     private static final String KEY_CONNECTION_TIMEOUT = "connectionTimeout";
@@ -81,7 +81,7 @@ class SharepointConnectionSettings implements Cloneable {
     private final SettingsModelIntegerBounded m_connectionTimeout;
     private final SettingsModelIntegerBounded m_readTimeout;
 
-    SharepointConnectionSettings() {
+    public SharepointConnectionSettings() {
         m_siteSettings = new SiteSettings();
 
         m_workingDirectory = new SettingsModelString(KEY_WORKING_DIRECTORY, SharepointFileSystem.PATH_SEPARATOR);

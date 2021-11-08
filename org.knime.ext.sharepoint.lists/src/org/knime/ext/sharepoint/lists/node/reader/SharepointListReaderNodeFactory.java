@@ -61,8 +61,7 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject
 /**
  * Factory implementation of the “SharePoint List Reader” node.
  *
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Tobias Koetter, KNIME GmbH, Konstanz, Germany
  */
 public class SharepointListReaderNodeFactory extends ConfigurableNodeFactory<SharepointListReaderNodeModel> {
 

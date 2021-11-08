@@ -51,12 +51,15 @@ package org.knime.ext.sharepoint.lists.node.reader;
 import org.knime.filehandling.core.node.table.reader.config.ReaderSpecificConfig;
 
 /**
- * "SharePoint List Reader" {@link ReaderSpecificConfig} implementation.
+ * “SharePoint List Reader” {@link ReaderSpecificConfig} implementation.
  *
- * @author Jannik L�scher, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
 public final class SharepointListReaderConfig implements ReaderSpecificConfig<SharepointListReaderConfig> {
+
+    // TODO put the site settings in here?
+
 
     /**
      * Constructor.

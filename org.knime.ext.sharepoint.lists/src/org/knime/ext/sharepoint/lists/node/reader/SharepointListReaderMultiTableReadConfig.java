@@ -54,11 +54,11 @@ import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConf
 import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
 
 /**
- * {@link MultiTableReadConfig} for the Table Manipulator.
+ * {@link MultiTableReadConfig} for the “SharePoint List Reader”.
  *
+ * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
  */
 final class SharepointListReaderMultiTableReadConfig extends
     AbstractMultiTableReadConfig<SharepointListReaderConfig, DefaultTableReadConfig<SharepointListReaderConfig>, DataType, SharepointListReaderMultiTableReadConfig> {

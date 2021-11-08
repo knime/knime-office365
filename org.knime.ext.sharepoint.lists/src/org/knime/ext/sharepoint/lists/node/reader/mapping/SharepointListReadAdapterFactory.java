@@ -48,17 +48,17 @@
  */
 package org.knime.ext.sharepoint.lists.node.reader.mapping;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.time.LocalDate;
-import java.time.LocalTime;
+import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.knime.core.data.DataType;
-import org.knime.core.data.blob.BinaryObjectDataCell;
+import org.knime.core.data.collection.ListCell;
 import org.knime.core.data.convert.map.BooleanCellValueProducer;
 import org.knime.core.data.convert.map.DoubleCellValueProducer;
 import org.knime.core.data.convert.map.IntCellValueProducer;
@@ -76,7 +76,7 @@ import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.LongCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.data.time.localdate.LocalDateCellFactory;
-import org.knime.core.data.time.localtime.LocalTimeCellFactory;
+import org.knime.core.data.time.localdatetime.LocalDateTimeCellFactory;
 import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderConfig;
 import org.knime.filehandling.core.node.table.reader.HierarchyAwareProductionPathProvider;
 import org.knime.filehandling.core.node.table.reader.ReadAdapter;
@@ -87,21 +87,25 @@ import org.knime.filehandling.core.node.table.reader.type.hierarchy.TypeTester;
 import org.knime.filehandling.core.node.table.reader.util.MultiTableUtils;
 
 /**
- * Factory for StringReadAdapter objects.
+ * Factory for SharepointListReadAdapter objects.
  *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  * @noreference non-public API
  */
-public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataType, String> {
+public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataType, Object> {
     /**
      * The singleton instance.
      */
     INSTANCE;
 
+    private static final DataType TYPE_LIST_STRING = DataType.getType(ListCell.class, StringCell.TYPE);
+    private static final DataType TYPE_LIST_LONG = DataType.getType(ListCell.class, LongCell.TYPE);
+
     private static final ProducerRegistry<DataType, SharepointListReadAdapter> PRODUCER_REGISTRY = initializeProducerRegistry();
 
     /**
-     * The type hierarchy of the CSV Reader.
+     * The type hierarchy of the SharePointList Reader.
      */
     public static final TreeTypeHierarchy<DataType, DataType> TYPE_HIERARCHY = createHierarchy(
             new SharepointListReaderConfig()).createTypeFocusedHierarchy();
@@ -114,39 +118,76 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
         registry.register(new SupplierCellValueProducerFactory<>(BooleanCell.TYPE, Boolean.class,
                 StringToBooleanCellValueProducer::new));
         registry.register(
-                new SupplierCellValueProducerFactory<>(IntCell.TYPE, Integer.class, StringToIntCellValueProducer::new));
+                new SupplierCellValueProducerFactory<>(IntCell.TYPE, Integer.class, NumberToIntCellValueProducer::new));
         registry.register(new SupplierCellValueProducerFactory<>(DoubleCell.TYPE, Double.class,
-                StringToDoubleCellValueProducer::new));
+                NumberToDoubleCellValueProducer::new));
         registry.register(
-                new SupplierCellValueProducerFactory<>(LongCell.TYPE, Long.class, StringToLongCellValueProducer::new));
+                new SupplierCellValueProducerFactory<>(LongCell.TYPE, Long.class, NumberToLongCellValueProducer::new));
+        registry.register(new SimpleCellValueProducerFactory<>(LocalDateTimeCellFactory.TYPE, LocalDateTime.class,
+                SharepointListReadAdapterFactory::readLocalDateTimeFromSource));
         registry.register(new SimpleCellValueProducerFactory<>(LocalDateCellFactory.TYPE, LocalDate.class,
                 SharepointListReadAdapterFactory::readLocalDateFromSource));
-        registry.register(new SimpleCellValueProducerFactory<>(LocalTimeCellFactory.TYPE, LocalTime.class,
-                SharepointListReadAdapterFactory::readLocalTimeFromSource));
+        registry.register(new SimpleCellValueProducerFactory<>(TYPE_LIST_STRING, String[].class,
+                SharepointListReadAdapterFactory::readStringArrayFromSource));
+        registry.register(new SimpleCellValueProducerFactory<>(TYPE_LIST_LONG, Long[].class,
+                SharepointListReadAdapterFactory::readLongArrayFromSource));
         return registry;
     }
 
     private static String readStringFromSource(final SharepointListReadAdapter source,
             final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
-        return source.get(params);
+        final var val = source.get(params);
+        return readString(val);
+    }
+
+    private static String readString(final Object val) {
+        if (val == null) {
+            return null;
+        }
+        if (val instanceof Object[]) {
+            return Arrays.stream((Object[]) val).map(SharepointListReadAdapterFactory::readString)
+                    .collect(Collectors.joining(",", "[", "]"));
+        } else {
+            return val.toString();
+        }
+    }
+
+    private static String[] readStringArrayFromSource(final SharepointListReadAdapter source,
+            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
+        final var val = source.get(params);
+        if (val == null) {
+            return null;
+        }
+        if (val instanceof String[]) {
+            return (String[]) val;
+        } else {
+            return Arrays.stream((Object[]) val)//
+                    .map(Object::toString)//
+                    .toArray(String[]::new);
+        }
+    }
+
+    private static Long[] readLongArrayFromSource(final SharepointListReadAdapter source,
+            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
+        return (Long[]) source.get(params);
     }
 
     private static LocalDate readLocalDateFromSource(final SharepointListReadAdapter source,
             final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
-        final var val = source.get(params);
-        return val == null ? null : LocalDate.parse(val);
+        return (LocalDate) source.get(params);
     }
 
-    private static LocalTime readLocalTimeFromSource(final SharepointListReadAdapter source,
+    private static LocalDateTime readLocalDateTimeFromSource(final SharepointListReadAdapter source,
             final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
         final var val = source.get(params);
-        return LocalTime.parse(val);
-    }
-
-    private static InputStream readByteFieldsFromSource(final SharepointListReadAdapter source,
-            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
-        final var val = source.get(params);
-        return val == null ? null : new ByteArrayInputStream(val.getBytes());
+        if (val == null) {
+            return null;
+        }
+        if (val instanceof LocalDate) {
+            return ((LocalDate) val).atStartOfDay();
+        } else {
+            return (LocalDateTime) val;
+        }
     }
 
     private abstract static class AbstractReadAdapterToPrimitiveCellValueProducer<S extends ReadAdapter<?, ?>, T>
@@ -167,11 +208,11 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
         public boolean produceBooleanCellValue(final SharepointListReadAdapter source,
                 final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params)
                 throws MappingException {
-            return Boolean.parseBoolean(source.get(params));
+            return (Boolean) source.get(params);
         }
     }
 
-    private static class StringToIntCellValueProducer
+    private static class NumberToIntCellValueProducer
             extends AbstractReadAdapterToPrimitiveCellValueProducer<SharepointListReadAdapter, Integer> implements
             IntCellValueProducer<SharepointListReadAdapter, ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig>> {
 
@@ -179,11 +220,12 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
         public int produceIntCellValue(final SharepointListReadAdapter source,
                 final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params)
                 throws MappingException {
-            return Integer.parseInt(source.get(params));
+            final var val = (Number) source.get(params);
+            return val.intValue();
         }
     }
 
-    private static class StringToDoubleCellValueProducer
+    private static class NumberToDoubleCellValueProducer
             extends AbstractReadAdapterToPrimitiveCellValueProducer<SharepointListReadAdapter, Double> implements
             DoubleCellValueProducer<SharepointListReadAdapter, ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig>> {
 
@@ -191,11 +233,12 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
         public double produceDoubleCellValue(final SharepointListReadAdapter source,
                 final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params)
                 throws MappingException {
-            return Double.parseDouble(source.get(params));
+            final var val = (Number) source.get(params);
+            return val.doubleValue();
         }
     }
 
-    private static class StringToLongCellValueProducer
+    private static class NumberToLongCellValueProducer
             extends AbstractReadAdapterToPrimitiveCellValueProducer<SharepointListReadAdapter, Long> implements
             LongCellValueProducer<SharepointListReadAdapter, ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig>> {
 
@@ -203,13 +246,13 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
         public long produceLongCellValue(final SharepointListReadAdapter source,
                 final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params)
                 throws MappingException {
-            return Long.parseLong(source.get(params));
+            final var val = (Number) source.get(params);
+            return val.longValue();
         }
     }
 
-
     @Override
-    public ReadAdapter<DataType, String> createReadAdapter() {
+    public ReadAdapter<DataType, Object> createReadAdapter() {
         return new SharepointListReadAdapter();
     }
 
@@ -229,9 +272,6 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
     public HierarchyAwareProductionPathProvider<DataType> createProductionPathProvider() {
         final Set<DataType> reachableDataTypes = new HashSet<>(
                 MultiTableUtils.extractReachableKnimeTypes(PRODUCER_REGISTRY));
-        // the binary object type can't be read with the CSV Reader
-        // it is only in the registry because the SAP Theobald Reader needs it
-        reachableDataTypes.remove(BinaryObjectDataCell.TYPE);
         return new HierarchyAwareProductionPathProvider<>(getProducerRegistry(), TYPE_HIERARCHY, this::getDefaultType,
                 SharepointListReadAdapterFactory::isValidPathFor, reachableDataTypes);
     }
@@ -240,9 +280,7 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
         if (type == StringCell.TYPE) {
             final DataType knimeType = path.getDestinationType();
             // exclude numeric types for String because
-            // a) The default String -> Number converters don't use the user-specified
-            // decimal and thousands separators
-            // b) the conversion is likely to fail because otherwise the type of the column
+            // a) the conversion is likely to fail because otherwise the type of the column
             // would be numeric
             return !isNumeric(knimeType);
         } else {
@@ -256,22 +294,27 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
                 || knimeType.equals(IntCell.TYPE);
     }
 
-    static TreeTypeHierarchy<DataType, String> createHierarchy(final SharepointListReaderConfig config) {
+    // TODO create an actual hierarchy
+    static TreeTypeHierarchy<DataType, Object> createHierarchy(final SharepointListReaderConfig config) {
         return TreeTypeHierarchy.builder(createTypeTester(StringCell.TYPE, t -> {
-        })).addType(StringCell.TYPE, createTypeTester(DoubleCell.TYPE, Double::parseDouble))
-                .addType(DoubleCell.TYPE, createTypeTester(LongCell.TYPE, Long::parseLong))
-                .addType(LongCell.TYPE, createTypeTester(IntCell.TYPE, Integer::parseInt))
+        })).addType(StringCell.TYPE, TypeTester.createTypeTester(DoubleCell.TYPE, Double.class::isInstance))
+                .addType(DoubleCell.TYPE, TypeTester.createTypeTester(LongCell.TYPE, Long.class::isInstance))
+                .addType(LongCell.TYPE, TypeTester.createTypeTester(IntCell.TYPE, Integer.class::isInstance))
+                .addType(StringCell.TYPE, TypeTester.createTypeTester(BooleanCell.TYPE, Boolean.class::isInstance))
+                .addType(StringCell.TYPE, TypeTester.createTypeTester(TYPE_LIST_STRING, String[].class::isInstance))
+                .addType(TYPE_LIST_STRING, TypeTester.createTypeTester(TYPE_LIST_LONG, Long[].class::isInstance))
                 .addType(StringCell.TYPE,
-                        TypeTester.createTypeTester(BooleanCell.TYPE,
-                                s -> s.strip().equalsIgnoreCase("false") || s.strip().equalsIgnoreCase("true")))
+                        TypeTester.createTypeTester(LocalDateTimeCellFactory.TYPE, LocalDate.class::isInstance))
+                .addType(LocalDateTimeCellFactory.TYPE,
+                        TypeTester.createTypeTester(LocalDateCellFactory.TYPE, LocalDate.class::isInstance))
                 .build();
     }
 
-    private static TypeTester<DataType, String> createTypeTester(final DataType type, final Consumer<String> tester) {
+    private static TypeTester<DataType, Object> createTypeTester(final DataType type, final Consumer<Object> tester) {
         return TypeTester.createTypeTester(type, consumerToPredicate(tester));
     }
 
-    private static Predicate<String> consumerToPredicate(final Consumer<String> tester) {
+    private static Predicate<Object> consumerToPredicate(final Consumer<Object> tester) {
         return s -> {
             try {
                 tester.accept(s);

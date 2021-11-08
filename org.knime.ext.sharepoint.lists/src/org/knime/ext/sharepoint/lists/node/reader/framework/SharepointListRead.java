@@ -57,18 +57,18 @@ import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessib
 import org.knime.filehandling.core.node.table.reader.read.Read;
 
 /**
- * {@link Read} implementation that works with {@link String}.
+ * {@link Read} implementation that works with {@link SharepointListClient}s.
  *
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Jannik LÃ¶scher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public class SharepointListRead implements Read<String> {
+public class SharepointListRead implements Read<Object> {
 
-    static class RandomAccessibleDataRow extends AbstractRandomAccessible<String> {
+    static class RandomAccessibleDataRow extends AbstractRandomAccessible<Object> {
 
-        private final String[] m_row;
+        private final Object[] m_row;
 
-        RandomAccessibleDataRow(final String[] dataRow) {
+        RandomAccessibleDataRow(final Object[] dataRow) {
             m_row = dataRow;
         }
 
@@ -78,7 +78,7 @@ public class SharepointListRead implements Read<String> {
         }
 
         @Override
-        public String get(final int idx) {
+        public Object get(final int idx) {
             return m_row[idx];
         }
 
@@ -95,11 +95,13 @@ public class SharepointListRead implements Read<String> {
      *            the client to read from and use for requests
      */
     public SharepointListRead(final SharepointListClient client) {
-        m_items = null;
+        m_items = client.getItems();
+        m_rowsRead = 0;
+
     }
 
     @Override
-    public RandomAccessible<String> next() throws IOException {
+    public RandomAccessible<Object> next() throws IOException {
         if (m_items.hasNext()) {
             m_rowsRead++;
             return m_items.next();

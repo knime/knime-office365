@@ -74,7 +74,7 @@ import com.microsoft.graph.requests.extensions.IListItemCollectionPage;
 /**
  * A class used to setup and get information from the Microsoft Graph API.
  *
- * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Jannik LÃ¶scher, KNIME GmbH, Konstanz, Germany
  */
 public final class SharepointListClient {
     // TODO to be removed with AP-17507
@@ -84,7 +84,7 @@ public final class SharepointListClient {
     private static final List<Option> OPTIONS_ITEMS = Collections.singletonList(new QueryOption("expand", "fields"));
 
     // TODO check if we do want to filter anything at all
-    private static final Set<String> DISALLOW_LIST = Set.of("LinkTitleNoMenu", "LinkTitle");
+    private static final Set<String> DISALLOW_LIST = Set.of("linktitlenomenu", "linktitle");
 
     private static final Predicate<SharepointListColumn<?>> ALLOWED = c -> !DISALLOW_LIST.contains(c.getIdName());
 
@@ -113,7 +113,7 @@ public final class SharepointListClient {
     public SharepointListClient(final IGraphServiceClient client, final String siteId, final String listId) {//
         m_client = client;
         m_siteId = "root";
-        m_listId = LIST_LONG;
+        m_listId = LIST_SHORT;
         m_columns = getColumns();
     }
 
@@ -141,7 +141,7 @@ public final class SharepointListClient {
     /**
      * @return the {@link List} of {@link SharepointListColumn}
      */
-    public List<SharepointListColumn<?>> getColumnList() {
+    public List<SharepointListColumn<?>> getColumnList() {// NOSONAR: no better syntax possible
         return m_columns;
     }
 
@@ -225,7 +225,7 @@ public final class SharepointListClient {
 
         @Override
         public RandomAccessibleDataRow next() {
-            final var res = new String[m_idIndexMapping.size()];
+            final var res = new Object[m_idIndexMapping.size()];
             final var properties = m_itemSetIterator.next()//
                     .getAsJsonObject()//
                     .get("fields")//
@@ -233,10 +233,10 @@ public final class SharepointListClient {
                     .entrySet();
 
             properties.stream().forEach(p -> {
-                final var lookup = m_idIndexMapping.getOrDefault(p.getKey(), MISSING);
+                final var lookup = m_idIndexMapping.getOrDefault(p.getKey().toLowerCase(), MISSING);
                 if (lookup != MISSING) {
                     res[lookup.getFirst()] = lookup.getSecond()// [columnIndex] = column
-                            .getCannonicalRepresentation(p.getValue()).toString();
+                            .getCanonicalRepresentation(p.getValue());
                 }
             });
 
@@ -266,7 +266,7 @@ public final class SharepointListClient {
                     .range(0, m_columns.size())//
                     .boxed()//
                     .collect(Collectors.toMap(i -> ((SharepointListColumn<?>) m_columns.get(i)).getIdName(),
-                            i -> Pair.create(i, m_columns.get(i))));
+                            i -> Pair.create(i, m_columns.get(i)), (a, b) -> b));
         }
     }
 }

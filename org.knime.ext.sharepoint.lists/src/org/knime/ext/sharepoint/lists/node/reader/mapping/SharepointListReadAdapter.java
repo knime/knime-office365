@@ -52,11 +52,12 @@ import org.knime.core.data.DataType;
 import org.knime.filehandling.core.node.table.reader.ReadAdapter;
 
 /**
- * {@link ReadAdapter} implementation that uses {@link Class} objects as data type identifiers and Strings as value
- * type.
+ * {@link ReadAdapter} implementation that uses {@link Class} objects as data
+ * type identifiers and Objects as value type.
  *
- * @author Adrian Nembach, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReadAdapter extends ReadAdapter<DataType, String> {
+final class SharepointListReadAdapter extends ReadAdapter<DataType, Object> {
     // yes this class needs to be empty
 }
