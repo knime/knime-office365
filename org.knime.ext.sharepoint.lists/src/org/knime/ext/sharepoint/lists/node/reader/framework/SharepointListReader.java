@@ -92,7 +92,7 @@ public final class SharepointListReader
     }
 
     private static TypedReaderColumnSpec<DataType> getColumnSpec(final SharepointListColumn<?> column) {
-        return TypedReaderColumnSpec.createWithName(column.getDisplayName(), column.getCanonicalType(), true);
+        return TypedReaderColumnSpec.createWithName(column.getColumnName(), column.getCanonicalType(), true);
     }
 
     @Override

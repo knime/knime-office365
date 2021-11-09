@@ -87,6 +87,8 @@ abstract class SharepointListColumn<T> {
 
     private String m_displayName;
 
+    private String m_columnName;
+
     protected final String m_idName;
 
     /**
@@ -114,12 +116,38 @@ abstract class SharepointListColumn<T> {
         m_spec = spec;
         m_type = type;
         m_displayName = spec.get("displayName").getAsString();
+        m_columnName = m_displayName;
         m_idName = spec.get("name").getAsString().toLowerCase();
         m_typeDetermined = typeDetermined;
     }
 
     /**
-     * @return the name visually displayed to the user
+     * @return name used for the column in KNIME. This name may be the same as the
+     *         {@link #getDisplayName() display name} or additionally contain the
+     *         {@link #getIdName() ID name} in the format
+     *         <code>&lt;displayName&gt; (&lt;idName&gt;)</code> to make it unique.
+     * @see #makeColumnNameUnique()
+     */
+    public String getColumnName() {
+        return m_columnName;
+    }
+
+    /**
+     * Makes this column name unique by setting it to
+     * <code>&lt;displayName&gt; (&lt;idName&gt;)</code>.<br>
+     * This method should only be called if there are other columns with the same
+     * display name.
+     *
+     * @apiNote this name may still not be unique in some unlikely circumstances. In
+     *          this case the last column in the column list is used when a name is
+     *          accessed.
+     */
+    void makeColumnNameUnique() {
+        m_columnName = String.format("%s (%s)", m_displayName, m_idName);
+    }
+
+    /**
+     * @return the name visually displayed to the user in SharePoint
      */
     public String getDisplayName() {
         return m_displayName;
@@ -153,8 +181,23 @@ abstract class SharepointListColumn<T> {
         return m_type;
     }
 
+    /**
+     * Reads a JSON field in this column and turns it into a Java type that can be
+     * processed further. The type can change depending on the settings of the
+     * column.
+     *
+     * @param data
+     *            the data to be processed.
+     * @return the processed value.
+     */
     public abstract T getCanonicalRepresentation(final JsonElement data);
 
+    /**
+     * The KNIME data type that should be associated with this column. The type can
+     * change depending on the settings of the column.
+     *
+     * @return the type
+     */
     public abstract DataType getCanonicalType();
 
     public static SharepointListColumn<?> of(final JsonObject spec) { // NOSONAR

@@ -50,6 +50,8 @@ package org.knime.ext.sharepoint.lists.node.reader.framework;
 
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -121,13 +123,24 @@ public final class SharepointListClient {
      * @return a {@link List} of {@link SharepointListColumn}.
      */
     private List<SharepointListColumn<?>> getColumns() {
-        return StreamSupport
+        final List<SharepointListColumn<?>> columns = StreamSupport
                 .stream(Spliterators.spliteratorUnknownSize(new ColumnIterator(),
                         Spliterator.ORDERED | Spliterator.IMMUTABLE | Spliterator.NONNULL), false)//
                 .map(JsonElement::getAsJsonObject)//
                 .map(SharepointListColumn::of)//
                 .filter(ALLOWED)//
                 .collect(Collectors.toUnmodifiableList());
+        // check for columns with duplicate display names and make the column names
+        // unique if necessary
+        final var columnNames = new LinkedHashMap<String, List<SharepointListColumn<?>>>();
+        for (final var col : columns) {
+            columnNames.computeIfAbsent(col.getDisplayName(), k -> new LinkedList<>()).add(col);
+        }
+        columnNames.values().stream()//
+                .filter(l -> l.size() >= 2)//
+                .flatMap(List::stream)//
+                .forEach(SharepointListColumn::makeColumnNameUnique);
+        return columns;
     }
 
     /**
