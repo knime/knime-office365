@@ -131,7 +131,8 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
         box.add(flowVarPanel);
         box.add(Box.createVerticalStrut(10));
 
-        box.add(new ScopesEditComponent(m_provider.getScopesModel(), m_provider.getBlobStorageAccountModel()));
+        box.add(new ScopesEditComponent(m_provider.getScopesModel(), m_provider.getBlobStorageAccountModel(),
+                m_provider.getOtherScopesModel()));
         box.add(Box.createVerticalGlue());
         return box;
     }

@@ -48,6 +48,9 @@
  */
 package org.knime.ext.microsoft.authentication.providers.oauth2;
 
+import static org.knime.ext.microsoft.authentication.port.oauth2.Scope.AZURE_BLOB_STORAGE;
+import static org.knime.ext.microsoft.authentication.port.oauth2.Scope.OTHERS;
+
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -64,6 +67,8 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
+import org.knime.core.node.defaultnodesettings.DialogComponent;
+import org.knime.core.node.defaultnodesettings.DialogComponentMultiLineString;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
@@ -76,13 +81,16 @@ import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
  * @author Alexander Bondaletov
  */
 public class ScopesEditComponent extends JPanel {
+
     private static final long serialVersionUID = 1L;
 
-    private SettingsModelStringArray m_scopes;
-    private SettingsModelString m_blobStorageAccount;
+    private final SettingsModelStringArray m_scopes;
+    private final SettingsModelString m_blobStorageAccount;
+    private final SettingsModelString m_manualScopes;
 
     private JLabel m_blobStorageAccountLabel;
     private Map<Scope, JCheckBox> m_checkboxes;
+
 
     /**
      * Creates new instance.
@@ -91,10 +99,13 @@ public class ScopesEditComponent extends JPanel {
      *            Settings model to store settings.
      * @param blobStorageAccount
      *            Settings model to store blob storage account.
+     * @param manualScopes
      */
-    public ScopesEditComponent(final SettingsModelStringArray scopes, final SettingsModelString blobStorageAccount) {
+    public ScopesEditComponent(final SettingsModelStringArray scopes, final SettingsModelString blobStorageAccount,
+            final SettingsModelString manualScopes) {
         m_scopes = scopes;
         m_blobStorageAccount = blobStorageAccount;
+        m_manualScopes = manualScopes;
         m_checkboxes = new EnumMap<>(Scope.class);
         initUI();
 
@@ -104,9 +115,14 @@ public class ScopesEditComponent extends JPanel {
 
     private void initUI() {
         m_blobStorageAccountLabel = new JLabel("Storage account:");
-        DialogComponentString blobStorageAcc = new DialogComponentString(m_blobStorageAccount, "");
+        final DialogComponentString blobStorageAcc = new DialogComponentString(m_blobStorageAccount, "");
         blobStorageAcc.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
         blobStorageAcc.getComponentPanel().setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
+
+        final DialogComponent otherScopes = new DialogComponentMultiLineString(m_manualScopes, "", true, 90, 5);
+        otherScopes.setToolTipText("You can enter multiple scopes separated by <new line>");
+        otherScopes.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
+        otherScopes.getComponentPanel().setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
 
         setLayout(new GridBagLayout());
 
@@ -121,7 +137,7 @@ public class ScopesEditComponent extends JPanel {
             add(createCheckbox(scope), c);
             c.gridy += 1;
 
-            if (scope == Scope.AZURE_BLOB_STORAGE) {
+            if (scope == AZURE_BLOB_STORAGE) {
                 c.weightx = 0;
                 c.gridwidth = 1;
                 c.insets = new Insets(0, 20, 0, 5);
@@ -132,6 +148,16 @@ public class ScopesEditComponent extends JPanel {
                 c.weightx = 0.5;
                 c.insets = new Insets(0, 0, 0, 0);
                 add(blobStorageAcc.getComponentPanel(), c);
+
+                c.gridx = 0;
+                c.gridwidth = 2;
+                c.gridy += 1;
+            } else if (scope == OTHERS) {
+                c.gridwidth = 2;
+                c.insets = new Insets(0, 20, 0, 5);
+                c.weightx = 0.5;
+                c.insets = new Insets(0, 0, 0, 0);
+                add(otherScopes.getComponentPanel(), c);
 
                 c.gridx = 0;
                 c.gridwidth = 2;
@@ -152,23 +178,21 @@ public class ScopesEditComponent extends JPanel {
     }
 
     private void onSelected(final Scope scope, final boolean selected) {
-        Set<String> scopes = toSet(m_scopes);
+        final var currentScopes = toSet(m_scopes);
+
+        final var newScopes = new HashSet<String>();
 
         if (selected) {
-            if (scope == Scope.AZURE_BLOB_STORAGE || scope == Scope.POWER_BI || scope == Scope.AZURE_SQL_DATABASE) {
-                scopes.clear();
-            } else {
-                scopes.remove(Scope.AZURE_BLOB_STORAGE.getScope());
-                scopes.remove(Scope.POWER_BI.getScope());
-                scopes.remove(Scope.AZURE_SQL_DATABASE.getScope());
-            }
-
-            scopes.add(scope.getScope());
+            newScopes.add(scope.getScope());
+            currentScopes.stream() //
+                    .filter(s -> Scope.fromScope(s).canBeGroupedWith(scope)) //
+                    .forEach(newScopes::add);
         } else {
-            scopes.remove(scope.getScope());
+            newScopes.addAll(currentScopes);
+            newScopes.remove(scope.getScope());
         }
 
-        m_scopes.setStringArrayValue(scopes.toArray(new String[] {}));
+        m_scopes.setStringArrayValue(newScopes.toArray(String[]::new));
     }
 
     private void updateCheckboxes() {
@@ -177,8 +201,9 @@ public class ScopesEditComponent extends JPanel {
             entry.getValue().setSelected(set.contains(entry.getKey().getScope()));
         }
 
-        m_blobStorageAccount.setEnabled(set.contains(Scope.AZURE_BLOB_STORAGE.getScope()));
-        m_blobStorageAccountLabel.setEnabled(set.contains(Scope.AZURE_BLOB_STORAGE.getScope()));
+        m_blobStorageAccount.setEnabled(set.contains(AZURE_BLOB_STORAGE.getScope()));
+        m_blobStorageAccountLabel.setEnabled(set.contains(AZURE_BLOB_STORAGE.getScope()));
+        m_manualScopes.setEnabled(set.contains(OTHERS.getScope()));
     }
 
     private static Set<String> toSet(final SettingsModelStringArray settings) {

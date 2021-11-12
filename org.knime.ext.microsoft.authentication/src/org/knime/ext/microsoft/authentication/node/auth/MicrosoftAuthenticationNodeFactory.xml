@@ -79,8 +79,12 @@
 			</option>
 
 			<option name="Request access to">
-				Allows to define which level of access to Microsoft Office 365 cloud
-				services should be requested during login.
+				Allows to define which level of access to Microsoft Office 365/Azure cloud
+				services should be requested during login. You can use the <i>Others</i> option to enter any <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-permissions-and-consent">
+				OAuth2 scopes</a>, that are not already predefined.
+				An OAuth scope is specified as a URI, consisting of a resource identfier (Application ID URI) and a permission, for example
+				<tt>https://outlook.office.com/mail.read</tt>. This can be used to connect to non-Microsoft service such as Snowflake, which are
+				integrated with the Microsoft Identity platform. You can enter multiple scopes in the list separated by <i>new line</i>.
 			</option>
 		</tab>
 

@@ -50,10 +50,12 @@ package org.knime.ext.microsoft.authentication.providers.oauth2;
 
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
@@ -77,8 +79,14 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
      */
     private static final String KEY_BLOB_STORAGE_ACCOUNT = "blobStorageAccount";
 
+    /**
+     * Added with KNIME AP 4.5 to support OAuth2 with manually entered scopes.
+     */
+    private static final String KEY_OTHER_SCOPES = "otherScopes";
+
     private final SettingsModelStringArray m_scopes;
     private final SettingsModelString m_blobStorageAccount;
+    private final SettingsModelString m_otherScopes;
 
     /**
      * Creates new instance.
@@ -89,6 +97,8 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
                 new String[] { Scope.SITES_READ_WRITE.getScope() });
         m_blobStorageAccount = new SettingsModelString(KEY_BLOB_STORAGE_ACCOUNT, "");
         m_blobStorageAccount.setEnabled(false);
+        m_otherScopes = new SettingsModelString(KEY_OTHER_SCOPES, "");
+        m_otherScopes.setEnabled(false);
     }
 
     /**
@@ -107,6 +117,13 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     }
 
     /**
+     * @return the model for the manually entered scopes.
+     */
+    public SettingsModelString getOtherScopesModel() {
+        return m_otherScopes;
+    }
+
+    /**
      * Returns the scopes as a set of strings. This method must be called if you
      * need the proper scope as a string, because it enriches the scope string for
      * {@link Scope#AZURE_BLOB_STORAGE} with the necessary storage account.
@@ -114,12 +131,23 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
      * @return the scopes as a set of strings.
      */
     public Set<String> getScopesStringSet() {
-        return getScopesEnumSet().stream().map(scope -> {
+        final Set<String> scopeStrings = new HashSet<>();
+        final Set<Scope> scopes = getScopesEnumSet();
+        for (Scope scope : scopes) {
             if (scope == Scope.AZURE_BLOB_STORAGE) {
-                return String.format(scope.getScope(), m_blobStorageAccount.getStringValue());
+                scopeStrings.add(String.format(scope.getScope(), m_blobStorageAccount.getStringValue()));
+            } else if (scope == Scope.OTHERS) {
+                // get the unescaped string and split it into lines
+                m_otherScopes.getJavaUnescapedStringValue() //
+                        .lines() //
+                        .map(String::trim) //
+                        .filter(StringUtils::isNotBlank) //
+                        .forEach(scopeStrings::add);
+            } else {
+                scopeStrings.add(scope.getScope());
             }
-            return scope.getScope();
-        }).collect(Collectors.toSet());
+        }
+        return scopeStrings;
     }
 
     /**
@@ -150,6 +178,7 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     public void saveSettingsTo(final NodeSettingsWO settings) {
         m_scopes.saveSettingsTo(settings);
         m_blobStorageAccount.saveSettingsTo(settings);
+        m_otherScopes.saveSettingsTo(settings);
     }
 
     /**
@@ -166,6 +195,10 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         if (getScopesEnumSet().contains(Scope.AZURE_BLOB_STORAGE) && m_blobStorageAccount.getStringValue().isEmpty()) {
             throw new InvalidSettingsException("Storage account cannot be empty");
         }
+
+        if (getScopesEnumSet().contains(Scope.OTHERS) && m_otherScopes.getStringValue().isEmpty()) {
+            throw new InvalidSettingsException("Other scopes list cannot be empty");
+        }
     }
 
     @Override
@@ -175,6 +208,11 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         // Added with KNIME AP 4.3 to support OAuth2 with Azure Blob Storage.
         if (settings.containsKey(m_blobStorageAccount.getKey())) {
             m_blobStorageAccount.loadSettingsFrom(settings);
+        }
+
+        // Added with KNIME AP 4.5 to support OAuth2 with manually entered scopes.
+        if (settings.containsKey(m_otherScopes.getKey())) {
+            m_otherScopes.loadSettingsFrom(settings);
         }
     }
 }
