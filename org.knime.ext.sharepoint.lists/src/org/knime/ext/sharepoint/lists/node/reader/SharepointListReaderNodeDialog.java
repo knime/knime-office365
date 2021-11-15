@@ -129,8 +129,6 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     // advanced tab
     private final TimeoutPanel<ListSettings, SharepointListSettings> m_timeoutPanel;
-    private final JCheckBox m_limitScannedRowsEnabled;
-    private final JSpinner m_limitScannedRowsNumber;
 
     // limit rows tab
     private final JCheckBox m_skipRowsEnabled;
@@ -161,12 +159,6 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         final var skipOne = Long.valueOf(1);
         final var initLimit = Long.valueOf(50);
 
-        m_limitScannedRowsEnabled = new JCheckBox("Limit data rows scanned");
-        m_limitScannedRowsNumber = new JSpinner(new SpinnerNumberModel(initLimit, rowStart, rowEnd, initLimit));
-        m_limitScannedRowsEnabled
-                .addActionListener(e -> controlSpinner(m_limitScannedRowsEnabled, m_limitScannedRowsNumber));
-        m_limitScannedRowsEnabled.doClick();
-
         m_skipRowsEnabled = new JCheckBox("Skip first data rows");
         m_skipRowsNumber = new JSpinner(new SpinnerNumberModel(skipOne, rowStart, rowEnd, stepSize));
         m_skipRowsEnabled.addActionListener(e -> controlSpinner(m_skipRowsEnabled, m_skipRowsNumber));
@@ -192,8 +184,6 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         m_timeoutPanel.addChangeListener(change);
         m_listSettingsPanel.addListener(change);
 
-        m_limitScannedRowsEnabled.addActionListener(action);
-        m_limitScannedRowsNumber.addChangeListener(change);
         m_skipRowsEnabled.addActionListener(action);
         m_skipRowsNumber.addChangeListener(change);
         m_limitRowsEnabled.addActionListener(action);
@@ -233,16 +223,9 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     private JPanel createAdvancedTab() {
         final var panel = new JPanel(new GridBagLayout());
 
-        final var specLimitPanel = new JPanel(new GridBagLayout());
-        specLimitPanel.setBorder(createBorder("Table specification"));
-        final var gbc = new GBCBuilder().resetPos().weight(0, 0).insets(5, 0, 5, 5).anchorFirstLineStart().fillNone();
-        specLimitPanel.add(m_limitScannedRowsEnabled, gbc.build());
-        specLimitPanel.add(m_limitScannedRowsNumber, gbc.incX().build());
-        specLimitPanel.add(Box.createVerticalBox(), gbc.incX().setWeightX(1).fillHorizontal().build());
-        gbc.resetX().insets(0, 0, 0, 0).weight(1, 0).fillHorizontal().anchorFirstLineStart();
-        panel.add(specLimitPanel, gbc.build());
-
-        panel.add(m_timeoutPanel, gbc.incY().build());
+        final var gbc = new GBCBuilder().resetPos().weight(1, 0).insets(5, 0, 5, 5).anchorFirstLineStart()
+                .fillHorizontal();
+        panel.add(m_timeoutPanel, gbc.build());
 
         panel.add(createPreview(), gbc.incY().fillBoth().setWeightY(1).build());
         return panel;
@@ -403,9 +386,6 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     private void saveTableReadSettings() {
         final var tableReadConfig = m_config.getTableReadConfig();
 
-        tableReadConfig.setLimitRowsForSpec(m_limitScannedRowsEnabled.isSelected());
-        tableReadConfig.setMaxRowsForSpec((Long) m_limitScannedRowsNumber.getValue());
-
         tableReadConfig.setSkipRows(m_skipRowsEnabled.isSelected());
         tableReadConfig.setNumRowsToSkip((Long) m_skipRowsNumber.getValue());
         tableReadConfig.setLimitRows(m_limitRowsEnabled.isSelected());
@@ -453,7 +433,6 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
         loadTableReadSettings();
         // enable/disable spinners
-        controlSpinner(m_limitScannedRowsEnabled, m_limitScannedRowsNumber);
         controlSpinner(m_skipRowsEnabled, m_skipRowsNumber);
         controlSpinner(m_limitRowsEnabled, m_limitRowsNumber);
         m_listSettingsPanel.settingsLoaded(connection);
@@ -468,9 +447,6 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
      */
     private void loadTableReadSettings() {
         final var tableReadConfig = m_config.getTableReadConfig();
-
-        m_limitScannedRowsEnabled.setSelected(tableReadConfig.limitRowsForSpec());
-        m_limitScannedRowsNumber.setValue(tableReadConfig.getMaxRowsForSpec());
 
         m_skipRowsEnabled.setSelected(tableReadConfig.skipRows());
         m_skipRowsNumber.setValue(tableReadConfig.getNumRowsToSkip());
