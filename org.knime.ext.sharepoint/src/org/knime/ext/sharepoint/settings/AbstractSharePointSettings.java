@@ -64,8 +64,6 @@ import org.knime.core.node.NodeSettingsWO;
  */
 public abstract class AbstractSharePointSettings<T extends AbstractSharePointSettings<T>> {
 
-    private static final String KEY_SITE_SITTINGS = "site";
-
     private final SiteSettings m_siteSettings;
 
     private final TimeoutSettings m_timeoutSettings;
@@ -105,7 +103,7 @@ public abstract class AbstractSharePointSettings<T extends AbstractSharePointSet
      *            Node settings.
      */
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        m_siteSettings.saveSettingsTo(settings.addNodeSettings(KEY_SITE_SITTINGS));
+        m_siteSettings.saveSettingsTo(settings);
         m_timeoutSettings.saveSettingsTo(settings);
     }
 
@@ -117,7 +115,7 @@ public abstract class AbstractSharePointSettings<T extends AbstractSharePointSet
      * @throws InvalidSettingsException
      */
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_siteSettings.validateSettings(settings.getNodeSettings(KEY_SITE_SITTINGS));
+        m_siteSettings.validateSettings(settings);
         m_timeoutSettings.validateSettings(settings);
     }
 
@@ -129,7 +127,7 @@ public abstract class AbstractSharePointSettings<T extends AbstractSharePointSet
      * @throws InvalidSettingsException
      */
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_siteSettings.loadSettingsFrom(settings.getNodeSettings(KEY_SITE_SITTINGS));
+        m_siteSettings.loadSettingsFrom(settings);
         m_timeoutSettings.loadSettingsFrom(settings);
     }
 

@@ -333,9 +333,10 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          *            Node settings.
          */
         public void saveSettingsTo(final NodeSettingsWO settings) {
-            m_list.saveSettingsTo(settings);
-            m_listName.saveSettingsTo(settings);
-            m_showSystemLists.saveSettingsTo(settings);
+            final NodeSettingsWO listSettings = settings.addNodeSettings(KEY_LIST);
+            m_list.saveSettingsTo(listSettings);
+            m_listName.saveSettingsTo(listSettings);
+            m_showSystemLists.saveSettingsTo(listSettings);
         }
 
         /**
@@ -346,9 +347,10 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          * @throws InvalidSettingsException
          */
         public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-            m_list.validateSettings(settings);
-            m_listName.validateSettings(settings);
-            m_showSystemLists.validateSettings(settings);
+            final NodeSettingsRO listSettings = settings.getNodeSettings(KEY_LIST);
+            m_list.validateSettings(listSettings);
+            m_listName.validateSettings(listSettings);
+            m_showSystemLists.validateSettings(listSettings);
         }
 
         /**
@@ -359,9 +361,10 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          * @throws InvalidSettingsException
          */
         public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-            m_list.loadSettingsFrom(settings);
-            m_listName.loadSettingsFrom(settings);
-            m_showSystemLists.loadSettingsFrom(settings);
+            final NodeSettingsRO listSettings = settings.getNodeSettings(KEY_LIST);
+            m_list.loadSettingsFrom(listSettings);
+            m_listName.loadSettingsFrom(listSettings);
+            m_showSystemLists.loadSettingsFrom(listSettings);
         }
 
         /**

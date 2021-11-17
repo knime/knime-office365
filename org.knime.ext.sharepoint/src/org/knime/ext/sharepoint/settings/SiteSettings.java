@@ -137,13 +137,14 @@ public class SiteSettings {
      *            Node settings.
      */
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        m_webURL.saveSettingsTo(settings);
-        m_group.saveSettingsTo(settings);
-        m_groupName.saveSettingsTo(settings);
-        m_mode.saveSettingsTo(settings);
-        m_subsite.saveSettingsTo(settings);
-        m_subsiteName.saveSettingsTo(settings);
-        m_connectToSubsite.saveSettingsTo(settings);
+        final NodeSettingsWO siteSettings = settings.addNodeSettings(KEY_SITE);
+        m_webURL.saveSettingsTo(siteSettings);
+        m_group.saveSettingsTo(siteSettings);
+        m_groupName.saveSettingsTo(siteSettings);
+        m_mode.saveSettingsTo(siteSettings);
+        m_subsite.saveSettingsTo(siteSettings);
+        m_subsiteName.saveSettingsTo(siteSettings);
+        m_connectToSubsite.saveSettingsTo(siteSettings);
     }
 
     /**
@@ -154,13 +155,14 @@ public class SiteSettings {
      * @throws InvalidSettingsException
      */
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_webURL.validateSettings(settings);
-        m_group.validateSettings(settings);
-        m_groupName.validateSettings(settings);
-        m_subsite.validateSettings(settings);
-        m_subsiteName.validateSettings(settings);
-        m_mode.validateSettings(settings);
-        m_connectToSubsite.validateSettings(settings);
+        final NodeSettingsRO siteSettings = settings.getNodeSettings(KEY_SITE);
+        m_webURL.validateSettings(siteSettings);
+        m_group.validateSettings(siteSettings);
+        m_groupName.validateSettings(siteSettings);
+        m_subsite.validateSettings(siteSettings);
+        m_subsiteName.validateSettings(siteSettings);
+        m_mode.validateSettings(siteSettings);
+        m_connectToSubsite.validateSettings(siteSettings);
     }
 
     /**
@@ -201,13 +203,14 @@ public class SiteSettings {
      * @throws InvalidSettingsException
      */
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_webURL.loadSettingsFrom(settings);
-        m_group.loadSettingsFrom(settings);
-        m_groupName.loadSettingsFrom(settings);
-        m_mode.loadSettingsFrom(settings);
-        m_subsite.loadSettingsFrom(settings);
-        m_subsiteName.loadSettingsFrom(settings);
-        m_connectToSubsite.loadSettingsFrom(settings);
+        final NodeSettingsRO siteSettings = settings.getNodeSettings(KEY_SITE);
+        m_webURL.loadSettingsFrom(siteSettings);
+        m_group.loadSettingsFrom(siteSettings);
+        m_groupName.loadSettingsFrom(siteSettings);
+        m_mode.loadSettingsFrom(siteSettings);
+        m_subsite.loadSettingsFrom(siteSettings);
+        m_subsiteName.loadSettingsFrom(siteSettings);
+        m_connectToSubsite.loadSettingsFrom(siteSettings);
     }
 
     /**
