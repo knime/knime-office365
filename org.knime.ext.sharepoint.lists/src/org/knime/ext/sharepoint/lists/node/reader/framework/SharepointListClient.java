@@ -69,6 +69,7 @@ import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel.ListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.SharepointListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListRead.RandomAccessibleDataRow;
+import org.knime.ext.sharepoint.settings.TimeoutSettings;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 
 import com.google.gson.JsonElement;
@@ -120,10 +121,10 @@ public final class SharepointListClient {
     public SharepointListClient(final IGraphServiceClient client, final SharepointListSettings settings) {
         m_client = client;
         m_connectionConfig = new DefaultConnectionConfig();
-        updateHttpConfig(settings);
+        updateHttpConfig(settings.getTimeoutSettings());
     }
 
-    private void updateHttpConfig(final SharepointListSettings settings) {
+    private void updateHttpConfig(final TimeoutSettings settings) {
         m_connectionConfig.setConnectTimeout(toMilis(settings.getConnectionTimeout()));
         m_connectionConfig.setReadTimeout(toMilis(settings.getReadTimeout()));
         m_client.getHttpProvider().setConnectionConfig(m_connectionConfig);
@@ -143,7 +144,7 @@ public final class SharepointListClient {
      */
     public List<SharepointListColumn<?>> getColumns(final SharepointListSettings listSettings) throws IOException {
         setSiteAndListId(listSettings.getSiteSettings());
-        updateHttpConfig(listSettings);
+        updateHttpConfig(listSettings.getTimeoutSettings());
 
         // have the columns be read or the settings changed?
         if (m_columns == null || listSettings.getSiteSettings().hashCode() != m_settingsHash) {
@@ -186,7 +187,7 @@ public final class SharepointListClient {
      */
     public Iterator<RandomAccessibleDataRow> getItems(final SharepointListSettings settings) throws IOException {
         setSiteAndListId(settings.getSiteSettings());
-        updateHttpConfig(settings);
+        updateHttpConfig(settings.getTimeoutSettings());
         return new ItemIterator();
     }
 

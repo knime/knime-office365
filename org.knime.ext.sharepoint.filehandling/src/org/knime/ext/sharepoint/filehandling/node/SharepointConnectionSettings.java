@@ -171,8 +171,8 @@ class SharepointConnectionSettings extends AbstractSharePointSettings<SiteSettin
     public SharepointFSConnectionConfig toFSConnectionConfig(final IAuthenticationProvider authProvider) {
         final var config = new SharepointFSConnectionConfig(getWorkingDirectory(SharepointFileSystem.PATH_SEPARATOR),
                 authProvider);
-        config.setReadTimeOut(Duration.ofSeconds(getReadTimeout()));
-        config.setConnectionTimeOut(Duration.ofSeconds(getConnectionTimeout()));
+        config.setReadTimeOut(Duration.ofSeconds(getTimeoutSettings().getReadTimeout()));
+        config.setConnectionTimeOut(Duration.ofSeconds(getTimeoutSettings().getConnectionTimeout()));
         config.setMode(getSiteSettings().getMode());
         config.setGroup(getSiteSettings().getGroupModel().getStringValue());
         config.setWebURL(getSiteSettings().getWebURLModel().getStringValue());

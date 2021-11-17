@@ -44,65 +44,52 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2021-09-29 (lars.schweikardt): created
+ *   2021-11-16 (lars.schweikardt): created
  */
-
 package org.knime.ext.sharepoint.settings;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
+import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 
 /**
- * Abstract class for Sharepoint settings which are common for certain
- * Sharepoint nodes.
+ * Settings for the {@link TimeoutPanel}.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @param <S>
- *            the type of {@link SiteSettings}
- * @param <T>
- *            the concrete implementation type (S for self), i.e. the class that
- *            is extending this class
  */
-public abstract class AbstractSharePointSettings<S extends SiteSettings, T extends AbstractSharePointSettings<S, T>> {
+public final class TimeoutSettings {
 
-    private static final String KEY_SITE_SITTINGS = "site";
+    private static final int DEFAULT_TIMEOUT = 20;
 
-    private final S m_settings;
+    private static final String KEY_CONNECTION_TIMEOUT = "connectionTimeout";
 
-    private final TimeoutSettings m_timeoutSettings;
+    private static final String KEY_READ_TIMEOUT = "readTimeout";
 
+    private final SettingsModelIntegerBounded m_connectionTimeout;
+
+    private final SettingsModelIntegerBounded m_readTimeout;
 
     /**
      * Constructor.
-     *
-     * @param settings
-     *            the Settings object which is an instance of {@link SiteSettings}
      */
-    protected AbstractSharePointSettings(final S settings) {
-        m_settings = settings;
-        m_timeoutSettings = new TimeoutSettings();
+    public TimeoutSettings() {
+        m_connectionTimeout = new SettingsModelIntegerBounded(KEY_CONNECTION_TIMEOUT, DEFAULT_TIMEOUT, 0,
+                Integer.MAX_VALUE);
+        m_readTimeout = new SettingsModelIntegerBounded(KEY_READ_TIMEOUT, DEFAULT_TIMEOUT, 0, Integer.MAX_VALUE);
     }
 
     /**
      * Copy constructor.
      *
      * @param toCopy
-     *            the settings to be copied
+     *            the {@link TimeoutSettings} to copy
      */
-    protected AbstractSharePointSettings(final T toCopy) {
-        m_settings = toCopy.getSiteSettings();
-        m_timeoutSettings = toCopy.getTimeoutSettings();
+    public TimeoutSettings(final TimeoutSettings toCopy) {
+        m_connectionTimeout = toCopy.getConnectionTimeoutModel();
+        m_readTimeout = toCopy.getReadTimeoutModel();
     }
-
-    /**
-     * Returns a copy of the settings.
-     *
-     * @param settings
-     *            the settings object to be copied
-     * @return the copy of the settings object
-     */
-    public abstract T copy(final T settings);
 
     /**
      * Saves the settings in this instance to the given {@link NodeSettingsWO}
@@ -111,8 +98,8 @@ public abstract class AbstractSharePointSettings<S extends SiteSettings, T exten
      *            Node settings.
      */
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        m_settings.saveSettingsTo(settings.addNodeSettings(KEY_SITE_SITTINGS));
-        m_timeoutSettings.saveSettingsTo(settings);
+        m_connectionTimeout.saveSettingsTo(settings);
+        m_readTimeout.saveSettingsTo(settings);
     }
 
     /**
@@ -123,8 +110,8 @@ public abstract class AbstractSharePointSettings<S extends SiteSettings, T exten
      * @throws InvalidSettingsException
      */
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_settings.validateSettings(settings.getNodeSettings(KEY_SITE_SITTINGS));
-        m_timeoutSettings.validateSettings(settings);
+        m_connectionTimeout.validateSettings(settings);
+        m_readTimeout.validateSettings(settings);
     }
 
     /**
@@ -135,21 +122,36 @@ public abstract class AbstractSharePointSettings<S extends SiteSettings, T exten
      * @throws InvalidSettingsException
      */
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_settings.loadSettingsFrom(settings.getNodeSettings(KEY_SITE_SITTINGS));
-        m_timeoutSettings.loadSettingsFrom(settings);
+        m_connectionTimeout.loadSettingsFrom(settings);
+        m_readTimeout.loadSettingsFrom(settings);
     }
 
     /**
-     * @return the siteSettings
+     * @return the connectionTimeout settings model
      */
-    public S getSiteSettings() {
-        return m_settings;
+    public SettingsModelIntegerBounded getConnectionTimeoutModel() {
+        return m_connectionTimeout;
     }
 
     /**
-     * @return the {@link TimeoutSettings}
+     * @return the connectionTimeout
      */
-    public TimeoutSettings getTimeoutSettings() {
-        return m_timeoutSettings;
+    public int getConnectionTimeout() {
+        return m_connectionTimeout.getIntValue();
     }
+
+    /**
+     * @return the readTimeout settings model
+     */
+    public SettingsModelIntegerBounded getReadTimeoutModel() {
+        return m_readTimeout;
+    }
+
+    /**
+     * @return the readTimeout
+     */
+    public int getReadTimeout() {
+        return m_readTimeout.getIntValue();
+    }
+
 }

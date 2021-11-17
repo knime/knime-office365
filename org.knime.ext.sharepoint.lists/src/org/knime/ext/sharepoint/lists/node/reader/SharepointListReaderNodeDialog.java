@@ -80,7 +80,6 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel;
-import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel.ListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
@@ -127,7 +126,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     private final SharepointListClientAccessor m_itemClient = new SharepointListClientAccessor();
 
     // advanced tab
-    private final TimeoutPanel<ListSettings, SharepointListSettings> m_timeoutPanel;
+    private final TimeoutPanel m_timeoutPanel;
 
     // limit rows tab
     private final JCheckBox m_skipRowsEnabled;
@@ -150,7 +149,8 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         m_listSettingsPanel = new SharepointListSettingsPanel(
                 m_config.getReaderSpecificConfig().getSharepointListSettings());
 
-        m_timeoutPanel = new TimeoutPanel<>(m_config.getReaderSpecificConfig().getSharepointListSettings());
+        m_timeoutPanel = new TimeoutPanel(
+                m_config.getReaderSpecificConfig().getSharepointListSettings().getTimeoutSettings());
 
         final var stepSize = Long.valueOf(1);
         final var rowStart = Long.valueOf(0);

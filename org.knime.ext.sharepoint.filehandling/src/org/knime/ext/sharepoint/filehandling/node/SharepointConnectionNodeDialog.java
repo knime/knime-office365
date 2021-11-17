@@ -67,7 +67,6 @@ import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
-import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
 
@@ -82,8 +81,7 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private final SiteSettingsPanel m_sitePanel = new SiteSettingsPanel(m_settings.getSiteSettings());
 
-    private final TimeoutPanel<SiteSettings, SharepointConnectionSettings> m_timeoutPanel = new TimeoutPanel<SiteSettings, SharepointConnectionSettings>(
-            m_settings);
+    private final TimeoutPanel m_timeoutPanel = new TimeoutPanel(m_settings.getTimeoutSettings());
 
     private final WorkingDirectoryChooser m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir",
             this::createFSConnection);

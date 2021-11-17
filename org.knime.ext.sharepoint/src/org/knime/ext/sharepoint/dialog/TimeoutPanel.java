@@ -60,24 +60,19 @@ import javax.swing.event.ChangeListener;
 
 import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
 import org.knime.core.node.defaultnodesettings.SettingsModel;
-import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
-import org.knime.ext.sharepoint.settings.SiteSettings;
+import org.knime.ext.sharepoint.settings.TimeoutSettings;
 
 /**
  * Timeout panel for different Sharepoint nodes i.e. SharePoint Online
  * Connector.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @param <S>
- *            the type of {@link SiteSettings}
- * @param <T>
- *            the type of {@link AbstractSharePointSettings}
  */
-public final class TimeoutPanel<S extends SiteSettings, T extends AbstractSharePointSettings<S, T>> extends JPanel {
+public final class TimeoutPanel extends JPanel {
 
     private static final long serialVersionUID = 1L;
 
-    private final T m_settings;
+    private final TimeoutSettings m_settings; // NOSONAR
 
     /**
      * Constructor.
@@ -85,7 +80,7 @@ public final class TimeoutPanel<S extends SiteSettings, T extends AbstractShareP
      * @param settings
      *            the Settings object
      */
-    public TimeoutPanel(final T settings) {
+    public TimeoutPanel(final TimeoutSettings settings) {
         m_settings = settings;
         createTimeOutPanel();
     }
