@@ -122,7 +122,6 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private final SharepointListSettingsPanel m_listSettingsPanel;
 
-
     private final SharepointListReaderMultiTableReadConfig m_config;
 
     private final SharepointListClientAccessor m_itemClient = new SharepointListClientAccessor();

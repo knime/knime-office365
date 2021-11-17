@@ -76,6 +76,7 @@ import org.knime.ext.sharepoint.dialog.LoadedItemsSelector;
 import org.knime.ext.sharepoint.dialog.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 import org.knime.ext.sharepoint.lists.node.reader.SharepointListSettings;
+import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.util.GBCBuilder;
 
@@ -117,15 +118,14 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
         super(listSettings.getSiteSettings());
         m_listSettings = listSettings.getSiteSettings();
         m_listSelector = new LoadedItemsSelector(m_listSettings.getListModel(), m_listSettings.getListNameModel(),
-                "List:", m_listSettings.getModeModel(), m_listSettings.getWebURLModel(), m_listSettings.getGroupModel(),
-                m_listSettings.getSubsiteModel(), m_listSettings.getConnectToSubsiteModel()) {
+                "List:", null) {
             private static final long serialVersionUID = 1L;
 
             @Override
             public List<IdComboboxItem> fetchItems() throws Exception {
                 clearStatusMessage();
                 try {
-                    return fetchLists();
+                    return fetchListPossible() ? fetchLists() : Collections.emptyList();
                 } catch (Exception e) { // NOSONAR we want to catch all exceptions
                     LOGGER.debug("An error occured while fetching the lists", e);
                     setErrorMessage(e);
@@ -137,6 +137,31 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
         m_showSystemLists = new DialogComponentBoolean(m_listSettings.getShowSystemListsModel(), "Show system lists");
 
         add(createListPanel());
+    }
+
+    /**
+     * Checks if fetching the lists is possible.
+     *
+     * @return flag whether fetch is possible or not
+     */
+    private boolean fetchListPossible() {
+        final var subsiteActiveAndNotEmpty = m_listSettings.getConnectToSubsiteModel()
+                .getBooleanValue() == !m_listSettings.getSubsiteModel().getStringValue().isEmpty();
+        switch (SiteMode.valueOf(m_listSettings.getModeModel().getStringValue())) {
+        case ROOT:
+            m_listSelector.setEnabled(subsiteActiveAndNotEmpty);
+            return subsiteActiveAndNotEmpty;
+        case WEB_URL:
+            final boolean urlModelIsEmpty = m_listSettings.getWebURLModel().getStringValue().isEmpty();
+            m_listSelector.setEnabled(subsiteActiveAndNotEmpty);
+            return !urlModelIsEmpty && subsiteActiveAndNotEmpty;
+        case GROUP:
+            final boolean groupModelIsEmpty = m_listSettings.getGroupModel().getStringValue().isEmpty();
+            m_listSelector.setEnabled(!groupModelIsEmpty == subsiteActiveAndNotEmpty);
+            return !groupModelIsEmpty && subsiteActiveAndNotEmpty;
+        default:
+            return false;
+        }
     }
 
     private void webUrlChangeListener() {

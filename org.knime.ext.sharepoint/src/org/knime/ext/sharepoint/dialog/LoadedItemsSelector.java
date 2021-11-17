@@ -52,7 +52,6 @@ import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -71,7 +70,6 @@ import javax.swing.JPanel;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.util.SwingWorkerWithContext;
-import org.knime.ext.sharepoint.settings.SiteMode;
 
 import com.microsoft.graph.http.GraphServiceException;
 
@@ -82,6 +80,7 @@ import com.microsoft.graph.http.GraphServiceException;
  *
  * @author Alexander Bondaletov
  */
+@SuppressWarnings("java:S1948") // ignore Sonar's transient/serializable warnings
 public abstract class LoadedItemsSelector extends JPanel {
     private static final long serialVersionUID = 1L;
 
@@ -90,16 +89,6 @@ public abstract class LoadedItemsSelector extends JPanel {
     private final SettingsModelString m_titleModel;
 
     private final SettingsModelBoolean m_checkedModel;
-
-    private SettingsModelString m_modeModel;
-
-    private SettingsModelString m_urlModel;
-
-    private SettingsModelString m_groupModel;
-
-    private SettingsModelString m_subSiteModel;
-
-    private SettingsModelBoolean m_connectToSubsite;
 
     private final DefaultComboBoxModel<IdComboboxItem> m_comboModel;
 
@@ -114,38 +103,6 @@ public abstract class LoadedItemsSelector extends JPanel {
     private boolean m_enabled = true;
 
     private boolean m_ignoreListeners = false;
-
-    /**
-     * Constructor.
-     *
-     * @param idModel
-     *            Settings model holding id value
-     * @param titleModel
-     *            Settings model holding title value
-     * @param caption
-     *            The caption label
-     * @param modeModel
-     *            Settings model holding mode model
-     * @param urlModel
-     *            Settings model holding URL model
-     * @param groupModel
-     *            Settings model holding group model
-     * @param subsiteModel
-     *            Settings model holding subsite model
-     * @param connectToSubsite
-     *            Settings model holding connect to subsite model
-     */
-    protected LoadedItemsSelector(final SettingsModelString idModel, final SettingsModelString titleModel,
-            final String caption, final SettingsModelString modeModel, final SettingsModelString urlModel,
-            final SettingsModelString groupModel, final SettingsModelString subsiteModel,
-            final SettingsModelBoolean connectToSubsite) { // NOSONAR
-        this(idModel, titleModel, caption, null);
-        m_modeModel = modeModel;
-        m_urlModel = urlModel;
-        m_groupModel = groupModel;
-        m_subSiteModel = subsiteModel;
-        m_connectToSubsite = connectToSubsite;
-    }
 
     /**
      * @param idModel
@@ -256,34 +213,9 @@ public abstract class LoadedItemsSelector extends JPanel {
     }
 
     private final class LoadedItemSelectorSwingWorker extends SwingWorkerWithContext<List<IdComboboxItem>, Void> {
-
         @Override
         protected List<IdComboboxItem> doInBackgroundWithContext() throws Exception {
-            return fetchItemsPossible() ? fetchItems() : Collections.emptyList();
-        }
-
-        private boolean fetchItemsPossible() {
-            if (m_modeModel != null) {
-                final var subsiteActiveAndNotEmpty = m_connectToSubsite
-                        .getBooleanValue() == !m_subSiteModel.getStringValue().isEmpty();
-                switch (SiteMode.valueOf(m_modeModel.getStringValue())) {
-                case ROOT:
-                    setEnabled(subsiteActiveAndNotEmpty);
-                    return subsiteActiveAndNotEmpty;
-                case WEB_URL:
-                    final boolean urlModelIsEmpty = m_urlModel.getStringValue().isEmpty();
-                    setEnabled(subsiteActiveAndNotEmpty);
-                    return !urlModelIsEmpty && subsiteActiveAndNotEmpty;
-                case GROUP:
-                    final boolean groupModelIsEmpty = m_groupModel.getStringValue().isEmpty();
-                    setEnabled(!groupModelIsEmpty == subsiteActiveAndNotEmpty);
-                    return !groupModelIsEmpty && subsiteActiveAndNotEmpty;
-                default:
-                    return false;
-                }
-            } else {
-                return true;
-            }
+            return fetchItems();
         }
 
         @Override
@@ -334,7 +266,7 @@ public abstract class LoadedItemsSelector extends JPanel {
             m_ignoreListeners = false;
 
             onSelectionChanged();
-            //In case we only have 1 element we will choose this
+            // In case we only have 1 element we will choose this
             if (sites.size() == 1) {
                 m_combobox.setSelectedIndex(0);
             }
@@ -392,7 +324,7 @@ public abstract class LoadedItemsSelector extends JPanel {
     }
 
     @Override
-    public void setEnabled(final boolean enabled) {
+    public final void setEnabled(final boolean enabled) {
         m_enabled = enabled;
         if (!enabled) {
             m_combobox.setSelectedIndex(-1);
@@ -483,6 +415,5 @@ public abstract class LoadedItemsSelector extends JPanel {
 
             return super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
         }
-
     }
 }
