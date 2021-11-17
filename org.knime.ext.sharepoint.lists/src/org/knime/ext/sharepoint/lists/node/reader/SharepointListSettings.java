@@ -56,21 +56,32 @@ import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public final class SharepointListSettings extends AbstractSharePointSettings<ListSettings, SharepointListSettings> {
+public final class SharepointListSettings extends AbstractSharePointSettings<SharepointListSettings> {
+
+    private final ListSettings m_listSettings;
 
     /**
      * Constructor.
      */
     SharepointListSettings() {
-        super(new ListSettings());
+        super();
+        m_listSettings = new ListSettings();
     }
 
     private SharepointListSettings(final SharepointListSettings toCopy) {
         super(toCopy);
+        m_listSettings = toCopy.getListSettings();
     }
 
     @Override
     public SharepointListSettings copy(final SharepointListSettings settings) {
         return new SharepointListSettings(settings);
+    }
+
+    /**
+     * @return the {@link ListSettings}
+     */
+    public ListSettings getListSettings() {
+        return m_listSettings;
     }
 }

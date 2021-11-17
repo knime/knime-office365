@@ -58,29 +58,23 @@ import org.knime.core.node.NodeSettingsWO;
  * Sharepoint nodes.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
- * @param <S>
- *            the type of {@link SiteSettings}
  * @param <T>
  *            the concrete implementation type (S for self), i.e. the class that
  *            is extending this class
  */
-public abstract class AbstractSharePointSettings<S extends SiteSettings, T extends AbstractSharePointSettings<S, T>> {
+public abstract class AbstractSharePointSettings<T extends AbstractSharePointSettings<T>> {
 
     private static final String KEY_SITE_SITTINGS = "site";
 
-    private final S m_settings;
+    private final SiteSettings m_siteSettings;
 
     private final TimeoutSettings m_timeoutSettings;
 
-
     /**
      * Constructor.
-     *
-     * @param settings
-     *            the Settings object which is an instance of {@link SiteSettings}
      */
-    protected AbstractSharePointSettings(final S settings) {
-        m_settings = settings;
+    protected AbstractSharePointSettings() {
+        m_siteSettings = new SiteSettings();
         m_timeoutSettings = new TimeoutSettings();
     }
 
@@ -91,7 +85,7 @@ public abstract class AbstractSharePointSettings<S extends SiteSettings, T exten
      *            the settings to be copied
      */
     protected AbstractSharePointSettings(final T toCopy) {
-        m_settings = toCopy.getSiteSettings();
+        m_siteSettings = toCopy.getSiteSettings();
         m_timeoutSettings = toCopy.getTimeoutSettings();
     }
 
@@ -111,7 +105,7 @@ public abstract class AbstractSharePointSettings<S extends SiteSettings, T exten
      *            Node settings.
      */
     public void saveSettingsTo(final NodeSettingsWO settings) {
-        m_settings.saveSettingsTo(settings.addNodeSettings(KEY_SITE_SITTINGS));
+        m_siteSettings.saveSettingsTo(settings.addNodeSettings(KEY_SITE_SITTINGS));
         m_timeoutSettings.saveSettingsTo(settings);
     }
 
@@ -123,7 +117,7 @@ public abstract class AbstractSharePointSettings<S extends SiteSettings, T exten
      * @throws InvalidSettingsException
      */
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_settings.validateSettings(settings.getNodeSettings(KEY_SITE_SITTINGS));
+        m_siteSettings.validateSettings(settings.getNodeSettings(KEY_SITE_SITTINGS));
         m_timeoutSettings.validateSettings(settings);
     }
 
@@ -135,15 +129,15 @@ public abstract class AbstractSharePointSettings<S extends SiteSettings, T exten
      * @throws InvalidSettingsException
      */
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_settings.loadSettingsFrom(settings.getNodeSettings(KEY_SITE_SITTINGS));
+        m_siteSettings.loadSettingsFrom(settings.getNodeSettings(KEY_SITE_SITTINGS));
         m_timeoutSettings.loadSettingsFrom(settings);
     }
 
     /**
      * @return the siteSettings
      */
-    public S getSiteSettings() {
-        return m_settings;
+    public SiteSettings getSiteSettings() {
+        return m_siteSettings;
     }
 
     /**

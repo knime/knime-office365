@@ -69,6 +69,7 @@ import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel.ListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.SharepointListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListRead.RandomAccessibleDataRow;
+import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.ext.sharepoint.settings.TimeoutSettings;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 
@@ -109,6 +110,10 @@ public final class SharepointListClient {
 
     private IConnectionConfig m_connectionConfig;
 
+    private SiteSettings m_siteSettings;
+
+    private ListSettings m_listSettings;
+
     /**
      * Create an object used to setup and get information from the Microsoft Graph
      * API.
@@ -121,7 +126,13 @@ public final class SharepointListClient {
     public SharepointListClient(final IGraphServiceClient client, final SharepointListSettings settings) {
         m_client = client;
         m_connectionConfig = new DefaultConnectionConfig();
+        updateSiteAndListSettings(settings);
         updateHttpConfig(settings.getTimeoutSettings());
+    }
+
+    private void updateSiteAndListSettings(final SharepointListSettings settings) {
+        m_siteSettings = settings.getSiteSettings();
+        m_listSettings = settings.getListSettings();
     }
 
     private void updateHttpConfig(final TimeoutSettings settings) {
@@ -143,12 +154,12 @@ public final class SharepointListClient {
      *             existing in the settings configuration)
      */
     public List<SharepointListColumn<?>> getColumns(final SharepointListSettings listSettings) throws IOException {
-        setSiteAndListId(listSettings.getSiteSettings());
+        setSiteAndListId(listSettings);
         updateHttpConfig(listSettings.getTimeoutSettings());
 
         // have the columns be read or the settings changed?
-        if (m_columns == null || listSettings.getSiteSettings().hashCode() != m_settingsHash) {
-            m_settingsHash = listSettings.getSiteSettings().hashCode();
+        if (m_columns == null || m_listSettings.hashCode() != m_settingsHash) {
+            m_settingsHash = m_listSettings.hashCode();
             try {
                 m_columns = StreamSupport
                         .stream(Spliterators.spliteratorUnknownSize(new ColumnIterator(),
@@ -186,7 +197,7 @@ public final class SharepointListClient {
      * @throws IOException
      */
     public Iterator<RandomAccessibleDataRow> getItems(final SharepointListSettings settings) throws IOException {
-        setSiteAndListId(settings.getSiteSettings());
+        setSiteAndListId(settings);
         updateHttpConfig(settings.getTimeoutSettings());
         return new ItemIterator();
     }
@@ -198,12 +209,13 @@ public final class SharepointListClient {
      *            the {@link ListSettings} used to determine the site and list Id
      * @throws IOException
      */
-    private void setSiteAndListId(final ListSettings listSettings) throws IOException {
-        final var siteResolver = new SharepointSiteResolver(m_client, listSettings.getMode(),
-                listSettings.getSubsiteModel().getStringValue(), listSettings.getWebURLModel().getStringValue(),
-                listSettings.getGroupModel().getStringValue());
+    private void setSiteAndListId(final SharepointListSettings listSettings) throws IOException {
+        updateSiteAndListSettings(listSettings);
+        final var siteResolver = new SharepointSiteResolver(m_client, m_siteSettings.getMode(),
+                m_siteSettings.getSubsiteModel().getStringValue(), m_siteSettings.getWebURLModel().getStringValue(),
+                m_siteSettings.getGroupModel().getStringValue());
         m_siteId = siteResolver.getTargetSiteId();
-        m_listId = listSettings.getListModel().getStringValue();
+        m_listId = m_listSettings.getListModel().getStringValue();
 
         if (m_listId.isEmpty()) {
             throw new IllegalStateException("Please select a list.");

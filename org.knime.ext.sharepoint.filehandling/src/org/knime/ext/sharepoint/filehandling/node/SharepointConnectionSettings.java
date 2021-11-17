@@ -57,7 +57,6 @@ import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
-import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.connections.meta.FSConnectionConfig;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
@@ -68,14 +67,14 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
  * @author Alexander Bondaletov
  */
 @SuppressWarnings("deprecation")
-class SharepointConnectionSettings extends AbstractSharePointSettings<SiteSettings, SharepointConnectionSettings> {
+class SharepointConnectionSettings extends AbstractSharePointSettings<SharepointConnectionSettings> {
 
     private static final String KEY_WORKING_DIRECTORY = "workingDirectory";
 
     private final SettingsModelString m_workingDirectory;
 
     SharepointConnectionSettings() {
-        super(new SiteSettings());
+        super();
         m_workingDirectory = new SettingsModelString(KEY_WORKING_DIRECTORY, SharepointFileSystem.PATH_SEPARATOR);
     }
 

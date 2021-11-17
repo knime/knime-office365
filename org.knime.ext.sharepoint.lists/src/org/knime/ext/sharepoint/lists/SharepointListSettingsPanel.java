@@ -98,6 +98,8 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
     private static final List<Option> OPTIONS_ITEMS = Collections
             .singletonList(new QueryOption("select", "system,id,displayName,name"));
 
+    private final SiteSettings m_siteSettings;
+
     private final ListSettings m_listSettings;
 
     private final LoadedItemsSelector m_listSelector;
@@ -116,7 +118,8 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
      */
     public SharepointListSettingsPanel(final SharepointListSettings listSettings) {
         super(listSettings.getSiteSettings());
-        m_listSettings = listSettings.getSiteSettings();
+        m_siteSettings = listSettings.getSiteSettings();
+        m_listSettings = listSettings.getListSettings();
         m_listSelector = new LoadedItemsSelector(m_listSettings.getListModel(), m_listSettings.getListNameModel(),
                 "List:", null) {
             private static final long serialVersionUID = 1L;
@@ -145,18 +148,18 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
      * @return flag whether fetch is possible or not
      */
     private boolean fetchListPossible() {
-        final var subsiteActiveAndNotEmpty = m_listSettings.getConnectToSubsiteModel()
-                .getBooleanValue() == !m_listSettings.getSubsiteModel().getStringValue().isEmpty();
-        switch (SiteMode.valueOf(m_listSettings.getModeModel().getStringValue())) {
+        final var subsiteActiveAndNotEmpty = m_siteSettings.getConnectToSubsiteModel()
+                .getBooleanValue() == !m_siteSettings.getSubsiteModel().getStringValue().isEmpty();
+        switch (SiteMode.valueOf(m_siteSettings.getModeModel().getStringValue())) {
         case ROOT:
             m_listSelector.setEnabled(subsiteActiveAndNotEmpty);
             return subsiteActiveAndNotEmpty;
         case WEB_URL:
-            final boolean urlModelIsEmpty = m_listSettings.getWebURLModel().getStringValue().isEmpty();
+            final boolean urlModelIsEmpty = m_siteSettings.getWebURLModel().getStringValue().isEmpty();
             m_listSelector.setEnabled(subsiteActiveAndNotEmpty);
             return !urlModelIsEmpty && subsiteActiveAndNotEmpty;
         case GROUP:
-            final boolean groupModelIsEmpty = m_listSettings.getGroupModel().getStringValue().isEmpty();
+            final boolean groupModelIsEmpty = m_siteSettings.getGroupModel().getStringValue().isEmpty();
             m_listSelector.setEnabled(!groupModelIsEmpty == subsiteActiveAndNotEmpty);
             return !groupModelIsEmpty && subsiteActiveAndNotEmpty;
         default:
@@ -197,12 +200,12 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
         m_listSettings.getShowSystemListsModel().addChangeListener(createChangelistener(listener, false));
 
         final var l1 = createChangelistener(listener, true);
-        m_listSettings.getModeModel().addChangeListener(l1);
-        m_listSettings.getGroupModel().addChangeListener(l1);
-        m_listSettings.getSubsiteModel().addChangeListener(l1);
-        m_listSettings.getConnectToSubsiteModel().addChangeListener(l1);
+        m_siteSettings.getModeModel().addChangeListener(l1);
+        m_siteSettings.getGroupModel().addChangeListener(l1);
+        m_siteSettings.getSubsiteModel().addChangeListener(l1);
+        m_siteSettings.getConnectToSubsiteModel().addChangeListener(l1);
 
-        m_listSettings.getWebURLModel().addChangeListener(l -> {
+        m_siteSettings.getWebURLModel().addChangeListener(l -> {
             ViewUtils.runOrInvokeLaterInEDT(this::webUrlChangeListener);
             listener.stateChanged(l);
         });
@@ -257,10 +260,10 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
 
     private List<IdComboboxItem> fetchLists() throws InvalidSettingsException, IOException {
         final IGraphServiceClient client = super.createClient();
-        m_listSettings.validateParentSiteSettings();
-        final var siteResolver = new SharepointSiteResolver(client, m_listSettings.getMode(),
-                m_listSettings.getSubsiteModel().getStringValue(), m_listSettings.getWebURLModel().getStringValue(),
-                m_listSettings.getGroupModel().getStringValue());
+        m_siteSettings.validateParentSiteSettings();
+        final var siteResolver = new SharepointSiteResolver(client, m_siteSettings.getMode(),
+                m_siteSettings.getSubsiteModel().getStringValue(), m_siteSettings.getWebURLModel().getStringValue(),
+                m_siteSettings.getGroupModel().getStringValue());
         return listLists(siteResolver.getTargetSiteId(), client,
                 m_listSettings.getShowSystemListsModel().getBooleanValue());
     }
@@ -288,7 +291,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
      *
      * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
      */
-    public static class ListSettings extends SiteSettings {
+    public static class ListSettings {
 
         private static final String KEY_LIST = "list";
 
@@ -306,7 +309,6 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          * Creates new instance.
          */
         public ListSettings() {
-            super();
             m_list = new SettingsModelString(KEY_LIST, "");
             m_listName = new SettingsModelString(KEY_LIST_NAME, "");
             m_showSystemLists = new SettingsModelBoolean(KEY_SHOW_SYSTEM_LISTS, false);
@@ -319,7 +321,6 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          *            {@link ListSettings} to be copied
          */
         public ListSettings(final ListSettings toCopy) {
-            super(toCopy);
             m_list = toCopy.getListModel();
             m_listName = toCopy.getListNameModel();
             m_showSystemLists = toCopy.getShowSystemListsModel();
@@ -331,9 +332,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          * @param settings
          *            Node settings.
          */
-        @Override
         public void saveSettingsTo(final NodeSettingsWO settings) {
-            super.saveSettingsTo(settings);
             m_list.saveSettingsTo(settings);
             m_listName.saveSettingsTo(settings);
             m_showSystemLists.saveSettingsTo(settings);
@@ -346,9 +345,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          *            Node settings.
          * @throws InvalidSettingsException
          */
-        @Override
         public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-            super.validateSettings(settings);
             m_list.validateSettings(settings);
             m_listName.validateSettings(settings);
             m_showSystemLists.validateSettings(settings);
@@ -361,9 +358,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          *            Node settings.
          * @throws InvalidSettingsException
          */
-        @Override
         public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-            super.loadSettingsFrom(settings);
             m_list.loadSettingsFrom(settings);
             m_listName.loadSettingsFrom(settings);
             m_showSystemLists.loadSettingsFrom(settings);
