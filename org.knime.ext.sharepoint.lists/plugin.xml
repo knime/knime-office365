@@ -4,7 +4,7 @@
    <extension
          point="org.knime.workbench.repository.nodes">
       <node
-            category-path="/io/read"
+            category-path="/labs/"
             factory-class="org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderNodeFactory"
             id="org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderNodeFactory"/>
    </extension>
