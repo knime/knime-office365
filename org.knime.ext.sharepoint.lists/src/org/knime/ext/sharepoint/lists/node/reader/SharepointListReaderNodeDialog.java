@@ -71,13 +71,14 @@ import org.knime.core.data.DataType;
 import org.knime.core.node.DataAwareNodeDialogPane;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
@@ -105,8 +106,6 @@ import org.knime.filehandling.core.util.GBCBuilder;
  */
 public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListReaderNodeDialog.class);
-
     private final TableReaderPreviewTransformationCoordinator<SharepointListClient, SharepointListReaderConfig, DataType> m_coordinator;
 
     private final List<TableReaderPreviewView> m_previews = new ArrayList<>();
@@ -117,13 +116,9 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private final boolean m_disableIOComponents;
 
-    private boolean m_ignoreEvents = false;
-
     private final SharepointListSettingsPanel m_listSettingsPanel;
 
     private final SharepointListReaderMultiTableReadConfig m_config;
-
-    private final SharepointListClientAccessor m_itemClient = new SharepointListClientAccessor();
 
     // advanced tab
     private final TimeoutPanel m_timeoutPanel;
@@ -134,6 +129,10 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     private final JCheckBox m_limitRowsEnabled;
     private final JSpinner m_limitRowsNumber;
 
+    private boolean m_ignoreEvents = false;
+
+    private MicrosoftCredential m_credential;
+
     SharepointListReaderNodeDialog() {
         m_config = SharepointListReaderNodeModel.createConfig();
         final var readFactory = SharepointListReaderNodeModel.createReadFactory();
@@ -142,7 +141,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         m_previewModel = new TableReaderPreviewModel(analysisComponentModel);
         final var transformationModel = new TableTransformationTableModel<>(productionPathProvider);
         m_coordinator = new TableReaderPreviewTransformationCoordinator<>(readFactory, transformationModel,
-                analysisComponentModel, m_previewModel, this::getConfig, this::getItemClient, false);
+                analysisComponentModel, m_previewModel, this::getConfig, this::createSharepointListClientAccessor, false);
         m_specTransformer = new TableTransformationPanel(transformationModel, false, false);
         m_disableIOComponents = CheckNodeContextUtil.isRemoteWorkflowContext();
 
@@ -206,8 +205,9 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         return BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), title);
     }
 
-    GenericItemAccessor<SharepointListClient> getItemClient() {
-        return m_itemClient;
+    private SharepointListClientAccessor createSharepointListClientAccessor() {
+        return new SharepointListClientAccessor(m_config.getReaderSpecificConfig().getSharepointListSettings(),
+                m_credential);
     }
 
     private JPanel createSettingsPanel() {
@@ -394,26 +394,18 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
     @Override
     protected final void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
-        loadSettings(settings, specs, null);
+        loadSettings(settings, specs);
     }
 
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObject[] input)
             throws NotConfigurableException {
-        try {
-            final var client = SharepointListReaderNodeModel
-                    .createSourceGroup(input, m_config.getReaderSpecificConfig().getSharepointListSettings()).iterator()
-                    .next();
-            loadSettings(settings, new PortObjectSpec[] { input[0].getSpec() }, client);
-        } catch (InvalidSettingsException e) {
-            throw new NotConfigurableException(e.getMessage(), e);
-        } catch (IOException e) {
-            loadSettings(settings, new PortObjectSpec[] { input[0].getSpec() }, null);
-        }
+        loadSettings(settings, new PortObjectSpec[] { input[0].getSpec() });
     }
 
-    private void loadSettings(final NodeSettingsRO settings, final PortObjectSpec[] specs,
-            final SharepointListClient input) throws NotConfigurableException {
+    private void loadSettings(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException {
+
         ignoreEvents(true);
         setPreviewEnabled(false);
 
@@ -421,20 +413,18 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
             throw new NotConfigurableException("Authentication required!");
         }
 
-        final var connection = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
+        m_credential = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
 
         m_config.loadInDialog(settings, specs);
         if (m_config.hasTableSpecConfig()) {
             m_coordinator.load(m_config.getTableSpecConfig().getTableTransformation());
         }
 
-        m_itemClient.setClient(input);
-
         loadTableReadSettings();
         // enable/disable spinners
         controlSpinner(m_skipRowsEnabled, m_skipRowsNumber);
         controlSpinner(m_limitRowsEnabled, m_limitRowsNumber);
-        m_listSettingsPanel.settingsLoaded(connection);
+        m_listSettingsPanel.settingsLoaded(m_credential);
 
         ignoreEvents(false);
         refreshPreview(true);
@@ -522,40 +512,44 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private static final class SharepointListClientAccessor implements GenericItemAccessor<SharepointListClient> {
 
-        private List<SharepointListClient> m_clients;
+        private final SharepointListSettings m_listSettings;
 
-        private SharepointListClientAccessor() {
-            m_clients = Collections.emptyList();
-        }
+        private final MicrosoftCredential m_credential;
 
-        private void setClient(final SharepointListClient client) {
-            if (client == null) {
-                m_clients = Collections.emptyList();
-            } else {
-                m_clients = Collections.singletonList(client);
-            }
+        private SharepointListClient m_client;
+
+        private SharepointListClientAccessor(final SharepointListSettings settings,
+                final MicrosoftCredential credential) {
+            m_listSettings = settings;
+            m_credential = credential;
         }
 
         @Override
         public void close() throws IOException {
-            // nothing to close
+            try {
+                if (m_client != null) {
+                    m_client.close();
+                }
+            } finally {
+                m_client = null;
+            }
         }
 
         @Override
         public List<SharepointListClient> getItems(final Consumer<StatusMessage> statusMessageConsumer)
                 throws IOException, InvalidSettingsException {
-            return m_clients;
+
+            return Collections.singletonList(getRootItem(statusMessageConsumer));
         }
 
         @Override
         public SharepointListClient getRootItem(final Consumer<StatusMessage> statusMessageConsumer)
                 throws IOException, InvalidSettingsException {
-            if (m_clients.isEmpty()) {
-                throw new InvalidSettingsException(
-                        "No access token found. Please re-execute the Microsoft Authentication node.");
-            } else {
-                return m_clients.get(0);
+
+            if (m_client == null) {
+                m_client = new SharepointListClient(GraphApiUtil.createClient(m_credential), m_listSettings);
             }
+            return m_client;
         }
     }
 }

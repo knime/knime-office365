@@ -72,10 +72,8 @@ import org.knime.core.node.streamable.PortInput;
 import org.knime.core.node.streamable.PortOutput;
 import org.knime.core.node.streamable.RowOutput;
 import org.knime.core.node.streamable.StreamableOperator;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListReader;
 import org.knime.ext.sharepoint.lists.node.reader.mapping.SharepointListReadAdapterFactory;
@@ -85,8 +83,6 @@ import org.knime.filehandling.core.node.table.reader.MultiTableReader;
 import org.knime.filehandling.core.node.table.reader.ProductionPathProvider;
 import org.knime.filehandling.core.node.table.reader.SourceGroup;
 import org.knime.filehandling.core.node.table.reader.rowkey.DefaultRowKeyGeneratorContextFactory;
-
-import com.microsoft.graph.requests.extensions.GraphServiceClient;
 
 /**
  * Node model implementation of the “SharePoint List Reader” node.
@@ -154,40 +150,21 @@ final class SharepointListReaderNodeModel extends NodeModel {
         return new PortObject[] { m_tableReader.readTable(sourceGroup, m_config, exec) };
     }
 
-    static SourceGroup<SharepointListClient> createSourceGroup(final PortObjectSpec[] inObjects,
+    private static SourceGroup<SharepointListClient> createSourceGroup(final PortObject[] inObjects,
             final SharepointListSettings settings) throws IOException, InvalidSettingsException {
-        final var credential = ((MicrosoftCredentialPortObjectSpec) inObjects[0]).getMicrosoftCredential();
-        return new DefaultSourceGroup<>("igraph_service_client_source_group",
-                Collections.singleton(createGraphClient(credential, settings)));
-    }
 
-    static SourceGroup<SharepointListClient> createSourceGroup(final PortObject[] inObjects,
-            final SharepointListSettings settings) throws IOException, InvalidSettingsException {
         final var credential = ((MicrosoftCredentialPortObject) inObjects[0]).getMicrosoftCredentials();
+        if (credential == null) {
+            throw new InvalidSettingsException("Not authenticated!");
+        }
+
         return new DefaultSourceGroup<>("igraph_service_client_source_group",
-                Collections.singleton(createGraphClient(credential, settings)));
+                Collections.singleton(new SharepointListClient(GraphApiUtil.createClient(credential), settings)));
     }
 
     private static SourceGroup<SharepointListClient> createSourceGroup(final PortInput[] inputs,
             final SharepointListSettings settings) {
         return new DefaultSourceGroup<>("igraph_service_client_source_group", Collections.singleton(null));
-    }
-
-    private static final SharepointListClient createGraphClient(final MicrosoftCredential credential,
-            final SharepointListSettings settings) throws IOException, InvalidSettingsException {
-        if (credential == null) {
-            throw new InvalidSettingsException("Not authenticated!");
-        }
-        if (!(credential instanceof OAuth2Credential)) {
-            throw new UnsupportedOperationException("Unsupported credential type: " + credential.getType());
-        }
-
-        final String accessToken = ((OAuth2Credential) credential).getAccessToken().getToken();
-
-        return new SharepointListClient(GraphServiceClient.builder()//
-                // Psst, we have to use this deprecated interface here
-                .authenticationProvider(r -> r.addHeader("Authorization", "Bearer " + accessToken))//
-                .buildClient(), settings);
     }
 
     @Override

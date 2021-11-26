@@ -89,6 +89,7 @@ import com.microsoft.graph.options.QueryOption;
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
+@SuppressWarnings({ "java:S1948" })
 public final class SharepointListSettingsPanel extends SiteSettingsPanel {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListSettingsPanel.class);
@@ -258,9 +259,10 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
         return panel;
     }
 
-    private List<IdComboboxItem> fetchLists() throws InvalidSettingsException, IOException {
-        final IGraphServiceClient client = super.createClient();
+    private List<IdComboboxItem> fetchLists() throws IOException, InvalidSettingsException {
         m_siteSettings.validateParentSiteSettings();
+
+        final IGraphServiceClient client = super.createClient();
         final var siteResolver = new SharepointSiteResolver(client, m_siteSettings.getMode(),
                 m_siteSettings.getSubsiteModel().getStringValue(), m_siteSettings.getWebURLModel().getStringValue(),
                 m_siteSettings.getGroupModel().getStringValue());

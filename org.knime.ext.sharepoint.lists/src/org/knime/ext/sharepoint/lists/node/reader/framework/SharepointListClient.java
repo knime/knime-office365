@@ -130,6 +130,13 @@ public final class SharepointListClient {
         updateHttpConfig(settings.getTimeoutSettings());
     }
 
+    /**
+     * Closes this client and releases its resources.
+     */
+    public void close() {
+        m_client.shutdown();
+    }
+
     private void updateSiteAndListSettings(final SharepointListSettings settings) {
         m_siteSettings = settings.getSiteSettings();
         m_listSettings = settings.getListSettings();

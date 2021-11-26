@@ -89,6 +89,7 @@ import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
  *
  * @author Alexander Bondaletov
  */
+@SuppressWarnings({ "java:S1948" })
 public class SiteSettingsPanel extends JPanel {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(SiteSettingsPanel.class);
@@ -97,7 +98,7 @@ public class SiteSettingsPanel extends JPanel {
 
     private final SiteSettings m_settings;
 
-    private MicrosoftCredential m_connection;
+    private MicrosoftCredential m_credential;
 
     private JPanel m_cards;
 
@@ -112,6 +113,10 @@ public class SiteSettingsPanel extends JPanel {
      */
     public SiteSettingsPanel(final SiteSettings settings) {
         m_settings = settings;
+        createLayout();
+    }
+
+    private void createLayout() {
         setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
         final var panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
@@ -120,7 +125,6 @@ public class SiteSettingsPanel extends JPanel {
         panel.add(createSubsitePanel());
         panel.add(m_errorLabel.getPanel());
         panel.setBorder(BorderFactory.createTitledBorder("Sharepoint site"));
-
         add(panel);
     }
 
@@ -131,7 +135,7 @@ public class SiteSettingsPanel extends JPanel {
      *            The Microsoft Credential object.
      */
     public void settingsLoaded(final MicrosoftCredential credentials) {
-        m_connection = credentials;
+        m_credential = credentials;
 
         m_subsiteSelector.onSettingsLoaded();
         m_groupSelector.onSettingsLoaded();
@@ -140,14 +144,16 @@ public class SiteSettingsPanel extends JPanel {
     }
 
     private JPanel createRadioSelectorPanel() {
-        JRadioButton rbRoot = createModeRadiobutton(SiteMode.ROOT);
-        JRadioButton rbSite = createModeRadiobutton(SiteMode.WEB_URL);
-        JRadioButton rbGroup = createModeRadiobutton(SiteMode.GROUP);
-        ButtonGroup group = new ButtonGroup();
+        final var rbRoot = createModeRadiobutton(SiteMode.ROOT);
+        final var rbSite = createModeRadiobutton(SiteMode.WEB_URL);
+        final var rbGroup = createModeRadiobutton(SiteMode.GROUP);
+
+        final var group = new ButtonGroup();
         group.add(rbRoot);
         group.add(rbSite);
         group.add(rbGroup);
-        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        final var buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonsPanel.add(rbRoot);
         buttonsPanel.add(rbSite);
         buttonsPanel.add(rbGroup);
@@ -156,7 +162,7 @@ public class SiteSettingsPanel extends JPanel {
     }
 
     private JRadioButton createModeRadiobutton(final SiteMode mode) {
-        JRadioButton rb = new JRadioButton(mode.getSelectorLabel());
+        final var rb = new JRadioButton(mode.getSelectorLabel());
         rb.setSelected(mode == m_settings.getMode());
 
         rb.addActionListener(e -> {
@@ -168,9 +174,7 @@ public class SiteSettingsPanel extends JPanel {
             showModePanel(mode);
         });
 
-        m_settings.getModeModel().addChangeListener(e -> {
-            rb.setSelected(mode == m_settings.getMode());
-        });
+        m_settings.getModeModel().addChangeListener(e -> rb.setSelected(mode == m_settings.getMode()));
         return rb;
     }
 
@@ -246,7 +250,7 @@ public class SiteSettingsPanel extends JPanel {
         return m_subsiteSelector;
     }
 
-    private List<IdComboboxItem> fetchGroups() throws InvalidSettingsException {
+    private List<IdComboboxItem> fetchGroups() throws IOException {
         final IGraphServiceClient client = createClient();
 
         try {
@@ -266,17 +270,11 @@ public class SiteSettingsPanel extends JPanel {
 
     }
 
-    protected IGraphServiceClient createClient() throws InvalidSettingsException {
-        if (m_connection == null) {
-            throw new InvalidSettingsException("Settings aren't loaded");
+    protected IGraphServiceClient createClient() throws IOException {
+        if (m_credential == null) {
+            throw new IOException("Settings aren't loaded");
         }
-
-        try {
-            return GraphApiUtil.createClient(m_connection);
-        } catch (IOException ex) {
-            // FIXME: this means we are doing IO in the UI thread...
-            throw new InvalidSettingsException(ex);
-        }
+        return GraphApiUtil.createClient(m_credential);
     }
 
     private List<IdComboboxItem> fetchSubsites() throws InvalidSettingsException, IOException {
