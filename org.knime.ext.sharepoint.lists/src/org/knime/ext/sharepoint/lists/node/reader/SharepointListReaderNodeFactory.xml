@@ -13,44 +13,52 @@
         <intro>
             <p>
                 This node reads a SharePoint Online list and outputs it as a KNIME table.
-                You can select to which KNIME types the SharePoint Online list column types
-                should be transformed.
             </p>
-            <u>Supported column types</u>
+            <b>SharePoint Online list column type support</b>
             <p>
-                Currently, most major column types are fully or partly supported by this node.
-            </p>
-            <p>
-                <i>Single line of text</i>, <i>Choice</i>, <i>Number</i>, <i>Yes/No</i> and
-                <i>Date and time</i> columns have <b>full support.</b>
-            </p>
-            <p>
-                The following column types are <b>supported with some drawbacks</b>
+            	You can select to which KNIME types the SharePoint Online list column types
+                should be transformed. The following describes the extend of the support 
+                for the different column types.<br/>
+            	<u>Fully supported column types:</u>
+               	<ul>
+               		<li><i>Single line of text</i></li>
+               		<li><i>Choice</i></li>
+               		<li><i>Number</i></li>
+               		<li><i>Yes/No</i></li>
+               		<li><i>Date and time</i></li>
+               	</ul>
+               <u>Partially supported column types:</u>
                 <ul>
-                    <li><i>Multiple lines of text</i> columns do not clean rich text if this feature is enabled. That means the HTML tags have to be removed manually if this is desired</li>
-                    <li><i>Calculated</i> columns are always Strings</li>
-                    <li><i>Currency</i> columns are always Doubles. Thus the currency information is not displayed and must be obtained using other means</li>
-                    <li><i>Person</i> columns return a row ID in the "User Information List" (see below)</li>
-                    <li><i>Lookup</i> columns return a row ID in linked list (see below). This linked list is not exposed and must be obtained using other means</li>
+                    <li><i>Multiple lines of text</i> will contain HTML tags if the <i>Use enhanced rich text</i> 
+                    option is enabled for the column in SharePoint.</li>
+                    <li><i>Calculated</i> columns are always Strings.</li>
+                    <li><i>Currency</i> columns are always Doubles. Thus the currency information is not displayed.</li>
+                    <li><i>Person</i> columns return a row ID in the "User Information List" (for more details see below).</li>
+                    <li><i>Lookup</i> columns return a row ID in linked list (for more details see below).</li>
                 </ul>
+                <u>Unsupported column types:</u><br/>
+                For all unsupported column types the node will return the raw JSON value as String.
+                The String can be transformed into the JSON type in the <i>Transformation</i>
+                tab if the <a href="https://kni.me/e/M6ImzgljvpBKaP13">KNIME JSON Processing extension</a>
+                is installed.
+                <ul>
+                	<li><i>Location</i></li>
+                	<li><i>Hyperlink</i></li>
+                	<li><i>Image</i> columns are encoded as a JSON string containing JSON so you have 
+                	to convert twice to JSON.</li>
+                	<li><i>Task Outcome</i></li>
+                	<li><i>External Data</i></li>
+                	<li><i>Managed Metadata</i></li>
+                </ul>
+                 
             </p>
+            <b>Working with Person and Lookup columns</b>
             <p>
-            The following column types are currently <b>unsupported</b>: <i>Location</i>, <i>Hyperlink</i>, <i>Image</i>, <i>Task Outcome</i>, <i>External Data</i> and <i>Managed Metadata</i> The node will
-                output the JSON it received for them as a String. You can
-                select to transform it into the JSON type in the "Transformation"
-                tab if you have the KNIME JSON extension installed.
-                Any column types this node cannot recognize will also output the raw JSON data.
-            </p>
-            <p>
-                <i>Image</i> columns are encoded as a JSON string containing JSON so you have to unpack that first.
-            </p>
-            <u>Working with Person and Lookup columns</u>
-            <p>
-                <i>Person</i> and <i>Lookup</i> columns display data from other SharePoint Online lists.
+                <i>Person</i> and <i>Lookup</i> columns reference data from other SharePoint Online lists.
                 Instead of containing the value in the other list they store the value of the "ID" column of the row in that list.
-                To be able to access the content you must join that other list
-                using a <a href="https://kni.me/n/WzkQfvBXnYxub9hJ">Joiner node</a>
-                and another <i>SharePoint Online List Reader</i> to join using the "ID" column.
+                To be able to access the content you can use another <i>SharePoint Online List Reader</i> to read the
+                lookup list and than use the <a href="https://kni.me/n/WzkQfvBXnYxub9hJ">Joiner node</a> 
+                to join both lists using the "ID" column of the lookup list.
             </p>
             <p>
                 If you are dealing with a <i>Lookup</i> column, you can get the name of the column you are trying to join
@@ -58,21 +66,17 @@
                 of any additional columns that are looked up can be found in the table specification as names of those columns.
             </p>
             <p>
-                <i>Person</i> columns obtain their data from the so called "User Information List"
-                (with the internal name "users") which is a hidden system list in the Root of a SharePoint
-                site. To see it, you have to check "Show system lists". The name may be localized to
-                your language so you should search for the internal name.
+                <i>Person</i> columns reference entries in the so called "User Information List"
+                (with the internal name "users"). This is a hidden system list in the Root of each SharePoint
+                site. To find it, you must check the <i>"Show system lists"</i> option in the SharePoint Online List Reader node. 
+                The name may be localized to your language so you should search for the internal name.
             </p>
-            <u>Generated Columns</u>
+            <b>Generated Columns</b>
             <p>
-                Apart from the columns you define in a SharePoint Online list there are some which are always present in your list.
-                There is currently no way of distinguishing them from the
-            columns you defined. This is because View information cannot be read.
-            This also means that the order of the columns in a View may not be
-            the same. SharePoint also generates columns for some
-            specific column types such as <i>Location</i> columns. If you do not
-            want to use these columns or want another order, you have to deselect and reorder them in the
-            "Transformation" tab.
+            Apart from the columns you define in a SharePoint Online list there are some which are present in each list e.g. ID.
+            In addition SharePoint generates columns for some specific column types such as <i>Location.</i>
+            The Microsoft API does not provide information about these columns or any layout information. 
+            To deselect unwanted columns and reorder the retained columns go to the "Transformation" tab.
             </p>
         </intro>
         <tab name="Settings">
@@ -99,13 +103,13 @@
             </option>
             <option name="Show system lists">
                 If checked, the drop down will also contain hidden system lists.
-            This option has to be checked if you want to access the "User Information List".
+            	This option must be checked if you want to access the "User Information List".
             </option>
         </tab>
         <tab name="Transformation">
             <option name="Transformations">
                 This tab displays every column as a row in a table that allows modifying the structure of the output table.
-                It supports reordering, filtering and renaming columns. It is also possible to change the type of the columns.
+                It supports reordering, filtering, and renaming columns. It is also possible to change the type of the columns.
                 Reordering is done via drag-and-drop. Just drag a column to the position it should have in the output table.
                 Note that the positions of columns are reset in the dialog if a new file or folder is selected.
                 Whether and where to add unknown columns during execution is specified via the special row &lt;any unknown new column&gt;.
@@ -133,12 +137,10 @@
         </tab>
         <tab name="Limit Rows">
             <option name="Skip first data rows">
-              If enabled, the specified number of valid data rows are skipped. This has no effect on which row will be
-              chosen as a column header.
+              If enabled, the specified number of valid data rows are skipped.
             </option>
             <option name="Limit data rows">
-              If enabled, only the specified number of data rows are read. The column header row (if selected) is
-              not taken into account.
+              If enabled, only the specified number of data rows are read.
             </option>
         </tab>
     </fullDescription>
