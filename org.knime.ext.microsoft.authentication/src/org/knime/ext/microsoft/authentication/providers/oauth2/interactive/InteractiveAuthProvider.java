@@ -93,7 +93,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
      */
     public InteractiveAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         m_portsConfig = portsConfig;
-        m_storageSettings = new StorageSettings(portsConfig, nodeInstanceId, getAuthority());
+        m_storageSettings = new StorageSettings(portsConfig, nodeInstanceId, getEndpoint());
     }
 
     /**
@@ -107,7 +107,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
      * @throws IOException
      */
     public LoginStatus performLogin() throws InterruptedException, ExecutionException, IOException {
-        final PublicClientApplication app = MSALUtil.createClientApp(getAuthority());
+        final PublicClientApplication app = MSALUtil.createClientApp(getEndpoint());
 
         // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
         final InteractiveRequestParameters params = InteractiveRequestParameters
@@ -150,11 +150,11 @@ public class InteractiveAuthProvider extends OAuth2Provider {
                 m_storageSettings.createAccessTokenSupplier(), //
                 loginStatus.getUsername(), //
                 getScopesStringSet(), //
-                getAuthority());
+                getEndpoint());
     }
 
     @Override
-    protected String getAuthority() {
+    protected String getDefaultEndpoint() {
         return MSALUtil.COMMON_AUTHORITY;
     }
 

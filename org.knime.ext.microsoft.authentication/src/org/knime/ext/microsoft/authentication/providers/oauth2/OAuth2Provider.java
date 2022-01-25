@@ -59,6 +59,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
 import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
@@ -84,9 +85,17 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
      */
     private static final String KEY_OTHER_SCOPES = "otherScopes";
 
+    /**
+     * Added with KNIME AP 4.6 to support custom authority URL
+     */
+    private static final String KEY_USE_CUSTOM_AUTH_ENDPOINT = "useCustomEndpoint";
+    private static final String KEY_CUSTOM_AUTH_ENDPOINT_URL = "customEndpoint";
+
     private final SettingsModelStringArray m_scopes;
     private final SettingsModelString m_blobStorageAccount;
     private final SettingsModelString m_otherScopes;
+    private final SettingsModelBoolean m_useCustomEndpoint;
+    private final SettingsModelString m_customEndpointUrl;
 
     /**
      * Creates new instance.
@@ -99,6 +108,8 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         m_blobStorageAccount.setEnabled(false);
         m_otherScopes = new SettingsModelString(KEY_OTHER_SCOPES, "");
         m_otherScopes.setEnabled(false);
+        m_useCustomEndpoint = new SettingsModelBoolean(KEY_USE_CUSTOM_AUTH_ENDPOINT, false);
+        m_customEndpointUrl = new SettingsModelString(KEY_CUSTOM_AUTH_ENDPOINT_URL, "");
     }
 
     /**
@@ -121,6 +132,20 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
      */
     public SettingsModelString getOtherScopesModel() {
         return m_otherScopes;
+    }
+
+    /**
+     * @return the useCustomAuthority model
+     */
+    public SettingsModelBoolean getUseCustomAuthorityModel() {
+        return m_useCustomEndpoint;
+    }
+
+    /**
+     * @return the customAuthorityUrl model
+     */
+    public SettingsModelString getCustomAuthorityUrlModel() {
+        return m_customEndpointUrl;
     }
 
     /**
@@ -172,13 +197,28 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
      *
      * @return The authority.
      */
-    protected abstract String getAuthority();
+    protected String getEndpoint() {
+        if (m_useCustomEndpoint.getBooleanValue()) {
+            return m_customEndpointUrl.getStringValue();
+        } else {
+            return getDefaultEndpoint();
+        }
+    }
+
+    /**
+     * Returns the default authority for the current provider.
+     *
+     * @return The authority.
+     */
+    protected abstract String getDefaultEndpoint();
 
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
         m_scopes.saveSettingsTo(settings);
         m_blobStorageAccount.saveSettingsTo(settings);
         m_otherScopes.saveSettingsTo(settings);
+        m_useCustomEndpoint.saveSettingsTo(settings);
+        m_customEndpointUrl.saveSettingsTo(settings);
     }
 
     /**
@@ -199,6 +239,10 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         if (getScopesEnumSet().contains(Scope.OTHERS) && m_otherScopes.getStringValue().isEmpty()) {
             throw new InvalidSettingsException("Other scopes list cannot be empty");
         }
+
+        if (m_useCustomEndpoint.getBooleanValue() && m_customEndpointUrl.getStringValue().isEmpty()) {
+            throw new InvalidSettingsException("Authority URL cannot be empty");
+        }
     }
 
     @Override
@@ -213,6 +257,12 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         // Added with KNIME AP 4.5 to support OAuth2 with manually entered scopes.
         if (settings.containsKey(m_otherScopes.getKey())) {
             m_otherScopes.loadSettingsFrom(settings);
+        }
+
+        // Added with KNIME AP 4.6 to support custom authority URL
+        if (settings.containsKey(KEY_USE_CUSTOM_AUTH_ENDPOINT)) {
+            m_useCustomEndpoint.loadSettingsFrom(settings);
+            m_customEndpointUrl.loadSettingsFrom(settings);
         }
     }
 }
