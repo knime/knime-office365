@@ -119,10 +119,10 @@ public final class GraphApiUtil {
      */
     public static String getDisplayName(final DirectoryObject obj) {
         JsonObject json = obj.getRawObject();
-        if (json.has(PROP_DISPLAY_NAME)) {
+        if (json.has(PROP_DISPLAY_NAME) && !json.get(PROP_DISPLAY_NAME).isJsonNull()) {
             return json.get(PROP_DISPLAY_NAME).getAsString();
         }
-        return "";
+        return obj.id;
     }
 
     /**
