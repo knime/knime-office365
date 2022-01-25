@@ -98,6 +98,8 @@ public abstract class LoadedItemsSelector extends JPanel {
 
     private final JButton m_cancelBtn;
 
+    private final JLabel m_warningLabel;
+
     private LoadedItemSelectorSwingWorker m_fetchWorker;
 
     private boolean m_enabled = true;
@@ -137,6 +139,10 @@ public abstract class LoadedItemsSelector extends JPanel {
         });
         m_cancelBtn.setVisible(false);
         m_cancelBtn.setPreferredSize(m_fetchBtn.getPreferredSize());
+
+        m_warningLabel = new JLabel(
+                "<html><font color='orange'>Only technical id's could be displayed due to the limited permissions granted.</html>");
+        m_warningLabel.setVisible(false);
 
         final Component labelOrCheckbox;
         if (m_checkedModel != null) {
@@ -186,6 +192,13 @@ public abstract class LoadedItemsSelector extends JPanel {
 
         c.gridx += 1;
         add(m_cancelBtn, c);
+
+        c.gridx = 0;
+        c.gridy += 1;
+        c.gridwidth = 4;
+        c.anchor = GridBagConstraints.LINE_START;
+        c.insets = new Insets(10, 5, 0, 0);
+        add(m_warningLabel, c);
     }
 
     private static Box createLabelBox(final String caption) {
@@ -252,11 +265,11 @@ public abstract class LoadedItemsSelector extends JPanel {
             JOptionPane.showMessageDialog(getRootPane(), message, "Error", JOptionPane.ERROR_MESSAGE);
         }
 
-        private void onItemsLoaded(final List<IdComboboxItem> sites) {
+        private void onItemsLoaded(final List<IdComboboxItem> comboBoxItems) {
             m_ignoreListeners = true;
             final var selectedItem = m_comboModel.getSelectedItem();
             m_comboModel.removeAllElements();
-            for (IdComboboxItem s : sites) {
+            for (IdComboboxItem s : comboBoxItems) {
                 m_comboModel.addElement(s);
             }
 
@@ -267,9 +280,11 @@ public abstract class LoadedItemsSelector extends JPanel {
 
             onSelectionChanged();
             // In case we only have 1 element we will choose this
-            if (sites.size() == 1) {
+            if (comboBoxItems.size() == 1) {
                 m_combobox.setSelectedIndex(0);
             }
+
+            m_warningLabel.setVisible(!comboBoxItems.isEmpty() && comboBoxItems.get(0).getId().equals(comboBoxItems.get(0).getTitle()));
         }
     }
 

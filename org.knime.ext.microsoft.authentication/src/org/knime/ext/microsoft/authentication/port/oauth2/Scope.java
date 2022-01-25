@@ -77,6 +77,10 @@ public enum Scope {
     DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>",
             "Directory.Read.All"),
     /**
+     * User.Read scope.
+     */
+    USER_READ("<html>User Groups (Read) <i>(Limited)</i><html", "User.Read"),
+    /**
      * Azure Blob storage scope
      */
     AZURE_BLOB_STORAGE("Azure Blob Storage/Azure Data Lake Storage Gen2",
@@ -115,7 +119,8 @@ public enum Scope {
         // resource: https://graph.microsoft.com
         scopesByResource.add(Set.of(SITES_READ, //
                 SITES_READ_WRITE, //
-                DIRECTORY_READ));
+                DIRECTORY_READ, //
+                USER_READ));
 
         // resource: not known beforehand, but https://%s.blob.core.windows.net
         scopesByResource.add(Set.of(AZURE_BLOB_STORAGE));
