@@ -141,7 +141,7 @@ public abstract class LoadedItemsSelector extends JPanel {
         m_cancelBtn.setPreferredSize(m_fetchBtn.getPreferredSize());
 
         m_warningLabel = new JLabel(
-                "<html><font color='orange'>Only technical id's could be displayed due to the limited permissions granted.</html>");
+                "<html><font color='orange'>Only technical IDs could be displayed due to limited permissions being granted.</html>");
         m_warningLabel.setVisible(false);
 
         final Component labelOrCheckbox;
@@ -193,11 +193,11 @@ public abstract class LoadedItemsSelector extends JPanel {
         c.gridx += 1;
         add(m_cancelBtn, c);
 
-        c.gridx = 0;
+        c.gridx = 1;
         c.gridy += 1;
         c.gridwidth = 4;
         c.anchor = GridBagConstraints.LINE_START;
-        c.insets = new Insets(10, 5, 0, 0);
+        c.insets = new Insets(5, 0, 10, 0);
         add(m_warningLabel, c);
     }
 

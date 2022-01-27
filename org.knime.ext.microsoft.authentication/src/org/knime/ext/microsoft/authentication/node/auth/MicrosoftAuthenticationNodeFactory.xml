@@ -79,7 +79,7 @@
 			</option>
 
 			<option name="Request access to">
-                <p>Allows to define which permissions should be requested for the resulting access token during login.</p> 
+                <p>Allows to define which permissions should be requested for the token during login.</p> 
 
                 <p><b>Technical note:</b> Selecting any option here will request certain <i>delegated</i> permissions (OAuth2 scopes) so that the
                 Azure AD app registered by KNIME can perform API calls on behalf of the logged in user. The Azure AD App is called <i>KNIME Analytics Platform</i>
@@ -90,14 +90,14 @@
                 <ul>
                     <li><b>Sharepoint files (Read):</b>
                         Requests the <a href="https://docs.microsoft.com/en-us/graph/permissions-reference#sites-permissions">Sites.Read.All</a> permission.
-                        This permission allows the access token to be used for reading files stored on SharePoint Online. Note that access to any specific SharePoint site
+                        This permission allows the token to be used for reading files stored on SharePoint Online. Note that access to any specific SharePoint site
                         needs to be additionally granted to the user by that site.
                     </li>
                 </ul>
                 <ul>
                     <li><b>Sharepoint files (Read/Write):</b>
                         Requests the <a href="https://docs.microsoft.com/en-us/graph/permissions-reference#sites-permissions">Sites.ReadWrite.All</a> permission.
-                        This permission allows the access token to read and write files stored on the SharePoint Online. Note that access to any specific SharePoint site
+                        This permission allows the token to read and write files stored on the SharePoint Online. Note that access to any specific SharePoint site
                         needs to be additionally granted to the user by that site.
                     </li>
                 </ul>
@@ -119,21 +119,21 @@
                 <ul>
                     <li><b>Azure Blob Storage/Azure Data Lake Storage Gen2:</b>
                         Requests the <a href="https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-azure-active-directory#use-oauth-access-tokens-for-authentication">user_impersonation</a> permission
-                        for a specific Azure storage account. This permission allows the access token to access data stored in that storage account. Note that access to any specific data in that account
+                        for a specific Azure storage account. This permission allows the token to access data stored in that storage account. Note that access to any specific data in that account
                         needs to be additionally granted to the user, before any access is possible.
                     </li>
                 </ul>
                 <ul>
                     <li><b>Azure SQL Database:</b>
                         Requests the <a href="https://docs.microsoft.com/en-us/azure/azure-sql/database/active-directory-interactive-connect-azure-sql-db">user_impersonation</a> permission.
-                        This permission allows the access token to access the Azure SQL API. Note that access to any specific databases/resources needs to be additionally granted to the user,
+                        This permission allows the token to access the Azure SQL API. Note that access to any specific databases/resources needs to be additionally granted to the user,
                         before any actual access is possible.
                     </li>
                 </ul>
                 <ul>
                     <li><b>Power BI:</b>
                         Requests the <a href="https://docs.microsoft.com/en-us/power-bi/developer/embedded/register-app?tabs=customers%2CAzure">Dataset.ReadWrite.All and Workspace.Read.All</a> permissions.
-                        This permission allows the access token to access the Power BI API in order to list Power BI workspaces (required to get the identifier of the selected Power BI workspace), and read/write datasets.
+                        This permission allows the token to access the Power BI API in order to list Power BI workspaces (required to get the identifier of the selected Power BI workspace), and read/write datasets.
                         Note that access to any specific Power BI resources needs to be additionally granted to the user, before any actual access is possible.
                     </li>
                 </ul>
@@ -164,8 +164,8 @@
 			</option>
 
 			<option name="Request access to">
-			     Allows to define which permissions (OAuth2 scopes) for Azure/Office 365 cloud services should be requested for the resulting access token. See <i>Interactive Authentication</i> above for more
-			     information. 
+			     Allows to define which permissions (OAuth2 scopes) for Azure/Office 365 cloud services should be requested for the token during login.
+			     See <i>Interactive Authentication</i> above for more information. 
 			</option>
 		</tab>
 		
