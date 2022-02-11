@@ -164,7 +164,7 @@ class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<Sharepoi
                         new SharepointFileAttributes(remoteFile, m_lastDriveItem));
             }
         } catch (ClientException ex) {
-            throw FSGraphApiUtil.unwrapClientEx(m_lastException);
+            throw FSGraphApiUtil.unwrapClientEx(ex);
         }
     }
 
