@@ -7,5 +7,9 @@
             category-path="/labs/"
             factory-class="org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderNodeFactory"
             id="org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderNodeFactory"/>
+      <node
+            category-path="/labs/"
+            factory-class="org.knime.ext.sharepoint.lists.node.writer.SharepointListWriterNodeFactory"
+            id="org.knime.ext.sharepoint.lists.node.writer.SharepointListWriterNodeFactory"/>
    </extension>
 </plugin>
