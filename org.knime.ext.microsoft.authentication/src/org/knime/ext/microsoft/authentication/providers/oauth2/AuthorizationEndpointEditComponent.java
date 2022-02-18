@@ -64,20 +64,20 @@ import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationS
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 
 /**
- * Editor component for editing authentication authority URL for
+ * Editor component for editing the OAuth 2 authorization endpoint URL for
  * {@link OAuth2Provider} providers.
  *
  * @author Alexander Bondaletov
  */
-public final class AuthorityEditComponent extends JPanel {
+public final class AuthorizationEndpointEditComponent extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final MicrosoftAuthenticationSettings m_settings;// NOSONAR not intended for serialization
     private OAuth2Provider m_provider; // NOSONAR not intended for serialization
 
-    private JRadioButton m_useDefaultAuthority;
-    private JRadioButton m_useCustomAuthority;
-    private JTextField m_authorityUrl;
+    private JRadioButton m_useDefaultEndpoint;
+    private JRadioButton m_useCustomEndpoint;
+    private JTextField m_endpointUrl;
 
     /**
      * Creates new instance
@@ -85,35 +85,35 @@ public final class AuthorityEditComponent extends JPanel {
      * @param settings
      *            The node settings.
      */
-    public AuthorityEditComponent(final MicrosoftAuthenticationSettings settings) {
+    public AuthorizationEndpointEditComponent(final MicrosoftAuthenticationSettings settings) {
         m_settings = settings;
         settings.getProviderTypeModel().addChangeListener(e -> onProviderChanged());
 
-        m_useDefaultAuthority = new JRadioButton("Default");
-        m_useCustomAuthority = new JRadioButton("Custom:");
-        m_authorityUrl = new JTextField(60);
+        m_useDefaultEndpoint = new JRadioButton("Default");
+        m_useCustomEndpoint = new JRadioButton("Custom:");
+        m_endpointUrl = new JTextField(60);
 
         var group = new ButtonGroup();
-        group.add(m_useDefaultAuthority);
-        group.add(m_useCustomAuthority);
+        group.add(m_useDefaultEndpoint);
+        group.add(m_useCustomEndpoint);
 
-        m_useDefaultAuthority.addActionListener(e -> setUseCustomAuthority(false));
-        m_useCustomAuthority.addActionListener(e -> setUseCustomAuthority(true));
-        m_authorityUrl.getDocument().addDocumentListener(new DocumentListener() {
+        m_useDefaultEndpoint.addActionListener(e -> setUseCustomEndpoint(false));
+        m_useCustomEndpoint.addActionListener(e -> setUseCustomEndpoint(true));
+        m_endpointUrl.getDocument().addDocumentListener(new DocumentListener() {
 
             @Override
             public void removeUpdate(final DocumentEvent e) {
-                setAuthorityUrl();
+                setEndpointUrl();
             }
 
             @Override
             public void insertUpdate(final DocumentEvent e) {
-                setAuthorityUrl();
+                setEndpointUrl();
             }
 
             @Override
             public void changedUpdate(final DocumentEvent e) {
-                setAuthorityUrl();
+                setEndpointUrl();
             }
         });
 
@@ -127,30 +127,30 @@ public final class AuthorityEditComponent extends JPanel {
         c.gridx = 0;
         c.gridy = 0;
 
-        add(m_useDefaultAuthority, c);
+        add(m_useDefaultEndpoint, c);
 
         c.gridy += 1;
-        add(m_useCustomAuthority, c);
+        add(m_useCustomEndpoint, c);
 
         c.insets = new Insets(5, 30, 10, 10);
         c.gridy += 1;
-        add(m_authorityUrl, c);
+        add(m_endpointUrl, c);
 
-        setBorder(BorderFactory.createTitledBorder("OAuth2 Endpoint"));
+        setBorder(BorderFactory.createTitledBorder("OAuth 2.0 authorization endpoint"));
 
         onProviderChanged();
     }
 
-    private void setUseCustomAuthority(final boolean useCustom) {
+    private void setUseCustomEndpoint(final boolean useCustom) {
         if (m_provider != null) {
-            m_provider.getUseCustomAuthorityModel().setBooleanValue(useCustom);
-            m_authorityUrl.setEnabled(useCustom);
+            m_provider.getUseCustomEndpointModel().setBooleanValue(useCustom);
+            m_endpointUrl.setEnabled(useCustom);
         }
     }
 
-    private void setAuthorityUrl() {
+    private void setEndpointUrl() {
         if (m_provider != null) {
-            m_provider.getCustomAuthorityUrlModel().setStringValue(m_authorityUrl.getText());
+            m_provider.getCustomEndpointUrlModel().setStringValue(m_endpointUrl.getText());
         }
     }
 
@@ -168,13 +168,13 @@ public final class AuthorityEditComponent extends JPanel {
 
     private void updateComponent() {
         if (m_provider == null) {
-            m_useDefaultAuthority.setSelected(true);
-            m_authorityUrl.setText("");
+            m_useDefaultEndpoint.setSelected(true);
+            m_endpointUrl.setText("");
         } else {
-            var useCustom = m_provider.getUseCustomAuthorityModel().getBooleanValue();
-            m_useDefaultAuthority.setSelected(!useCustom);
-            m_useCustomAuthority.setSelected(useCustom);
-            m_authorityUrl.setText(m_provider.getCustomAuthorityUrlModel().getStringValue());
+            var useCustom = m_provider.getUseCustomEndpointModel().getBooleanValue();
+            m_useDefaultEndpoint.setSelected(!useCustom);
+            m_useCustomEndpoint.setSelected(useCustom);
+            m_endpointUrl.setText(m_provider.getCustomEndpointUrlModel().getStringValue());
         }
 
         setEnabled(m_provider != null);
@@ -188,9 +188,9 @@ public final class AuthorityEditComponent extends JPanel {
     public void setEnabled(final boolean enabled) {
         super.setEnabled(enabled);
 
-        m_useDefaultAuthority.setEnabled(enabled);
-        m_useCustomAuthority.setEnabled(enabled);
-        m_authorityUrl.setEnabled(enabled && m_useCustomAuthority.isSelected());
+        m_useDefaultEndpoint.setEnabled(enabled);
+        m_useCustomEndpoint.setEnabled(enabled);
+        m_endpointUrl.setEnabled(enabled && m_useCustomEndpoint.isSelected());
 
     }
 }

@@ -197,10 +197,9 @@
 		</tab>
 
         <tab name="Advanced">
-            <option name="OAuth2 endpoint">
+            <option name="OAuth 2.0 authorization endpoint">
                 When using OAuth2-based authentication <i>(Interactive</i> or <i>Username/password),</i>
-                these options can be used to set an <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/developer-glossary#authorization-endpoint">OAuth2
-                endpoint:</a>
+                these options can be used to set an <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/developer-glossary#authorization-endpoint">OAuth 2.0 authorization endpoint:</a>
 
                 <ul>
                 <li><b>Default:</b> Use a global default endpoint.</li>
