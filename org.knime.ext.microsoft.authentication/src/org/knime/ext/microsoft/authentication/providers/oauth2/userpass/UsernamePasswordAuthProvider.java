@@ -207,7 +207,7 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
 
     @Override
     protected String getDefaultEndpoint() {
-        return MSALUtil.ORGANIZATIONS_AUTHORITY;
+        return MSALUtil.ORGANIZATIONS_ENDPOINT;
     }
 
     @Override

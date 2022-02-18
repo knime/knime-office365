@@ -155,7 +155,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
 
     @Override
     protected String getDefaultEndpoint() {
-        return MSALUtil.COMMON_AUTHORITY;
+        return MSALUtil.COMMON_ENDPOINT;
     }
 
     @Override

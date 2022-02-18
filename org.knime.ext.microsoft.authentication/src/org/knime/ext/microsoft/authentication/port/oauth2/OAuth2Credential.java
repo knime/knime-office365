@@ -50,11 +50,6 @@ package org.knime.ext.microsoft.authentication.port.oauth2;
 
 import java.awt.Component;
 import java.io.IOException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -79,23 +74,16 @@ import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.Mem
  */
 public class OAuth2Credential extends MicrosoftCredential {
 
-    private static final DateTimeFormatter ZONED_DATE_TIME_FORMATTER = new DateTimeFormatterBuilder() //
-            .append(DateTimeFormatter.ISO_LOCAL_DATE) //
-            .appendLiteral(' ') //
-            .append(DateTimeFormatter.ISO_LOCAL_TIME) //
-            .appendLiteral(' ') //
-            .appendZoneRegionId() //
-            .toFormatter();
-
     private static final String KEY_TOKEN = "token";
-    private static final String KEY_AUTHORITY = "authority";
+    private static final String KEY_ENDPOINT = "authority"; // key is called "authority for backwards compatibility
+                                                            // reasons
     private static final String KEY_USERNAME = "username";
     private static final String KEY_SCOPES = "scopes";
 
     private MemoryCacheAccessTokenSupplier m_tokenSupplier;
     private String m_username;
     private Set<String> m_scopes;
-    private String m_authority;
+    private String m_endpoint;
 
     /**
      * Creates new instance
@@ -105,20 +93,20 @@ public class OAuth2Credential extends MicrosoftCredential {
      * @param username
      * @param scopes
      *            The scopes
-     * @param authority
-     *            The authority
+     * @param endpoint
+     *            The OAuth2 authorization endpoint
      */
     public OAuth2Credential(
             final MemoryCacheAccessTokenSupplier tokenSupplier, //
             final String username, //
             final Set<String> scopes, //
-            final String authority) {
+            final String endpoint) {
 
         super(Type.OAUTH2_ACCESS_TOKEN);
         m_tokenSupplier = tokenSupplier;
         m_username = username;
         m_scopes = scopes;
-        m_authority = authority;
+        m_endpoint = endpoint;
     }
 
     /**
@@ -146,17 +134,26 @@ public class OAuth2Credential extends MicrosoftCredential {
     }
 
     /**
-     * @return the authority
+     * @return the OAuth2 authorization endpoint URL
      */
+    public String getEndpoint() {
+        return m_endpoint;
+    }
+
+    /**
+     * @return the OAuth2 authorization endpoint URL
+     * @deprecated Use {@link #getEndpoint()} instead
+     */
+    @Deprecated
     public String getAuthority() {
-        return m_authority;
+        return m_endpoint;
     }
 
     @Override
     public void saveSettings(final ConfigWO config) {
         super.saveSettings(config);
         config.addString(KEY_USERNAME, m_username);
-        config.addString(KEY_AUTHORITY, m_authority);
+        config.addString(KEY_ENDPOINT, m_endpoint);
 
         final String[] scopes = m_scopes.toArray(new String[] {});
         config.addStringArray(KEY_SCOPES, scopes);
@@ -165,14 +162,14 @@ public class OAuth2Credential extends MicrosoftCredential {
 
     public static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
         final String username = config.getString(KEY_USERNAME);
-        final String authority = config.getString(KEY_AUTHORITY);
+        final String endpoint = config.getString(KEY_ENDPOINT);
 
         final Set<String> scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
 
-        final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(authority);
+        final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(endpoint);
         tokenSupplier.loadSettings(config.getConfig(KEY_TOKEN));
 
-        return new OAuth2Credential(tokenSupplier, username, scopes, authority);
+        return new OAuth2Credential(tokenSupplier, username, scopes, endpoint);
     }
 
     @Override
@@ -184,7 +181,7 @@ public class OAuth2Credential extends MicrosoftCredential {
 
         final Box labelBox = new Box(BoxLayout.Y_AXIS);
         labelBox.add(createLabel("Username: "));
-        labelBox.add(createLabel("Authority/Endpoint: "));
+        labelBox.add(createLabel("OAuth2 Authorization Endpoint: "));
         labelBox.add(createLabel("Scopes: "));
         labelBox.add(Box.createVerticalGlue());
         panel.add(labelBox);
@@ -193,7 +190,7 @@ public class OAuth2Credential extends MicrosoftCredential {
 
         final Box valueBox = new Box(BoxLayout.Y_AXIS);
         valueBox.add(createLabel(m_username));
-        valueBox.add(createLabel(m_authority));
+        valueBox.add(createLabel(m_endpoint));
         valueBox.add(createLabel(String.join(", ", m_scopes.toArray(new String[] {}))));
         valueBox.add(Box.createVerticalGlue());
         panel.add(valueBox);
@@ -217,14 +214,4 @@ public class OAuth2Credential extends MicrosoftCredential {
     public String getSummary() {
         return String.format("%s", m_username);
     }
-
-    /**
-     * @param instant
-     * @return
-     */
-    private static String formatInstant(final Instant instant) {
-        final ZonedDateTime zoned = ZonedDateTime.ofInstant(instant, ZoneId.systemDefault());
-        return zoned.format(ZONED_DATE_TIME_FORMATTER);
-    }
-
 }

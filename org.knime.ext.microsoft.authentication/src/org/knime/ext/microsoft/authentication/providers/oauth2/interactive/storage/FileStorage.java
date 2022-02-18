@@ -105,12 +105,12 @@ class FileStorage implements StorageProvider {
      */
     private final SettingsModelWriterFileChooser m_file;
 
-    private final String m_authority;
+    private final String m_endpoint;
 
     private final String m_cacheKey;
 
-    public FileStorage(final PortsConfiguration portsConfig, final String nodeInstanceId, final String authority) {
-        m_authority = authority;
+    public FileStorage(final PortsConfiguration portsConfig, final String nodeInstanceId, final String endpoint) {
+        m_endpoint = endpoint;
         m_cacheKey = "file-" + nodeInstanceId;
         m_file = new SettingsModelWriterFileChooser(
                 "token_cache_file", //
@@ -231,7 +231,7 @@ class FileStorage implements StorageProvider {
 
     @Override
     public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
-        return new MemoryCacheAccessTokenSupplier(m_authority, m_cacheKey);
+        return new MemoryCacheAccessTokenSupplier(m_endpoint, m_cacheKey);
     }
 
     @Override

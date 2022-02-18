@@ -63,28 +63,41 @@ public class MSALUtil {
 
     private static final String APP_ID = "cf47ff49-7da6-4603-b339-f4475176432b";
 
-    public static final String COMMON_AUTHORITY = "https://login.microsoftonline.com/common";
+    /**
+     * Common OAuth2 authorization endpoint to sign in work or school accounts and
+     * personal Microsoft accounts (MSA), such as hotmail.com, outlook.com, and
+     * msn.com.
+     *
+     * See list of available endpoints here:
+     * https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-client-application-configuration
+     */
+    public static final String COMMON_ENDPOINT = "https://login.microsoftonline.com/common";
 
-    public static final String ORGANIZATIONS_AUTHORITY = "https://login.microsoftonline.com/organizations";
+    /**
+     * OAuth2 authorization endpoint to sign in users with work and school accounts.
+     *
+     * See list of available endpoints here:
+     * https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-client-application-configuration
+     */
+    public static final String ORGANIZATIONS_ENDPOINT = "https://login.microsoftonline.com/organizations";
 
     /**
      * Creates the {@link PublicClientApplication} instance.
      *
      * @return The client application.
-     * @throws MalformedURLException
      */
-    public static PublicClientApplication createClientApp(final String authority) {
+    public static PublicClientApplication createClientApp(final String endpoint) {
         try {
-            return PublicClientApplication.builder(APP_ID).authority(authority).build();
+            return PublicClientApplication.builder(APP_ID).authority(endpoint).build();
         } catch (MalformedURLException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
         }
     }
 
-    public static PublicClientApplication createClientAppWithToken(final String authority, final String tokenCache)
+    public static PublicClientApplication createClientAppWithToken(final String endpoint, final String tokenCache)
             throws IOException {
         try {
-            final PublicClientApplication app = MSALUtil.createClientApp(authority);
+            final PublicClientApplication app = MSALUtil.createClientApp(endpoint);
             app.tokenCache().deserialize(tokenCache);
             return app;
         } catch (MsalClientException e) {

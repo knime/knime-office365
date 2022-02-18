@@ -69,7 +69,7 @@ import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
-import org.knime.ext.microsoft.authentication.providers.oauth2.AuthorityEditComponent;
+import org.knime.ext.microsoft.authentication.providers.oauth2.AuthorizationEndpointEditComponent;
 
 
 
@@ -86,7 +86,7 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
 
     private Map<AuthProviderType, MicrosoftAuthProviderEditor> m_editors;
 
-    private AuthorityEditComponent m_authorityEditor;
+    private AuthorizationEndpointEditComponent m_endpointEditor;
 
     /**
      * Creates new instance.
@@ -110,8 +110,8 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
     private JComponent createAdvancedTab() {
         final var panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
-        m_authorityEditor = new AuthorityEditComponent(m_settings);
-        panel.add(m_authorityEditor);
+        m_endpointEditor = new AuthorizationEndpointEditComponent(m_settings);
+        panel.add(m_endpointEditor);
         return panel;
     }
 
@@ -157,7 +157,7 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
     public void onOpen() {
         AuthProviderType currProvider = m_settings.getProviderType();
         m_providerCombo.setSelectedItem(currProvider);
-        m_authorityEditor.onShown();
+        m_endpointEditor.onShown();
     }
 
     @Override

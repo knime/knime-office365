@@ -86,7 +86,7 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     private static final String KEY_OTHER_SCOPES = "otherScopes";
 
     /**
-     * Added with KNIME AP 4.6 to support custom authority URL
+     * Added with KNIME AP 4.6 to support custom endpoint URL
      */
     private static final String KEY_USE_CUSTOM_AUTH_ENDPOINT = "useCustomEndpoint";
     private static final String KEY_CUSTOM_AUTH_ENDPOINT_URL = "customEndpoint";
@@ -135,16 +135,16 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     }
 
     /**
-     * @return the useCustomAuthority model
+     * @return the useCustomEndpoint model
      */
-    public SettingsModelBoolean getUseCustomAuthorityModel() {
+    public SettingsModelBoolean getUseCustomEndpointModel() {
         return m_useCustomEndpoint;
     }
 
     /**
-     * @return the customAuthorityUrl model
+     * @return the customEndpointUrl model
      */
-    public SettingsModelString getCustomAuthorityUrlModel() {
+    public SettingsModelString getCustomEndpointUrlModel() {
         return m_customEndpointUrl;
     }
 
@@ -193,9 +193,9 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     }
 
     /**
-     * Returns appropriate authority for the current provider.
+     * Returns appropriate OAuth2 authorization endpoint for the current provider.
      *
-     * @return The authority.
+     * @return The endpoint URL as a string.
      */
     protected String getEndpoint() {
         if (m_useCustomEndpoint.getBooleanValue()) {
@@ -206,9 +206,9 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     }
 
     /**
-     * Returns the default authority for the current provider.
+     * Returns the default endpoint for the current provider.
      *
-     * @return The authority.
+     * @return The endpoint.
      */
     protected abstract String getDefaultEndpoint();
 
@@ -241,7 +241,7 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         }
 
         if (m_useCustomEndpoint.getBooleanValue() && m_customEndpointUrl.getStringValue().isEmpty()) {
-            throw new InvalidSettingsException("Authority URL cannot be empty");
+            throw new InvalidSettingsException("Custom OAuth authorization endpoint URL must not be empty");
         }
     }
 
@@ -259,7 +259,7 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
             m_otherScopes.loadSettingsFrom(settings);
         }
 
-        // Added with KNIME AP 4.6 to support custom authority URL
+        // Added with KNIME AP 4.6 to support custom endpoint URL
         if (settings.containsKey(KEY_USE_CUSTOM_AUTH_ENDPOINT)) {
             m_useCustomEndpoint.loadSettingsFrom(settings);
             m_customEndpointUrl.loadSettingsFrom(settings);
