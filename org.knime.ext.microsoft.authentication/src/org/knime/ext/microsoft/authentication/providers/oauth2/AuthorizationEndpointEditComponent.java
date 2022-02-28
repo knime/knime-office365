@@ -73,11 +73,30 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final MicrosoftAuthenticationSettings m_settings;// NOSONAR not intended for serialization
+
+    private final DocumentListener m_endpointUrlChangedListener = new DocumentListener() {
+        @Override
+        public void removeUpdate(final DocumentEvent e) {
+            setEndpointUrl();
+        }
+
+        @Override
+        public void insertUpdate(final DocumentEvent e) {
+            setEndpointUrl();
+        }
+
+        @Override
+        public void changedUpdate(final DocumentEvent e) {
+            setEndpointUrl();
+        }
+    };
+
     private OAuth2Provider m_provider; // NOSONAR not intended for serialization
 
     private JRadioButton m_useDefaultEndpoint;
     private JRadioButton m_useCustomEndpoint;
     private JTextField m_endpointUrl;
+
 
     /**
      * Creates new instance
@@ -99,23 +118,6 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
 
         m_useDefaultEndpoint.addActionListener(e -> setUseCustomEndpoint(false));
         m_useCustomEndpoint.addActionListener(e -> setUseCustomEndpoint(true));
-        m_endpointUrl.getDocument().addDocumentListener(new DocumentListener() {
-
-            @Override
-            public void removeUpdate(final DocumentEvent e) {
-                setEndpointUrl();
-            }
-
-            @Override
-            public void insertUpdate(final DocumentEvent e) {
-                setEndpointUrl();
-            }
-
-            @Override
-            public void changedUpdate(final DocumentEvent e) {
-                setEndpointUrl();
-            }
-        });
 
         setLayout(new GridBagLayout());
         var c = new GridBagConstraints();
@@ -182,6 +184,11 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
 
     public void onShown() {
         onProviderChanged();
+        m_endpointUrl.getDocument().addDocumentListener(m_endpointUrlChangedListener);
+    }
+
+    public void onClosed() {
+        m_endpointUrl.getDocument().removeDocumentListener(m_endpointUrlChangedListener);
     }
 
     @Override
