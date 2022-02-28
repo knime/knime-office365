@@ -174,22 +174,17 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onCancel() {
         cancelLogin();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onClose() {
         for (MicrosoftAuthProviderEditor editor : m_editors.values()) {
             editor.onClose();
         }
+        m_endpointEditor.onClosed();
         cancelLogin();
     }
 
@@ -197,5 +192,4 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
         final AuthProviderType authenticationProvider = (AuthProviderType) m_providerCombo.getSelectedItem();
         m_editors.get(authenticationProvider).onCancel();
     }
-
 }

@@ -91,7 +91,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     private StorageEditor m_storageEditor;
     private SwingWorkerWithContext<?, ?> m_worker;
 
-    private final ChangeListener m_scopesListener;
+    private final ChangeListener m_clearStorageEditorAction;
 
     /**
      * Creates new instance.
@@ -105,13 +105,12 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         super(provider);
         m_parentNodeDialog = nodeDialog;
 
-        m_scopesListener = e -> m_storageEditor.clearAll();
-    }
+        m_clearStorageEditorAction = e -> m_storageEditor.clearAll();
 
-    @Override
-    public void onShown() {
-        triggerLoginStatusWorker();
-        m_storageEditor.onShown();
+        m_provider.getScopesModel().addChangeListener(m_clearStorageEditorAction);
+        m_provider.getUseCustomEndpointModel().addChangeListener(m_clearStorageEditorAction);
+        m_provider.getCustomEndpointUrlModel().addChangeListener(m_clearStorageEditorAction);
+
     }
 
     private void triggerLoginStatusWorker() {
@@ -278,6 +277,8 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
             try {
                 final LoginStatus loginStatus = get();
                 updateLoginStatus(loginStatus, null);
+            } catch (CancellationException ex) {
+                // do nothing
             } catch (InterruptedException ex) {
                 updateLoginStatus(LoginStatus.NOT_LOGGED_IN, null);
             } catch (ExecutionException ex) {
@@ -291,25 +292,22 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
         m_storageEditor.loadSettingsFrom(settings, specs);
-
-        m_provider.getScopesModel().addChangeListener(m_scopesListener);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
+    public void onShown() {
+        triggerLoginStatusWorker();
+        m_storageEditor.onShown();
+
+    }
+
     @Override
     public void onCancel() {
         cancelLogin();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onClose() {
         m_storageEditor.onClose();
-        m_provider.getScopesModel().removeChangeListener(m_scopesListener);
     }
-
 }
