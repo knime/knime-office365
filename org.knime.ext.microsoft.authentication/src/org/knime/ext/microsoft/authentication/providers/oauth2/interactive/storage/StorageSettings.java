@@ -89,16 +89,25 @@ public class StorageSettings {
 
     private final NodeSettingsStorage m_nodeSettingsStorage;
 
+    /**
+     * Constructor.
+     *
+     * @param portsConfig
+     * @param nodeInstanceId
+     * @param endpoint
+     */
     public StorageSettings(final PortsConfiguration portsConfig, final String nodeInstanceId, final String endpoint) {
         m_inMemoryStorage = new InMemoryStorage(nodeInstanceId, endpoint);
         m_nodeSettingsStorage = new NodeSettingsStorage(nodeInstanceId, endpoint);
         m_fileStorage = new FileStorage(portsConfig, nodeInstanceId, endpoint);
 
-        m_storageType.addChangeListener((e) -> {
-            m_fileStorage.getFileModel().setEnabled(getStorageType() == StorageType.FILE);
-        });
+        m_storageType
+                .addChangeListener(e -> m_fileStorage.getFileModel().setEnabled(getStorageType() == StorageType.FILE));
     }
 
+    /**
+     * @return the model for the storage type.
+     */
     public SettingsModelString getStorageTypeModel() {
         return m_storageType;
     }
@@ -110,6 +119,12 @@ public class StorageSettings {
         return StorageType.valueOf(m_storageType.getStringValue());
     }
 
+    /**
+     * Sets the storage type to use.
+     *
+     * @param type
+     *            The storage type to use.
+     */
     public void setStorageType(final StorageType type) {
         m_storageType.setStringValue(type.name());
     }
@@ -135,8 +150,13 @@ public class StorageSettings {
         return m_nodeSettingsStorage;
     }
 
+    /**
+     * Clears the stored credential of the current storage provider.
+     *
+     * @throws IOException
+     */
     public void clearCurrentStorage() throws IOException {
-        final LoginStatus oldLoginStatus = getLoginStatus();
+        final var oldLoginStatus = getLoginStatus();
         if (!oldLoginStatus.isLoggedIn()) {
             return;
         }
@@ -144,8 +164,29 @@ public class StorageSettings {
         getCurrentStorageProvider().clear();
     }
 
+    /**
+     * Clears the stored credential of the all storage providers.
+     *
+     * @throws IOException
+     */
+    public void clearStorage() throws IOException {
+        getLoginStatus();
+
+        m_inMemoryStorage.clear();
+        m_fileStorage.clear();
+        m_nodeSettingsStorage.clear();
+    }
+
+    /**
+     * Tries to reads the currently stored token (if present) and returns its login
+     * status.
+     *
+     * @return the current login status
+     * @throws IOException
+     *             if something went wrong while reading the currently stored token.
+     */
     public LoginStatus getLoginStatus() throws IOException {
-        final String tokenCacheString = readTokenCache();
+        final var tokenCacheString = readTokenCache();
         if (tokenCacheString == null) {
             return LoginStatus.NOT_LOGGED_IN;
         } else {
@@ -153,14 +194,6 @@ public class StorageSettings {
         }
     }
 
-    public void clearStorage() throws IOException {
-        final LoginStatus oldLoginStatus = getLoginStatus();
-
-        m_inMemoryStorage.clear();
-        m_fileStorage.clear();
-        m_nodeSettingsStorage.clear();
-
-    }
 
     /**
      * Saves provider's settings into a given {@link NodeSettingsWO}.
@@ -199,14 +232,31 @@ public class StorageSettings {
         getCurrentStorageProvider().validate();
     }
 
+    /**
+     * @return a {@link MemoryCacheAccessTokenSupplier} that provides the credential
+     *         from the current storage provider.
+     */
     public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
         return getCurrentStorageProvider().createAccessTokenSupplier();
     }
 
+    /**
+     * Writes the given token cache string to the current storage provider.
+     *
+     * @param tokenCacheString
+     * @throws IOException
+     */
     public void writeTokenCache(final String tokenCacheString) throws IOException {
         getCurrentStorageProvider().writeTokenCache(tokenCacheString);
     }
 
+    /**
+     * Reads the given token cache string from the current storage provider.
+     *
+     * @return the token cache string from the current storage provider, or null if
+     *         the current provider has nothing stored.
+     * @throws IOException
+     */
     public String readTokenCache() throws IOException {
         return getCurrentStorageProvider().readTokenCache();
     }
@@ -224,12 +274,24 @@ public class StorageSettings {
         }
     }
 
+    /**
+     * Clears the memory cache from any credentials currently cached by the storage
+     * providers in this instance.
+     */
     public void clearMemoryTokenCache() {
         m_inMemoryStorage.clearMemoryTokenCache();
         m_fileStorage.clearMemoryTokenCache();
         m_nodeSettingsStorage.clearMemoryTokenCache();
     }
 
+    /**
+     * Configure file chooser model of file storage provider. Needed for
+     * initialization in the node dialog.
+     *
+     * @param inSpecs
+     * @param msgConsumer
+     * @throws InvalidSettingsException
+     */
     public void configureFileChoosersInModel(final PortObjectSpec[] inSpecs,
             final Consumer<StatusMessage> msgConsumer) throws InvalidSettingsException {
         m_fileStorage.configureFileChooserInModel(inSpecs, msgConsumer);

@@ -91,28 +91,19 @@ public class AzureSasTokenCredential extends MicrosoftCredential {
                         "SAS token not available anymore. Please re-execute the Microsoft Authentication node."));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void saveSettings(final ConfigWO config) {
         super.saveSettings(config);
         config.addString(KEY_CACHE_KEY, m_cacheKey);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public JComponent getView() {
-        JPanel panel = new JPanel();
+        var panel = new JPanel();
         panel.setName("SAS Token credentials");
         return panel;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getSummary() {
         return "SAS Token Credentials";
@@ -128,7 +119,7 @@ public class AzureSasTokenCredential extends MicrosoftCredential {
      * @throws InvalidSettingsException
      */
     public static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
-        String cacheKey = config.getString(KEY_CACHE_KEY);
+        var cacheKey = config.getString(KEY_CACHE_KEY);
         return new AzureSasTokenCredential(cacheKey);
     }
 }

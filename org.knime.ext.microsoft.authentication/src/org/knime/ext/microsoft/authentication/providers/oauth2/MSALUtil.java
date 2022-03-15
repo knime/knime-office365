@@ -59,7 +59,7 @@ import com.microsoft.aad.msal4j.PublicClientApplication;
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class MSALUtil {
+public final class MSALUtil {
 
     private static final String APP_ID = "cf47ff49-7da6-4603-b339-f4475176432b";
 
@@ -81,10 +81,17 @@ public class MSALUtil {
      */
     public static final String ORGANIZATIONS_ENDPOINT = "https://login.microsoftonline.com/organizations";
 
+    private MSALUtil() {
+    }
+
     /**
      * Creates the {@link PublicClientApplication} instance.
      *
-     * @return The client application.
+     * @param endpoint
+     *            The OAuth authorization endpoint URL to use with the
+     *            {@link PublicClientApplication}.
+     *
+     * @return the {@link PublicClientApplication}.
      */
     public static PublicClientApplication createClientApp(final String endpoint) {
         try {
@@ -94,6 +101,20 @@ public class MSALUtil {
         }
     }
 
+    /**
+     * Creates the {@link PublicClientApplication} instance.
+     *
+     * @param endpoint
+     *            The OAuth authorization endpoint URL to use with the
+     *            {@link PublicClientApplication}.
+     * @param tokenCache
+     *            A string from which to load access/refresh token into the
+     *            {@link PublicClientApplication}.
+     * @return the {@link PublicClientApplication}.
+     * @throws IOException
+     *             when something went wrong while trying to load the access/refresh
+     *             token.
+     */
     public static PublicClientApplication createClientAppWithToken(final String endpoint, final String tokenCache)
             throws IOException {
         try {
@@ -104,5 +125,4 @@ public class MSALUtil {
             throw new IOException(e.getMessage(), e);
         }
     }
-
 }

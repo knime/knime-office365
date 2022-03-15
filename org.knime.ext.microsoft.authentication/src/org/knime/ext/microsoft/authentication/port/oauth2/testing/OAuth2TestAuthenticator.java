@@ -60,11 +60,27 @@ import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.Username
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class OAuth2TestAuthenticator {
+public final class OAuth2TestAuthenticator {
 
+    private OAuth2TestAuthenticator() {
+    }
+
+    /**
+     * Logs into the Microsoft Identity platform using the given user/password pair
+     * and returns a {@link OAuth2Credential} which contains an access token.
+     *
+     * @param username
+     *            The username to use for login.
+     * @param password
+     *            The password to use for login.
+     * @return a {@link OAuth2Credential} which contains an access token
+     * @throws IOException
+     *             when something went wrong during login.
+     */
     public static OAuth2Credential authenticateWithUsernamePassword(final String username, final String password)
             throws IOException {
-        UsernamePasswordAuthProvider provider = new UsernamePasswordAuthProvider(UUID.randomUUID().toString());
+
+        final var provider = new UsernamePasswordAuthProvider(UUID.randomUUID().toString());
         provider.getUsernameModel().setStringValue(username);
         provider.getPasswordModel().setStringValue(password);
         return provider.getCredential(null);

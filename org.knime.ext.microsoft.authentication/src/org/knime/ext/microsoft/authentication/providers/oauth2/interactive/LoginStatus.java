@@ -61,9 +61,12 @@ import com.microsoft.aad.msal4j.IAuthenticationResult;
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class LoginStatus {
+public final class LoginStatus {
 
-    public final static LoginStatus NOT_LOGGED_IN = new LoginStatus(null, null);
+    /**
+     * Predefined {@link LoginStatus} when we are not logged in.
+     */
+    public static final LoginStatus NOT_LOGGED_IN = new LoginStatus(null, null);
 
     private final String m_username;
 
@@ -74,6 +77,10 @@ public class LoginStatus {
         m_accessTokenExpiry = accessTokenExpiry;
     }
 
+    /**
+     *
+     * @return whether we are currently logged in.
+     */
     public boolean isLoggedIn() {
         return m_username != null;
     }
@@ -92,30 +99,49 @@ public class LoginStatus {
         return m_accessTokenExpiry;
     }
 
+    /**
+     * cparsing the given token cache string for a valid access token.
+     *
+     * @param tokenCache
+     *            The given token cache string to check.
+     * @return the {@link LoginStatus} corresponding to the given token cache
+     *         string.
+     * @throws IOException
+     *             When something went wrong while trying to parse the token cache
+     *             string.
+     */
     public static LoginStatus parseFromTokenCache(final String tokenCache) throws IOException {
         try {
-            final JSONObject obj = new JSONObject(tokenCache);
+            final var obj = new JSONObject(tokenCache);
 
-            final JSONObject accessTokenObj = obj.getJSONObject("AccessToken");
-            final long expiresOnSecs = accessTokenObj.getJSONObject((String) accessTokenObj.keys().next())
+            final var accessTokenObj = obj.getJSONObject("AccessToken");
+            final var expiresOnSecs = accessTokenObj.getJSONObject((String) accessTokenObj.keys().next())
                     .getLong("expires_on");
 
-            final JSONObject accountObj = obj.getJSONObject("Account");
-            final String username = accountObj.getJSONObject((String) accountObj.keys().next()).getString("username");
+            final var accountObj = obj.getJSONObject("Account");
+            final var username = accountObj.getJSONObject((String) accountObj.keys().next()).getString("username");
             return new LoginStatus(username, Instant.ofEpochSecond(expiresOnSecs));
-        } catch (Exception e) {
+        } catch (Exception e) { // NOSONAR intentionally catching a generic one here
             throw new IOException("Could not read token", e);
         }
     }
 
+    /**
+     * Creates a {@link LoginStatus} from the given {@link IAuthenticationResult}.
+     *
+     * @param result
+     *            The {@link IAuthenticationResult} to check.
+     * @return a {@link LoginStatus} created from the given
+     *         {@link IAuthenticationResult}.
+     */
     public static LoginStatus fromAuthenticationResult(final IAuthenticationResult result) {
         return new LoginStatus(result.account().username(), result.expiresOnDate().toInstant());
     }
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
+        final var prime = 31;
+        var result = 1;
         result = prime * result + ((m_accessTokenExpiry == null) ? 0 : m_accessTokenExpiry.hashCode());
         result = prime * result + ((m_username == null) ? 0 : m_username.hashCode());
         return result;

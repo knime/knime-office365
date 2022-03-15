@@ -74,7 +74,9 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
 
     private final MicrosoftAuthenticationSettings m_settings;// NOSONAR not intended for serialization
 
-    private final DocumentListener m_endpointUrlChangedListener = new DocumentListener() {
+    private final DocumentListener m_endpointUrlChangedListener = new DocumentListener() { // NOSONAR not intended for
+                                                                                           // serialization
+
         @Override
         public void removeUpdate(final DocumentEvent e) {
             setEndpointUrl();
@@ -88,6 +90,12 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
         @Override
         public void changedUpdate(final DocumentEvent e) {
             setEndpointUrl();
+        }
+
+        private void setEndpointUrl() {
+            if (m_provider != null) {
+                m_provider.getCustomEndpointUrlModel().setStringValue(m_endpointUrl.getText());
+            }
         }
     };
 
@@ -150,12 +158,6 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
         }
     }
 
-    private void setEndpointUrl() {
-        if (m_provider != null) {
-            m_provider.getCustomEndpointUrlModel().setStringValue(m_endpointUrl.getText());
-        }
-    }
-
     private void onProviderChanged() {
         MicrosoftAuthProvider current = m_settings.getCurrentProvider();
 
@@ -182,11 +184,17 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
         setEnabled(m_provider != null);
     }
 
+    /**
+     * To be invoked just before the dialog or this component is being shown.
+     */
     public void onShown() {
         onProviderChanged();
         m_endpointUrl.getDocument().addDocumentListener(m_endpointUrlChangedListener);
     }
 
+    /**
+     * To be invoked just before the dialog is being closed.
+     */
     public void onClosed() {
         m_endpointUrl.getDocument().removeDocumentListener(m_endpointUrlChangedListener);
     }

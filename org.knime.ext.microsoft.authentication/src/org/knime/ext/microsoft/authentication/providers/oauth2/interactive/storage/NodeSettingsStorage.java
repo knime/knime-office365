@@ -87,6 +87,7 @@ class NodeSettingsStorage implements StorageProvider {
 
     /**
      * @param nodeInstanceId
+     * @param endpoint
      */
     public NodeSettingsStorage(final String nodeInstanceId, final String endpoint) {
         m_cacheKey = "node-" + nodeInstanceId;
@@ -126,7 +127,7 @@ class NodeSettingsStorage implements StorageProvider {
 
     @Override
     public String readTokenCache() throws IOException {
-        final String tokenCacheString = m_tokenCache.getStringValue();
+        final var tokenCacheString = m_tokenCache.getStringValue();
         if (tokenCacheString.isEmpty()) {
             return null;
         }

@@ -64,6 +64,7 @@ import org.knime.core.node.util.ViewUtils;
  * @author Alexander Bondaletov
  */
 public class MicrosoftCredentialPortObjectSpec extends AbstractSimplePortObjectSpec {
+
     /**
      * Serializer class.
      */
@@ -80,7 +81,7 @@ public class MicrosoftCredentialPortObjectSpec extends AbstractSimplePortObjectS
     }
 
     /**
-     * Creates new instance with a given {@link MicrosoftConnection}.
+     * Creates new instance with a given {@link MicrosoftCredential}.
      *
      * @param microsoftCredentials
      *            The connection.
@@ -90,39 +91,34 @@ public class MicrosoftCredentialPortObjectSpec extends AbstractSimplePortObjectS
     }
 
     /**
-     * @return the Microsoft Connection
+     * @return the {@link MicrosoftCredential} of this port.
      */
     public MicrosoftCredential getMicrosoftCredential() {
         return m_credentials;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void save(final ModelContentWO model) {
         m_credentials.saveSettings(model);
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void load(final ModelContentRO model) throws InvalidSettingsException {
         m_credentials = MicrosoftCredential.loadFromSettings(model);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean equals(final Object ospec) {
+        if (ospec == null) {
+            return false;
+        }
+
         if (this == ospec) {
             return true;
         }
 
-        if (!(ospec instanceof MicrosoftCredentialPortObjectSpec)) {
+        if (ospec.getClass() != getClass()) {
             return false;
         }
 
@@ -135,17 +131,11 @@ public class MicrosoftCredentialPortObjectSpec extends AbstractSimplePortObjectS
         return m_credentials.equals(spec.m_credentials);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public int hashCode() {
         return m_credentials == null ? 0 : m_credentials.hashCode();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public JComponent[] getViews() {
         if (m_credentials != null) {

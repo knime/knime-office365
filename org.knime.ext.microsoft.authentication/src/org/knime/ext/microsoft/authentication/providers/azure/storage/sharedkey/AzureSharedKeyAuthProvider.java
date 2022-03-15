@@ -113,7 +113,7 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
 
         m_credentialsName.setEnabled(false);
         m_useCredentials.addChangeListener(e -> {
-            boolean useCreds = m_useCredentials.getBooleanValue();
+            var useCreds = m_useCredentials.getBooleanValue();
             m_account.setEnabled(!useCreds);
             m_secretKey.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
@@ -150,9 +150,6 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
         return m_credentialsName;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
         String account;
@@ -174,17 +171,11 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
         return new AzureSharedKeyCredential(account, m_cacheKey);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
         return new AzureSharedKeyAuthProviderEditor(this, parent);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
         m_account.saveSettingsTo(settings);
@@ -193,9 +184,6 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
         m_credentialsName.saveSettingsTo(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_account.validateSettings(settings);
@@ -203,7 +191,7 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        AzureSharedKeyAuthProvider temp = new AzureSharedKeyAuthProvider("");
+        var temp = new AzureSharedKeyAuthProvider("");
         temp.loadSettingsFrom(settings);
         temp.validate();
     }
@@ -228,9 +216,6 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_account.loadSettingsFrom(settings);
@@ -239,12 +224,8 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
         m_useCredentials.loadSettingsFrom(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void clearMemoryTokenCache() {
         MemoryCredentialCache.remove(m_cacheKey);
     }
-
 }

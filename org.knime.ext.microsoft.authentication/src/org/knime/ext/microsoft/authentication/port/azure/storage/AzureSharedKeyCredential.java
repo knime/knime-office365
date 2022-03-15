@@ -133,19 +133,19 @@ public class AzureSharedKeyCredential extends MicrosoftCredential {
      * @throws InvalidSettingsException
      */
     public static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
-        String account = config.getString(KEY_ACCOUNT);
-        String cacheKey = config.getString(KEY_CACHE_KEY);
+        var account = config.getString(KEY_ACCOUNT);
+        var cacheKey = config.getString(KEY_CACHE_KEY);
         return new AzureSharedKeyCredential(account, cacheKey);
     }
 
     @Override
     public JComponent getView() {
-        JPanel panel = new JPanel();
+        var panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
         panel.add(Box.createHorizontalStrut(20));
 
-        Box labelBox = new Box(BoxLayout.Y_AXIS);
+        var labelBox = new Box(BoxLayout.Y_AXIS);
         labelBox.add(createLabel("Account:"));
         labelBox.add(createLabel("Endpoint:"));
         labelBox.add(Box.createVerticalGlue());
@@ -153,7 +153,7 @@ public class AzureSharedKeyCredential extends MicrosoftCredential {
 
         panel.add(Box.createHorizontalStrut(5));
 
-        Box valueBox = new Box(BoxLayout.Y_AXIS);
+        var valueBox = new Box(BoxLayout.Y_AXIS);
         valueBox.add(createLabel(m_account));
         valueBox.add(createLabel(getEndpoint()));
         valueBox.add(Box.createVerticalGlue());
@@ -165,7 +165,7 @@ public class AzureSharedKeyCredential extends MicrosoftCredential {
     }
 
     private static JLabel createLabel(final String text) {
-        final JLabel label = new JLabel(text);
+        var label = new JLabel(text);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }

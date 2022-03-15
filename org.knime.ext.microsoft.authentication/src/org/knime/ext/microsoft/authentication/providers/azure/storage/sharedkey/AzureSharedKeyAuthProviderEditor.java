@@ -82,7 +82,7 @@ public class AzureSharedKeyAuthProviderEditor implements MicrosoftAuthProviderEd
     private final AzureSharedKeyAuthProvider m_provider;
     private final MicrosoftAuthenticationNodeDialog m_parent;
 
-    private JComponent component;
+    private JComponent m_component;
     private DialogComponentFlowVariableNameSelection2 m_flowVarSelector;
 
     /**
@@ -103,18 +103,18 @@ public class AzureSharedKeyAuthProviderEditor implements MicrosoftAuthProviderEd
     }
 
     private void initUI() {
-        JRadioButton rbEnterCreds = new JRadioButton("Account/Secret Key");
+        var rbEnterCreds = new JRadioButton("Account/Secret Key");
         rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
 
-        JRadioButton rbUseFw = new JRadioButton("Credentials flow variable");
+        var rbUseFw = new JRadioButton("Credentials flow variable");
         rbUseFw.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(true));
 
-        ButtonGroup group = new ButtonGroup();
+        var group = new ButtonGroup();
         group.add(rbEnterCreds);
         group.add(rbUseFw);
 
         m_provider.getUseCredentialsModel().addChangeListener(e -> {
-            boolean useCreds = m_provider.getUseCredentialsModel().getBooleanValue();
+            var useCreds = m_provider.getUseCredentialsModel().getBooleanValue();
             rbEnterCreds.setSelected(!useCreds);
             rbUseFw.setSelected(useCreds);
         });
@@ -123,53 +123,53 @@ public class AzureSharedKeyAuthProviderEditor implements MicrosoftAuthProviderEd
         m_flowVarSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(), "",
                 () -> m_parent.getAvailableFlowVariables(CredentialsType.INSTANCE));
 
-        JPanel enterCredPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        var enterCredPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         enterCredPanel.add(rbEnterCreds);
 
-        JPanel flowVarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        var flowVarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         flowVarPanel.add(rbUseFw);
         flowVarPanel.add(m_flowVarSelector.getComponentPanel());
 
-        component = new JPanel(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.WEST;
-        c.fill = GridBagConstraints.NONE;
-        c.weightx = 0;
-        c.weighty = 0;
-        c.gridx = 0;
-        c.gridy = 0;
-        c.gridwidth = 2;
-        c.insets = new Insets(5, 10, 5, 10);
-        component.add(rbEnterCreds, c);
+        m_component = new JPanel(new GridBagLayout());
+        var gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0;
+        gbc.weighty = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(5, 10, 5, 10);
+        m_component.add(rbEnterCreds, gbc);
 
-        c.gridy += 1;
-        component.add(createAccountSectetPanel(), c);
+        gbc.gridy += 1;
+        m_component.add(createAccountSectetPanel(), gbc);
 
-        c.gridy += 1;
-        c.gridwidth = 1;
-        component.add(rbUseFw, c);
+        gbc.gridy += 1;
+        gbc.gridwidth = 1;
+        m_component.add(rbUseFw, gbc);
 
-        c.gridx = 1;
-        component.add(m_flowVarSelector.getComponentPanel(), c);
+        gbc.gridx = 1;
+        m_component.add(m_flowVarSelector.getComponentPanel(), gbc);
 
-        c.fill = GridBagConstraints.BOTH;
-        c.gridx = 0;
-        c.gridy += 1;
-        c.gridwidth = 2;
-        c.weightx = 1;
-        c.weighty = 1;
-        component.add(Box.createVerticalGlue(), c);
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.gridx = 0;
+        gbc.gridy += 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1;
+        gbc.weighty = 1;
+        m_component.add(Box.createVerticalGlue(), gbc);
     }
 
     private JPanel createAccountSectetPanel() {
-        DialogComponentString accountInput = new DialogComponentString(m_provider.getAccountModel(), "", false, 30);
+        var accountInput = new DialogComponentString(m_provider.getAccountModel(), "", false, 30);
         accountInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
-        DialogComponentPasswordField secretKeyInput = new DialogComponentPasswordField(m_provider.getSecretKeyModel(),
+        var secretKeyInput = new DialogComponentPasswordField(m_provider.getSecretKeyModel(),
                 "", 30);
         secretKeyInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel panel = new JPanel(new GridBagLayout());
-        GridBagConstraints c = new GridBagConstraints();
+        var panel = new JPanel(new GridBagLayout());
+        var c = new GridBagConstraints();
         c.anchor = GridBagConstraints.WEST;
         c.fill = GridBagConstraints.NONE;
         c.weightx = 0;
@@ -196,7 +196,7 @@ public class AzureSharedKeyAuthProviderEditor implements MicrosoftAuthProviderEd
 
     @Override
     public JComponent getComponent() {
-        return component;
+        return m_component;
     }
 
     @Override
@@ -215,13 +215,8 @@ public class AzureSharedKeyAuthProviderEditor implements MicrosoftAuthProviderEd
         // nothing to do
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onClose() {
         // nothing to do
-
     }
-
 }

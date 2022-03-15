@@ -83,13 +83,10 @@ public abstract class MSALAuthProviderEditor<T extends OAuth2Provider> implement
      *            The provider
      *
      */
-    public MSALAuthProviderEditor(final T provider) {
+    protected MSALAuthProviderEditor(final T provider) {
         m_provider = provider;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public JComponent getComponent() {
         if (m_component == null) {
@@ -104,9 +101,6 @@ public abstract class MSALAuthProviderEditor<T extends OAuth2Provider> implement
         m_component.add(createContentPane());
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {

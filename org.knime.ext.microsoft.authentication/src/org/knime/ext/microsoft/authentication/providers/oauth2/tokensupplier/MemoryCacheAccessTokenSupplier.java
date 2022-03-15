@@ -79,10 +79,24 @@ public class MemoryCacheAccessTokenSupplier {
 
     private String m_cacheKey;
 
+    /**
+     * Constructor (used for deserialization only).
+     *
+     * @param endpoint
+     *            The endpoint to use during token refresh.
+     */
     public MemoryCacheAccessTokenSupplier(final String endpoint) {
         this(endpoint, null);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param endpoint
+     *            The endpoint to use during token refresh.
+     * @param cacheKey
+     *            The cache key to use against the in-memory token cache.
+     */
     public MemoryCacheAccessTokenSupplier(final String endpoint, final String cacheKey) {
         m_endpoint = endpoint;
         m_cacheKey = cacheKey;
@@ -96,8 +110,19 @@ public class MemoryCacheAccessTokenSupplier {
         return m_endpoint;
     }
 
+    /**
+     * Retrieves a cached access token from the in-memory cache and refreshes it if
+     * necessary.
+     *
+     * @param scopes
+     *            The OAuth2 scopes to use.
+     * @return The (possibly refreshed) access token.
+     * @throws IOException
+     *             usually if something went wrong while refreshing the access
+     *             token.
+     */
     public final OAuth2AccessToken getAuthenticationResult(final Set<String> scopes) throws IOException {
-        final PublicClientApplication app = createPublicClientApplication();
+        final var app = createPublicClientApplication();
 
         try {
             IAccount account = app.getAccounts().get().iterator().next();
@@ -106,7 +131,7 @@ public class MemoryCacheAccessTokenSupplier {
                     .acquireTokenSilently(SilentParameters.builder(scopes, account).build()).get();
 
             return new OAuth2AccessToken(result.accessToken(), result.expiresOnDate().toInstant());
-        } catch (InterruptedException e) {
+        } catch (InterruptedException e) { // NOSONAR rethrowing as cause of IOE
             throw new IOException("Canceled while acquiring access token", e);
         } catch (ExecutionException ex) {
             throw unwrapIOE(ex);
@@ -124,18 +149,29 @@ public class MemoryCacheAccessTokenSupplier {
         return new IOException("Error during refreshing access token", ex.getCause());
     }
 
-    protected PublicClientApplication createPublicClientApplication() throws IOException {
-        final String tokenCacheString = MemoryCredentialCache.get(m_cacheKey);
+    private PublicClientApplication createPublicClientApplication() throws IOException {
+        final var tokenCacheString = MemoryCredentialCache.get(m_cacheKey);
         if (tokenCacheString == null) {
             throw new IOException("No access token found. Please re-execute the Microsoft Authentication node.");
         }
         return MSALUtil.createClientAppWithToken(m_endpoint, tokenCacheString);
     }
 
+    /**
+     * Saves settings to the given {@link ConfigWO}.
+     *
+     * @param config
+     */
     public void saveSettings(final ConfigWO config) {
         config.addString(KEY_CACHE_KEY, m_cacheKey);
     }
 
+    /**
+     * Loads settings from the given {@link ConfigRO}.
+     *
+     * @param config
+     * @throws InvalidSettingsException
+     */
     public void loadSettings(final ConfigRO config) throws InvalidSettingsException {
         m_cacheKey = config.getString(KEY_CACHE_KEY);
     }

@@ -142,11 +142,11 @@ public class OAuth2Credential extends MicrosoftCredential {
 
     /**
      * @return the OAuth2 authorization endpoint URL
-     * @deprecated Use {@link #getEndpoint()} instead
+     * @deprecated since 4.5.2, use {@link #getEndpoint()} instead
      */
-    @Deprecated
+    @Deprecated(since = "4.5.2")
     public String getAuthority() {
-        return m_endpoint;
+        return getEndpoint();
     }
 
     @Override
@@ -160,13 +160,22 @@ public class OAuth2Credential extends MicrosoftCredential {
         m_tokenSupplier.saveSettings(config.addConfig(KEY_TOKEN));
     }
 
+    /**
+     * Creates a {@link MicrosoftCredential} instance from the give config object.
+     *
+     * @param config
+     *            The {@link ConfigRO} to load from.
+     * @return a new {@link MicrosoftCredential} instance loaded from the give
+     *         config object.
+     * @throws InvalidSettingsException
+     */
     public static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
-        final String username = config.getString(KEY_USERNAME);
-        final String endpoint = config.getString(KEY_ENDPOINT);
+        final var username = config.getString(KEY_USERNAME);
+        final var endpoint = config.getString(KEY_ENDPOINT);
 
-        final Set<String> scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
+        final var scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
 
-        final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(endpoint);
+        final var tokenSupplier = new MemoryCacheAccessTokenSupplier(endpoint);
         tokenSupplier.loadSettings(config.getConfig(KEY_TOKEN));
 
         return new OAuth2Credential(tokenSupplier, username, scopes, endpoint);
@@ -174,12 +183,12 @@ public class OAuth2Credential extends MicrosoftCredential {
 
     @Override
     public JComponent getView() {
-        final JPanel panel = new JPanel();
+        final var panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
 
         panel.add(Box.createHorizontalStrut(20));
 
-        final Box labelBox = new Box(BoxLayout.Y_AXIS);
+        final var labelBox = new Box(BoxLayout.Y_AXIS);
         labelBox.add(createLabel("Username: "));
         labelBox.add(createLabel("OAuth2 Authorization Endpoint: "));
         labelBox.add(createLabel("Scopes: "));
@@ -188,7 +197,7 @@ public class OAuth2Credential extends MicrosoftCredential {
 
         panel.add(Box.createHorizontalStrut(5));
 
-        final Box valueBox = new Box(BoxLayout.Y_AXIS);
+        final var valueBox = new Box(BoxLayout.Y_AXIS);
         valueBox.add(createLabel(m_username));
         valueBox.add(createLabel(m_endpoint));
         valueBox.add(createLabel(String.join(", ", m_scopes.toArray(new String[] {}))));
@@ -202,7 +211,7 @@ public class OAuth2Credential extends MicrosoftCredential {
     }
 
     private static JLabel createLabel(final String text) {
-        final JLabel label = new JLabel(text);
+        final var label = new JLabel(text);
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }

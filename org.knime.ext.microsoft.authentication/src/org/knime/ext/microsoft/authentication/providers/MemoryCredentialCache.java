@@ -62,23 +62,59 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
-public class MemoryCredentialCache {
+public final class MemoryCredentialCache {
 
-    private final static Map<String, String> IN_MEMORY_STORAGE = new HashMap<>();
+    private static final Map<String, String> IN_MEMORY_STORAGE = new HashMap<>();
 
-    public synchronized static void put(final String key, final String tokenCacheString) {
+    private MemoryCredentialCache() {
+    }
+
+    /**
+     * Adds the given token cache string to the JVM global in-memory cache under the
+     * given key.
+     *
+     * @param key
+     *            The key under which to store the token cache string.
+     * @param tokenCacheString
+     *            The token cache string to store.
+     */
+    public static synchronized void put(final String key, final String tokenCacheString) {
         IN_MEMORY_STORAGE.put(key, tokenCacheString);
     }
 
-    public synchronized static boolean containsKey(final String key) {
+    /**
+     * Checks whether there is a token cache string under the given key.
+     *
+     * @param key
+     *            The key to check for.
+     * @return true if there is a token cache string under the given key, false
+     *         otherwise.
+     */
+    public static synchronized boolean containsKey(final String key) {
         return IN_MEMORY_STORAGE.containsKey(key);
     }
 
-    public synchronized static String get(final String key) {
+    /**
+     * Retrieves the token cache string from the JVM global in-memory cache using
+     * the given key.
+     *
+     * @param key
+     *            The key to check for.
+     * @return the token cache string, or null if there is nothing stored under the
+     *         given key.
+     */
+    public static synchronized String get(final String key) {
         return IN_MEMORY_STORAGE.get(key);
     }
 
-    public synchronized static void remove(final String key) {
+    /**
+     * Removes any token cache string stored in the JVM global in-memory cache under
+     * the given key.
+     *
+     * @param key
+     *            The key to check for.
+     */
+    public static synchronized void remove(final String key) {
         IN_MEMORY_STORAGE.remove(key);
     }
 }

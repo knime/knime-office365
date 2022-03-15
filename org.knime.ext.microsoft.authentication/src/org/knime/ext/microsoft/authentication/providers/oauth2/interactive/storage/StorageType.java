@@ -7,8 +7,19 @@ package org.knime.ext.microsoft.authentication.providers.oauth2.interactive.stor
  */
 public enum StorageType {
 
-    MEMORY("Memory (stores token in-memory)"), //
-    FILE("File (stores token in separate file)"), //
+    /**
+     * Stores tokens in an ephemeral in-memory cache.
+     */
+    MEMORY("Memory (stores token in-memory)"),
+
+    /**
+     * Stores tokens persistently in a file.
+     */
+    FILE("File (stores token in separate file)"),
+
+    /**
+     * Stores tokens persistently in node settings.
+     */
     SETTINGS("Node (stores token in node settings)");
 
     private String m_title;

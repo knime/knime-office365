@@ -62,9 +62,6 @@ import com.microsoft.aad.msal4j.OpenBrowserAction;
  */
 public class CustomOpenBrowserAction implements OpenBrowserAction {
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void openBrowser(final URL url) {
         DesktopUtil.browse(url);

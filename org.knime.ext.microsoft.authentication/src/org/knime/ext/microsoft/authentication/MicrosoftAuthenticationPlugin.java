@@ -54,7 +54,7 @@ import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.knime.core.node.NodeLogger;
 import org.osgi.framework.BundleContext;
 
-import com.sun.ws.rs.ext.RuntimeDelegateImpl;
+import com.sun.ws.rs.ext.RuntimeDelegateImpl; // NOSONAR have to use com.sun internal class here due to OSGI issue
 
 /**
  * Plugin activate for the Microsoft Authentication plugin.
@@ -71,7 +71,7 @@ public class MicrosoftAuthenticationPlugin extends AbstractUIPlugin {
      * The constructor.
      */
     public MicrosoftAuthenticationPlugin() {
-        plugin = this;
+        plugin = this; // NOSONAR standard pattern, class is a actually a singleton
     }
 
     /**
@@ -92,9 +92,9 @@ public class MicrosoftAuthenticationPlugin extends AbstractUIPlugin {
             // ServiceLoader
             // and ThreadContextClassLoader), the default initialization might fail.
             if (RuntimeDelegate.getInstance() == null) {
-                throw new RuntimeException("No implementation found");
+                throw new IllegalStateException("No implementation found");
             }
-        } catch (Throwable t) {
+        } catch (Throwable t) { // NOSONAR intentionally broad
             LOG.debug("Failed to initialize the JAX-RS 1.x RuntimeDelegate. Provided error message: " + t.getMessage());
             RuntimeDelegate.setInstance(new RuntimeDelegateImpl());
         }
@@ -110,7 +110,7 @@ public class MicrosoftAuthenticationPlugin extends AbstractUIPlugin {
      */
     @Override
     public void stop(final BundleContext context) throws Exception {
-        plugin = null;
+        plugin = null; // NOSONAR standard pattern, otherwise memory leak
         super.stop(context);
     }
 

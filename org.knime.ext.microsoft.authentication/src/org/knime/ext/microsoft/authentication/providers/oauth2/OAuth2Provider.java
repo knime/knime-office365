@@ -99,9 +99,8 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
 
     /**
      * Creates new instance.
-     *
      */
-    public OAuth2Provider() {
+    protected OAuth2Provider() {
         m_scopes = new SettingsModelStringArray(KEY_SCOPES,
                 new String[] { Scope.SITES_READ_WRITE.getScope() });
         m_blobStorageAccount = new SettingsModelString(KEY_BLOB_STORAGE_ACCOUNT, "");

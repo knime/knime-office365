@@ -67,7 +67,7 @@ import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 
 
 /**
- * Node settings for {@link MicrosoftAuthenticationNodeModel}.
+ * Node settings for the Microsoft Authentication node.
  *
  * @author Alexander Bondaletov
  */
@@ -81,7 +81,11 @@ public class MicrosoftAuthenticationSettings {
     /**
      * Creates new instance.
      *
+     * @param portsConfig
+     *            Port configuration of the node.
      * @param nodeInstanceId
+     *            Instance id of the node (see
+     *            {@link MicrosoftAuthenticationNodeFactory}.
      */
     public MicrosoftAuthenticationSettings(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         m_providerType = new SettingsModelString(KEY_PROVIDER_TYPE, "");
@@ -168,7 +172,7 @@ public class MicrosoftAuthenticationSettings {
 
         AuthProviderType type;
         try {
-            String typeStr = settings.getString(m_providerType.getKey(), "");
+            var typeStr = settings.getString(m_providerType.getKey(), "");
             type = typeStr.isEmpty() ? AuthProviderType.INTERACTIVE : AuthProviderType.valueOf(typeStr);
         } catch (IllegalArgumentException e) {
             throw new InvalidSettingsException(e);

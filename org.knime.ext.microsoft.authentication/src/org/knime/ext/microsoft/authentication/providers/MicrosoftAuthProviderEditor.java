@@ -65,6 +65,9 @@ public interface MicrosoftAuthProviderEditor {
      */
     public JComponent getComponent();
 
+    /**
+     * Hook called when dialog is opened.
+     */
     public void onShown();
 
     /**

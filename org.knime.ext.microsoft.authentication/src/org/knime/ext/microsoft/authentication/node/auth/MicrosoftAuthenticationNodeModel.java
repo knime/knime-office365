@@ -79,9 +79,9 @@ import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage.Mess
  *
  * @author Alexander Bondaletov
  */
-public class MicrosoftAuthenticationNodeModel extends NodeModel {
+class MicrosoftAuthenticationNodeModel extends NodeModel {
 
-    private static final Consumer<StatusMessage> NOOP_STATUS_CONSUMER = (s) -> {
+    private static final Consumer<StatusMessage> NOOP_STATUS_CONSUMER = s -> {
     };
 
     private final MicrosoftAuthenticationSettings m_settings;
@@ -103,7 +103,7 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
 
-        boolean fileStorageSelected = false;
+        var fileStorageSelected = false;
         if (m_settings.getProviderType() == AuthProviderType.INTERACTIVE) {
             final InteractiveAuthProvider provider = (InteractiveAuthProvider) m_settings.getCurrentProvider();
             if (provider.getStorageSettings().getStorageType() == StorageType.FILE) {
@@ -141,7 +141,7 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
 
-        final String needResetAndRexecuteMsg = "Credentials not available anymore. Please re-execute this node.";
+        final var needResetAndRexecuteMsg = "Credentials not available anymore. Please re-execute this node.";
 
         if (m_settings.getProviderType() == AuthProviderType.INTERACTIVE) {
             final InteractiveAuthProvider provider = (InteractiveAuthProvider) m_settings.getCurrentProvider();
@@ -186,7 +186,7 @@ public class MicrosoftAuthenticationNodeModel extends NodeModel {
 
     @Override
     protected void reset() {
-
+        // nothing needs to be done
     }
 
     @Override

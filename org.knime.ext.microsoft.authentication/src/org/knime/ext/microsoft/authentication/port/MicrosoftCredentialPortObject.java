@@ -48,6 +48,8 @@
  */
 package org.knime.ext.microsoft.authentication.port;
 
+import java.util.Objects;
+
 import javax.swing.JComponent;
 
 import org.knime.core.node.CanceledExecutionException;
@@ -66,8 +68,8 @@ import org.knime.core.node.port.PortTypeRegistry;
  * @author Alexander Bondaletov
  */
 public class MicrosoftCredentialPortObject extends AbstractSimplePortObject {
+
     /**
-     *
      * Serializer class
      */
     public static final class Serializer extends AbstractSimplePortObjectSerializer<MicrosoftCredentialPortObject> {
@@ -106,45 +108,56 @@ public class MicrosoftCredentialPortObject extends AbstractSimplePortObject {
         return m_spec.getMicrosoftCredential();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getSummary() {
         return getMicrosoftCredentials().getSummary();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public PortObjectSpec getSpec() {
         return m_spec;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void save(final ModelContentWO model, final ExecutionMonitor exec) throws CanceledExecutionException {
         // nothing to do
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void load(final ModelContentRO model, final PortObjectSpec spec, final ExecutionMonitor exec)
             throws InvalidSettingsException, CanceledExecutionException {
         m_spec = (MicrosoftCredentialPortObjectSpec) spec;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public JComponent[] getViews() {
         return m_spec.getViews();
+    }
+
+    @Override
+    public int hashCode() {
+        final var prime = 31;
+        var result = super.hashCode();
+        result = prime * result + Objects.hash(m_spec);
+        return result;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj == null) {
+            return false;
+        }
+
+        if (this == obj) {
+            return true;
+        }
+
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+
+        final var other = (MicrosoftCredentialPortObject) obj;
+        return Objects.equals(m_spec, other.m_spec);
     }
 }

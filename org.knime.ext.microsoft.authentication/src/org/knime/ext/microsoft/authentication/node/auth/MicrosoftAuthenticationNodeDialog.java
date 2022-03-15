@@ -50,7 +50,7 @@ package org.knime.ext.microsoft.authentication.node.auth;
 
 import java.awt.CardLayout;
 import java.awt.FlowLayout;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.Map;
 
 import javax.swing.Box;
@@ -70,7 +70,6 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.AuthorizationEndpointEditComponent;
-
 
 
 /**
@@ -95,11 +94,11 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
      *
      * @param nodeInstanceId
      */
-    public MicrosoftAuthenticationNodeDialog(final PortsConfiguration portsConfig, final String nodeInstanceId) {
+    MicrosoftAuthenticationNodeDialog(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         super();
         m_settings = new MicrosoftAuthenticationSettings(portsConfig, nodeInstanceId);
 
-        Box box = new Box(BoxLayout.PAGE_AXIS);
+        var box = new Box(BoxLayout.PAGE_AXIS);
         box.add(createProviderCombo());
         box.add(createEditorPanel());
 
@@ -124,7 +123,7 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
             m_editors.get(newProvider).onShown();
         });
 
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        var panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panel.add(new JLabel("Authentication mode:"));
         panel.add(m_providerCombo);
 
@@ -132,8 +131,8 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
     }
 
     private JPanel createEditorPanel() {
-        JPanel cards = new JPanel(new CardLayout());
-        m_editors = new HashMap<>();
+        var cards = new JPanel(new CardLayout());
+        m_editors = new EnumMap<>(AuthProviderType.class);
 
         for (AuthProviderType type : AuthProviderType.values()) {
             MicrosoftAuthProviderEditor editor = m_settings.getProvider(type).createEditor(this);
@@ -141,9 +140,8 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
             cards.add(editor.getComponent(), type.name());
         }
 
-        m_settings.getProviderTypeModel().addChangeListener(e -> {
-            ((CardLayout) cards.getLayout()).show(cards, m_settings.getProviderType().name());
-        });
+        m_settings.getProviderTypeModel().addChangeListener(
+                e -> ((CardLayout) cards.getLayout()).show(cards, m_settings.getProviderType().name()));
 
         return cards;
     }
@@ -166,7 +164,7 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
 
         try {
             m_settings.loadSettingsFrom(settings);
-        } catch (InvalidSettingsException ex) {
+        } catch (InvalidSettingsException ex) { // NOSONAR intentionally ignoring
         }
 
         for (MicrosoftAuthProviderEditor editor : m_editors.values()) {

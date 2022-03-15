@@ -51,11 +51,11 @@ package org.knime.ext.microsoft.authentication.providers;
 import java.util.function.BiFunction;
 
 import org.knime.core.node.context.ports.PortsConfiguration;
+import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory;
 import org.knime.ext.microsoft.authentication.providers.azure.storage.sas.AzureStorageSasTokenAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.azure.storage.sharedkey.AzureSharedKeyAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.UsernamePasswordAuthProvider;
-
 
 
 /**
@@ -101,12 +101,14 @@ public enum AuthProviderType {
     /**
      * Creates {@link MicrosoftAuthProvider} instance of a current type.
      *
+     * @param portsConfig
+     *            Port configuration of the node.
      * @param nodeInstanceId
-     *
+     *            Instance id of the node (see
+     *            {@link MicrosoftAuthenticationNodeFactory}.
      * @return {@link MicrosoftAuthProvider} instance.
      */
     public MicrosoftAuthProvider createProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         return m_createProvider.apply(portsConfig, nodeInstanceId);
     }
-
 }

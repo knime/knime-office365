@@ -83,8 +83,8 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
 
     private MicrosoftAuthenticationNodeDialog m_parent;
 
-    private JRadioButton rbEnterCreds;
-    private JRadioButton rbUseFw;
+    private JRadioButton m_rbEnterCreds;
+    private JRadioButton m_rbUseFw;
     private DialogComponentFlowVariableNameSelection2 m_flowVarSelector;
 
     /**
@@ -108,24 +108,24 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
 
     @Override
     protected JComponent createContentPane() {
-        rbEnterCreds = new JRadioButton("Username/Password");
-        rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
+        m_rbEnterCreds = new JRadioButton("Username/Password");
+        m_rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
 
-        rbUseFw = new JRadioButton("Credentials flow variable");
-        rbUseFw.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(true));
+        m_rbUseFw = new JRadioButton("Credentials flow variable");
+        m_rbUseFw.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(true));
 
-        ButtonGroup group = new ButtonGroup();
-        group.add(rbEnterCreds);
-        group.add(rbUseFw);
+        var group = new ButtonGroup();
+        group.add(m_rbEnterCreds);
+        group.add(m_rbUseFw);
 
-        JPanel enterCredPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        enterCredPanel.add(rbEnterCreds);
+        var enterCredPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        enterCredPanel.add(m_rbEnterCreds);
 
-        JPanel flowVarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        flowVarPanel.add(rbUseFw);
+        var flowVarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        flowVarPanel.add(m_rbUseFw);
         flowVarPanel.add(m_flowVarSelector.getComponentPanel());
 
-        Box box = new Box(BoxLayout.PAGE_AXIS);
+        var box = new Box(BoxLayout.PAGE_AXIS);
         box.add(enterCredPanel);
         box.add(createUsernamePasswordPanel());
         box.add(flowVarPanel);
@@ -138,33 +138,34 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
     }
 
     private JPanel createUsernamePasswordPanel() {
-        DialogComponentString usernameInput = new DialogComponentString(m_provider.getUsernameModel(), "", false, 30);
+        var usernameInput = new DialogComponentString(m_provider.getUsernameModel(), "", false, 30);
         usernameInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
-        DialogComponentPasswordField passwordInput = new DialogComponentPasswordField(m_provider.getPasswordModel(), "",
+
+        var passwordInput = new DialogComponentPasswordField(m_provider.getPasswordModel(), "",
                 30);
         passwordInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        final JPanel panel = new JPanel(new GridBagLayout());
-        final GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.WEST;
-        c.fill = GridBagConstraints.NONE;
-        c.weightx = 0;
-        c.weighty = 0;
-        c.gridx = 0;
-        c.gridy = 0;
-        panel.add(new JLabel("Username: "), c);
+        final var panel = new JPanel(new GridBagLayout());
+        final var gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0;
+        gbc.weighty = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(new JLabel("Username: "), gbc);
 
-        c.gridy = 1;
-        panel.add(new JLabel("Password: "), c);
+        gbc.gridy = 1;
+        panel.add(new JLabel("Password: "), gbc);
 
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.weightx = 1;
-        c.gridx = 1;
-        c.gridy = 0;
-        panel.add(usernameInput.getComponentPanel(), c);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        panel.add(usernameInput.getComponentPanel(), gbc);
 
-        c.gridy = 1;
-        panel.add(passwordInput.getComponentPanel(), c);
+        gbc.gridy = 1;
+        panel.add(passwordInput.getComponentPanel(), gbc);
 
         panel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
         return panel;
@@ -179,26 +180,19 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
     @Override
     public void onShown() {
         if (!m_provider.getUseCredentialsModel().getBooleanValue()) {
-            rbEnterCreds.setSelected(true);
+            m_rbEnterCreds.setSelected(true);
         } else {
-            rbUseFw.setSelected(true);
+            m_rbUseFw.setSelected(true);
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onCancel() {
         // Do nothing
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onClose() {
         // nothing to do
-
     }
 }

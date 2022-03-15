@@ -119,7 +119,7 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
 
         m_credentialsName.setEnabled(false);
         m_useCredentials.addChangeListener(e -> {
-            boolean useCreds = m_useCredentials.getBooleanValue();
+            var useCreds = m_useCredentials.getBooleanValue();
             m_username.setEnabled(!useCreds);
             m_password.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
@@ -185,7 +185,7 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
 
             MemoryCredentialCache.put(m_cacheKey, app.tokenCache().serialize());
 
-            final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(getEndpoint(),
+            final var tokenSupplier = new MemoryCacheAccessTokenSupplier(getEndpoint(),
                     m_cacheKey);
 
             return new OAuth2Credential(tokenSupplier, //
@@ -226,7 +226,7 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        UsernamePasswordAuthProvider temp = new UsernamePasswordAuthProvider("");
+        var temp = new UsernamePasswordAuthProvider("");
         temp.loadSettingsFrom(settings);
         temp.validate();
     }

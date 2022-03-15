@@ -121,7 +121,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
 
     @Override
     protected JComponent createContentPane() {
-        Box box = new Box(BoxLayout.PAGE_AXIS);
+        var box = new Box(BoxLayout.PAGE_AXIS);
         box.add(createButtonsPanel());
         box.add(Box.createVerticalStrut(10));
 
@@ -146,7 +146,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         m_statusLabel = new JLabel();
         m_statusLabel.setMinimumSize(new Dimension(700, 0));
 
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        var panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panel.add(m_loginBtn);
         panel.add(m_cancelBtn);
         panel.add(m_statusLabel);
@@ -178,13 +178,13 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         return null;
     }
 
-    private void updateLoggingIn() {
+    private void updateLoggingIn() { // NOSONAR keeping this method here
         m_loginBtn.setVisible(false);
         m_cancelBtn.setVisible(true);
         m_statusLabel.setText("Logging in...");
     }
 
-    private void updateGettingLoginStatus() {
+    private void updateGettingLoginStatus() { // NOSONAR keeping this method here
         m_loginBtn.setVisible(false);
         m_cancelBtn.setVisible(true);
         m_statusLabel.setText("Getting login status...");
@@ -214,7 +214,7 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
     private static String formatException(final Throwable error) {
         String message = null;
 
-        MsalException msalEx = extractMsalException(error);
+        var msalEx = extractMsalException(error);
         if (msalEx != null) {
             message = msalEx.getMessage();
         }
@@ -249,9 +249,9 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         @Override
         protected void doneWithContext() {
             try {
-                final LoginStatus loginStatus = get();
+                final var loginStatus = get();
                 updateLoginStatus(loginStatus, null);
-            } catch (InterruptedException | CancellationException ex) {
+            } catch (InterruptedException | CancellationException ex) { // NOSONAR intentionally ignoring
                 updateLoginStatus(LoginStatus.NOT_LOGGED_IN, null);
             } catch (ExecutionException ex) {
                 updateLoginStatus(LoginStatus.NOT_LOGGED_IN, ex.getCause());
@@ -275,11 +275,11 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         @Override
         protected void doneWithContext() {
             try {
-                final LoginStatus loginStatus = get();
+                final var loginStatus = get();
                 updateLoginStatus(loginStatus, null);
-            } catch (CancellationException ex) {
+            } catch (CancellationException ex) { // NOSONAR ignored on purpose
                 // do nothing
-            } catch (InterruptedException ex) {
+            } catch (InterruptedException ex) { // NOSONAR ignored on purpose
                 updateLoginStatus(LoginStatus.NOT_LOGGED_IN, null);
             } catch (ExecutionException ex) {
                 updateLoginStatus(LoginStatus.NOT_LOGGED_IN, ex.getCause());

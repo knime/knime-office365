@@ -84,9 +84,9 @@ public class ScopesEditComponent extends JPanel {
 
     private static final long serialVersionUID = 1L;
 
-    private final SettingsModelStringArray m_scopes;
-    private final SettingsModelString m_blobStorageAccount;
-    private final SettingsModelString m_manualScopes;
+    private final SettingsModelStringArray m_scopes; // NOSONAR not intended for serialization
+    private final SettingsModelString m_blobStorageAccount; // NOSONAR not intended for serialization
+    private final SettingsModelString m_manualScopes; // NOSONAR not intended for serialization
 
     private JLabel m_blobStorageAccountLabel;
     private Map<Scope, JCheckBox> m_checkboxes;
@@ -115,7 +115,7 @@ public class ScopesEditComponent extends JPanel {
 
     private void initUI() {
         m_blobStorageAccountLabel = new JLabel("Storage account:");
-        final DialogComponentString blobStorageAcc = new DialogComponentString(m_blobStorageAccount, "");
+        final var blobStorageAcc = new DialogComponentString(m_blobStorageAccount, "");
         blobStorageAcc.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
         blobStorageAcc.getComponentPanel().setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
 
@@ -126,42 +126,42 @@ public class ScopesEditComponent extends JPanel {
 
         setLayout(new GridBagLayout());
 
-        GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.weightx = 0.5;
-        c.gridwidth = 2;
-        c.gridx = 0;
-        c.gridy = 0;
+        var gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.5;
+        gbc.gridwidth = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
 
         for (Scope scope : Scope.values()) {
-            add(createCheckbox(scope), c);
-            c.gridy += 1;
+            add(createCheckbox(scope), gbc);
+            gbc.gridy += 1;
 
             if (scope == AZURE_BLOB_STORAGE) {
-                c.weightx = 0;
-                c.gridwidth = 1;
-                c.insets = new Insets(0, 20, 0, 5);
-                add(m_blobStorageAccountLabel, c);
+                gbc.weightx = 0;
+                gbc.gridwidth = 1;
+                gbc.insets = new Insets(0, 20, 0, 5);
+                add(m_blobStorageAccountLabel, gbc);
 
-                c.insets = new Insets(0, 15, 0, 5);
-                c.gridx = 1;
-                c.weightx = 0.5;
-                c.insets = new Insets(0, 0, 0, 0);
-                add(blobStorageAcc.getComponentPanel(), c);
+                gbc.insets = new Insets(0, 15, 0, 5);
+                gbc.gridx = 1;
+                gbc.weightx = 0.5;
+                gbc.insets = new Insets(0, 0, 0, 0);
+                add(blobStorageAcc.getComponentPanel(), gbc);
 
-                c.gridx = 0;
-                c.gridwidth = 2;
-                c.gridy += 1;
+                gbc.gridx = 0;
+                gbc.gridwidth = 2;
+                gbc.gridy += 1;
             } else if (scope == OTHERS) {
-                c.gridwidth = 2;
-                c.insets = new Insets(0, 20, 0, 5);
-                c.weightx = 0.5;
-                c.insets = new Insets(0, 0, 0, 0);
-                add(otherScopes.getComponentPanel(), c);
+                gbc.gridwidth = 2;
+                gbc.insets = new Insets(0, 20, 0, 5);
+                gbc.weightx = 0.5;
+                gbc.insets = new Insets(0, 0, 0, 0);
+                add(otherScopes.getComponentPanel(), gbc);
 
-                c.gridx = 0;
-                c.gridwidth = 2;
-                c.gridy += 1;
+                gbc.gridx = 0;
+                gbc.gridwidth = 2;
+                gbc.gridy += 1;
             }
         }
 
@@ -169,10 +169,8 @@ public class ScopesEditComponent extends JPanel {
     }
 
     private JCheckBox createCheckbox(final Scope scope) {
-        JCheckBox cb = new JCheckBox(scope.getTitle());
-        cb.addActionListener(e -> {
-            onSelected(scope, cb.isSelected());
-        });
+        var cb = new JCheckBox(scope.getTitle());
+        cb.addActionListener(e -> onSelected(scope, cb.isSelected()));
         m_checkboxes.put(scope, cb);
         return cb;
     }

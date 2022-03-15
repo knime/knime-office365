@@ -59,7 +59,6 @@ import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
-import org.knime.core.node.FlowVariableModel;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NotConfigurableException;
@@ -67,7 +66,6 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.filehandling.core.data.location.variable.FSLocationVariableType;
 import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.DialogComponentWriterFileChooser;
-import org.knime.filehandling.core.defaultnodesettings.filechooser.writer.SettingsModelWriterFileChooser;
 
 /**
  * Dialog panel that allows the user to choose between the different ways of
@@ -79,9 +77,9 @@ public class StorageEditor extends JPanel {
 
     private static final long serialVersionUID = 1L;
 
-    private final StorageSettings m_settings;
+    private final StorageSettings m_settings;// NOSONAR not intended for serialization
 
-    private final DialogComponentWriterFileChooser m_fileChooser;
+    private final DialogComponentWriterFileChooser m_fileChooser;// NOSONAR not intended for serialization
 
     private final JRadioButton m_rbMemory;
     private final JRadioButton m_rbFile;
@@ -89,7 +87,7 @@ public class StorageEditor extends JPanel {
     private final JButton m_clearCurrent;
     private final JButton m_clearAll;
 
-    private final LoginStatusEventHandler m_loginStatusEventHandler;
+    private final LoginStatusEventHandler m_loginStatusEventHandler;// NOSONAR not intended for serialization
 
     /**
      * Constructor.
@@ -109,19 +107,19 @@ public class StorageEditor extends JPanel {
         m_rbSettings = createRadioBtn(StorageType.SETTINGS);
 
         m_clearCurrent = new JButton("Clear selected");
-        m_clearCurrent.addActionListener((e) -> onClearCurrent());
+        m_clearCurrent.addActionListener(e -> onClearCurrent());
 
         m_clearAll = new JButton("Clear all");
-        m_clearAll.addActionListener((e) -> clearAll());
+        m_clearAll.addActionListener(e -> clearAll());
 
-        ButtonGroup group = new ButtonGroup();
+        var group = new ButtonGroup();
         group.add(m_rbMemory);
         group.add(m_rbFile);
         group.add(m_rbSettings);
 
-        final SettingsModelWriterFileChooser fileModel = m_settings.getFileStorage().getFileModel();
+        final var fileModel = m_settings.getFileStorage().getFileModel();
         fileModel.addChangeListener(e -> m_loginStatusEventHandler.run());
-        final FlowVariableModel fvm = nodeDialog //
+        final var fvm = nodeDialog //
                 .createFlowVariableModel(fileModel.getKeysForFSLocation(), //
                         FSLocationVariableType.INSTANCE);
         m_fileChooser = new DialogComponentWriterFileChooser(fileModel, "microsoft_auth_token_cache_file", fvm);
@@ -132,33 +130,33 @@ public class StorageEditor extends JPanel {
     }
 
     private void initLayout() {
-        GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.weightx = 0.5;
-        c.gridx = 0;
-        c.gridy = 0;
+        var gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 0.5;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
 
-        add(m_rbMemory, c);
+        add(m_rbMemory, gbc);
 
-        c.gridy += 1;
-        add(m_rbFile, c);
+        gbc.gridy += 1;
+        add(m_rbFile, gbc);
 
-        c.gridy += 1;
-        c.insets = new Insets(5, 20, 5, 5);
-        add(m_fileChooser.getComponentPanel(), c);
+        gbc.gridy += 1;
+        gbc.insets = new Insets(5, 20, 5, 5);
+        add(m_fileChooser.getComponentPanel(), gbc);
 
-        c.gridy += 1;
-        c.insets = new Insets(0, 0, 0, 0);
-        add(m_rbSettings, c);
+        gbc.gridy += 1;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        add(m_rbSettings, gbc);
 
-        c.gridy += 1;
-        c.insets = new Insets(15, 0, 0, 0);
-        final Box buttonBox = Box.createHorizontalBox();
+        gbc.gridy += 1;
+        gbc.insets = new Insets(15, 0, 0, 0);
+        final var buttonBox = Box.createHorizontalBox();
         buttonBox.add(m_clearCurrent);
         buttonBox.add(Box.createHorizontalStrut(5));
         buttonBox.add(m_clearAll);
         buttonBox.add(Box.createHorizontalGlue());
-        add(buttonBox, c);
+        add(buttonBox, gbc);
 
         setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Token storage"));
     }
@@ -206,7 +204,7 @@ public class StorageEditor extends JPanel {
     }
 
     private JRadioButton createRadioBtn(final StorageType location) {
-        JRadioButton rb = new JRadioButton(location.getTitle());
+        var rb = new JRadioButton(location.getTitle());
         rb.setSelected(m_settings.getStorageType() == location);
         rb.addActionListener(e -> {
             m_settings.setStorageType(location);
@@ -215,6 +213,9 @@ public class StorageEditor extends JPanel {
         return rb;
     }
 
+    /**
+     * To be invoked just before the dialog or this storage editor is being shown.
+     */
     public void onShown() {
         switch (m_settings.getStorageType()) {
         case MEMORY:
@@ -229,6 +230,13 @@ public class StorageEditor extends JPanel {
         }
     }
 
+    /**
+     * Load storage editor settings in the node dialog.
+     *
+     * @param settings
+     * @param specs
+     * @throws NotConfigurableException
+     */
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
         m_fileChooser.loadSettingsFrom(settings, specs);

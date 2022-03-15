@@ -111,7 +111,7 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
 
         m_credentialsName.setEnabled(false);
         m_useCredentials.addChangeListener(e -> {
-            boolean useCreds = m_useCredentials.getBooleanValue();
+            var useCreds = m_useCredentials.getBooleanValue();
             m_sasUrl.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
         });
@@ -140,9 +140,6 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
         return m_credentialsName;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
         String sasUrl;
@@ -161,17 +158,11 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
         return new AzureSasTokenCredential(m_cacheKey);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
         return new AzureStorageSasTokenAuthProviderEditor(this, parent);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void saveSettingsTo(final NodeSettingsWO settings) {
         m_sasUrl.saveSettingsTo(settings);
@@ -179,16 +170,13 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
         m_credentialsName.saveSettingsTo(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_sasUrl.validateSettings(settings);
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        AzureStorageSasTokenAuthProvider temp = new AzureStorageSasTokenAuthProvider("");
+        var temp = new AzureStorageSasTokenAuthProvider("");
         temp.loadSettingsFrom(settings);
         temp.validate();
     }
@@ -205,7 +193,7 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
             }
 
             try {
-                URL url = new URL(m_sasUrl.getStringValue());
+                var url = new URL(m_sasUrl.getStringValue());
 
                 if (!url.getProtocol().equals("https")) {
                     throw new InvalidSettingsException(
@@ -226,9 +214,6 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         m_sasUrl.loadSettingsFrom(settings);
@@ -236,12 +221,8 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
         m_useCredentials.loadSettingsFrom(settings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void clearMemoryTokenCache() {
         MemoryCredentialCache.remove(m_cacheKey);
     }
-
 }

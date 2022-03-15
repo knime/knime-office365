@@ -140,7 +140,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
 
     @Override
     public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
-        final LoginStatus loginStatus = m_storageSettings.getLoginStatus();
+        final var loginStatus = m_storageSettings.getLoginStatus();
 
         if (loginStatus == LoginStatus.NOT_LOGGED_IN) {
             throw new IOException("Access token not available anymore. Please login in the node dialog again.");
@@ -171,7 +171,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
 
     @Override
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        InteractiveAuthProvider temp = new InteractiveAuthProvider(m_portsConfig, "");
+        var temp = new InteractiveAuthProvider(m_portsConfig, "");
         temp.loadSettingsFrom(settings);
         temp.validate();
     }

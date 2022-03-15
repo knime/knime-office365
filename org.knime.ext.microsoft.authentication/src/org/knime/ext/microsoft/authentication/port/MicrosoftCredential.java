@@ -60,7 +60,7 @@ import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 /**
  * Abstract superclass for classes that provide access to credentials for
  * services in Microsoft Office 365/Azure.
- * 
+ *
  * @author Bjoern Lohrmann, KNIME GmbH
  */
 public abstract class MicrosoftCredential {
@@ -95,7 +95,7 @@ public abstract class MicrosoftCredential {
      * @param type
      *            The type of the credential.
      */
-    public MicrosoftCredential(final Type type) {
+    protected MicrosoftCredential(final Type type) {
         m_type = type;
     }
 
@@ -124,7 +124,7 @@ public abstract class MicrosoftCredential {
      * @throws InvalidSettingsException
      */
     static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
-        final Type type = Type.valueOf(config.getString(KEY_TYPE, Type.OAUTH2_ACCESS_TOKEN.name()));
+        final var type = Type.valueOf(config.getString(KEY_TYPE, Type.OAUTH2_ACCESS_TOKEN.name()));
 
         switch (type) {
         case OAUTH2_ACCESS_TOKEN:
