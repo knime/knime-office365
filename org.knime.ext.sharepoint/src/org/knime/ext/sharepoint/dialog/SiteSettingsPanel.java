@@ -54,7 +54,6 @@ import java.awt.CardLayout;
 import java.awt.FlowLayout;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -210,14 +209,7 @@ public class SiteSettingsPanel extends JPanel {
 
             @Override
             public List<IdComboboxItem> fetchItems() throws Exception {
-                m_errorLabel.clearStatus();
-                try {
-                    return fetchGroups();
-                } catch (Exception e) { // NOSONAR we want to catch all exceptions
-                    LOGGER.debug("An error occured while fetching the groups", e);
-                    setErrorMessage(e);
-                    return Collections.emptyList();
-                }
+                return fetchGroups();
             }
         };
 
@@ -235,15 +227,7 @@ public class SiteSettingsPanel extends JPanel {
 
             @Override
             public List<IdComboboxItem> fetchItems() throws Exception {
-                m_errorLabel.clearStatus();
-                try {
-                    return fetchSubsites();
-                } catch (Exception e) { // NOSONAR we want to catch all exceptions
-                    LOGGER.debug("An error occured while fetching the subsites", e);
-                    setErrorMessage(e);
-                    return Collections.emptyList();
-                }
-
+                return fetchSubsites();
             }
         };
 
@@ -318,7 +302,7 @@ public class SiteSettingsPanel extends JPanel {
      * Clears the status when opening the dialog.
      */
     public void onOpen() {
-        m_errorLabel.clearStatus();
+        clearStatusMessage();
     }
 
 }

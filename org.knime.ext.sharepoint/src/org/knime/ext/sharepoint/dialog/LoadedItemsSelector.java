@@ -54,6 +54,7 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -106,6 +107,15 @@ public abstract class LoadedItemsSelector extends JPanel {
 
     private boolean m_ignoreListeners = false;
 
+    private final boolean m_isEditable;
+
+    // Pattern for editable LoadedItemSelectors for which we save the settings in
+    // the form of <displayName> (<internalName>) like the Sharepoint list
+    private static final Pattern INTERNAL_NAME_PATTERN = Pattern.compile(".*\\(([^)]+)\\)");
+
+    // Matches everything until the last "(" to get the display name
+    private static final Pattern DISPLAY_NAME_PATTERN = Pattern.compile("(.*(?=\\())");
+
     /**
      * @param idModel
      *            Settings model holding id value.
@@ -119,14 +129,34 @@ public abstract class LoadedItemsSelector extends JPanel {
      */
     protected LoadedItemsSelector(final SettingsModelString idModel, final SettingsModelString titleModel,
             final String caption, final SettingsModelBoolean checkedModel) {
+        this(idModel, titleModel, caption, checkedModel, false);
+    }
+
+    /**
+     * @param idModel
+     *            Settings model holding id value.
+     * @param titleModel
+     *            Settings model holding title value.
+     * @param caption
+     *            The caption label
+     * @param checkedModel
+     *            Optional settings model holding "checked" value.
+     * @param isEditable
+     *            flag whether the dropdown is editable or not
+     *
+     */
+    protected LoadedItemsSelector(final SettingsModelString idModel, final SettingsModelString titleModel,
+            final String caption, final SettingsModelBoolean checkedModel, final boolean isEditable) {
         m_idModel = idModel;
         m_titleModel = titleModel;
         m_checkedModel = checkedModel;
+        m_isEditable = isEditable;
 
         m_comboModel = new DefaultComboBoxModel<>(new IdComboboxItem[] {});
         m_combobox = new JComboBox<>(m_comboModel);
         m_combobox.addActionListener(e -> onSelectionChanged());
         m_combobox.setRenderer(new IdComboboxCellRenderer());
+        m_combobox.setEditable(m_isEditable);
 
         m_fetchBtn = new JButton("Refresh");
         m_fetchBtn.addActionListener(e -> onFetch());
@@ -215,17 +245,23 @@ public abstract class LoadedItemsSelector extends JPanel {
 
         var id = "";
         var title = "";
-        IdComboboxItem selected = (IdComboboxItem) m_comboModel.getSelectedItem();
-        if (selected != null) {
+
+        final var selectedItem = m_comboModel.getSelectedItem();
+
+        if (selectedItem instanceof IdComboboxItem) {
+            final var selected = (IdComboboxItem) selectedItem;
             id = selected.getId();
             title = selected.getTitle();
+        } else if (m_comboModel.getSelectedItem() != null) {
+            title = selectedItem.toString();
         }
 
         m_idModel.setStringValue(id);
         m_titleModel.setStringValue(title);
     }
 
-    private final class LoadedItemSelectorSwingWorker extends SwingWorkerWithContext<List<IdComboboxItem>, Void> {
+    private class LoadedItemSelectorSwingWorker extends SwingWorkerWithContext<List<IdComboboxItem>, Void> {
+
         @Override
         protected List<IdComboboxItem> doInBackgroundWithContext() throws Exception {
             return fetchItems();
@@ -265,13 +301,12 @@ public abstract class LoadedItemsSelector extends JPanel {
             JOptionPane.showMessageDialog(getRootPane(), message, "Error", JOptionPane.ERROR_MESSAGE);
         }
 
-        private void onItemsLoaded(final List<IdComboboxItem> comboBoxItems) {
+        protected void onItemsLoaded(final List<IdComboboxItem> comboBoxItems) {
             m_ignoreListeners = true;
             final var selectedItem = m_comboModel.getSelectedItem();
+
             m_comboModel.removeAllElements();
-            for (IdComboboxItem s : comboBoxItems) {
-                m_comboModel.addElement(s);
-            }
+            m_comboModel.addAll(comboBoxItems);
 
             m_comboModel.setSelectedItem(selectedItem);
 
@@ -284,12 +319,75 @@ public abstract class LoadedItemsSelector extends JPanel {
                 m_combobox.setSelectedIndex(0);
             }
 
-            m_warningLabel.setVisible(!comboBoxItems.isEmpty() && comboBoxItems.get(0).getId().equals(comboBoxItems.get(0).getTitle()));
+            m_warningLabel.setVisible(
+                    !comboBoxItems.isEmpty() && comboBoxItems.get(0).getId().equals(comboBoxItems.get(0).getTitle()));
+        }
+    }
+
+    /**
+     * Subclass of the {@link LoadedItemSelectorSwingWorker} to separate the logic
+     * of the onItemsLoaded method in case the dropdown is editable.
+     *
+     */
+    private final class EditableLoadedItemSelectorSwingWorker extends LoadedItemSelectorSwingWorker {
+
+        @Override
+        protected void onItemsLoaded(final List<IdComboboxItem> comboBoxItems) {
+            m_ignoreListeners = true;
+            final var selectedItem = (IdComboboxItem) m_comboModel.getSelectedItem();
+
+            m_comboModel.removeAllElements();
+            m_comboModel.addAll(comboBoxItems);
+
+            if (selectedItem != null) {
+                if (!selectedItem.getId().isEmpty()) {
+                    m_comboModel.setSelectedItem(selectedItem);
+                } else {
+                    var found = findItem(comboBoxItems, selectedItem);
+                    if (!found) {
+                        m_comboModel.addElement(selectedItem);
+                        m_comboModel.setSelectedItem(selectedItem);
+                    }
+                }
+            }
+
+            updateComboFromSettings(true);
+            m_ignoreListeners = false;
+
+            onSelectionChanged();
+            // In case we only have 1 element we will choose this
+            if (comboBoxItems.size() == 1) {
+                m_combobox.setSelectedIndex(0);
+            }
+
+            m_warningLabel.setVisible(
+                    !comboBoxItems.isEmpty() && comboBoxItems.get(0).getId().equals(comboBoxItems.get(0).getTitle()));
+        }
+
+        private boolean findItem(final List<IdComboboxItem> comboBoxItems, final IdComboboxItem item) {
+            for (final var i : comboBoxItems) {
+                if (getDisplayName(i.getTitle()).equals(item.getTitle())) {
+                    m_comboModel.setSelectedItem(i);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private String getDisplayName(final String title) {
+            if (INTERNAL_NAME_PATTERN.matcher(title).matches()) {
+                final var m = DISPLAY_NAME_PATTERN.matcher(title);
+                if (m.find()) {
+                    return m.group(1).trim();
+                }
+            }
+            return "";
         }
     }
 
     private void onFetch() {
-        m_fetchWorker = new LoadedItemSelectorSwingWorker();
+        m_fetchWorker = m_isEditable ? new EditableLoadedItemSelectorSwingWorker()
+                : new LoadedItemSelectorSwingWorker();
 
         m_combobox.setEnabled(false);
         m_cancelBtn.setVisible(true);
@@ -321,13 +419,20 @@ public abstract class LoadedItemsSelector extends JPanel {
     }
 
     private void updateComboFromSettings(final boolean afterFetch) {
-        final var id = m_idModel.getStringValue();
-        if (id.isEmpty()) {
+        final var title = m_titleModel.getStringValue();
+        if (title.isEmpty()) {
             m_comboModel.setSelectedItem(null);
             return;
         }
 
-        var item = new IdComboboxItem(id, m_titleModel.getStringValue());
+        IdComboboxItem item;
+        final var id = m_idModel.getStringValue();
+        if (id.isEmpty() && m_comboModel.getSelectedItem() instanceof IdComboboxItem) {
+            item = (IdComboboxItem) m_comboModel.getSelectedItem();
+        } else {
+            item = new IdComboboxItem(m_idModel.getStringValue(), m_titleModel.getStringValue());
+        }
+
         if (m_comboModel.getIndexOf(item) < 0) {
             if (!afterFetch) {
                 m_comboModel.addElement(item);
@@ -407,7 +512,7 @@ public abstract class LoadedItemsSelector extends JPanel {
         public boolean equals(final Object obj) {
             if (obj instanceof IdComboboxItem) {
                 IdComboboxItem other = (IdComboboxItem) obj;
-                return m_id.equals(other.m_id);
+                return m_id.equals(other.m_id) && m_title.equals(other.m_title);
             }
             return false;
         }

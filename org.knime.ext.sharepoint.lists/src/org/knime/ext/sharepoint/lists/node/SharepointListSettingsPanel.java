@@ -1,4 +1,4 @@
-package org.knime.ext.sharepoint.lists;
+package org.knime.ext.sharepoint.lists.node;
 /*
  * ------------------------------------------------------------------------
  *
@@ -75,7 +75,6 @@ import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.dialog.LoadedItemsSelector;
 import org.knime.ext.sharepoint.dialog.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
-import org.knime.ext.sharepoint.lists.node.reader.SharepointListSettings;
 import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.util.GBCBuilder;
@@ -118,27 +117,39 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
      *            the {@link SharepointListSettings}
      */
     public SharepointListSettingsPanel(final SharepointListSettings listSettings) {
+        this(listSettings, false);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param listSettings
+     *            the {@link SharepointListSettings}
+     * @param editableListSelection
+     *            flag to make the list selection editable
+     */
+    public SharepointListSettingsPanel(final SharepointListSettings listSettings, final boolean editableListSelection) {
         super(listSettings.getSiteSettings());
         m_siteSettings = listSettings.getSiteSettings();
         m_listSettings = listSettings.getListSettings();
         m_listSelector = new LoadedItemsSelector(m_listSettings.getListModel(), m_listSettings.getListNameModel(),
-                "List:", null) {
+                "List:", null, editableListSelection) {
+
             private static final long serialVersionUID = 1L;
 
             @Override
             public List<IdComboboxItem> fetchItems() throws Exception {
-                clearStatusMessage();
-                try {
-                    return fetchListPossible() ? fetchLists() : Collections.emptyList();
-                } catch (Exception e) { // NOSONAR we want to catch all exceptions
-                    LOGGER.debug("An error occured while fetching the lists", e);
-                    setErrorMessage(e);
-                    return Collections.emptyList();
-                }
+                return fetchListPossible() ? fetchLists() : Collections.emptyList();
             }
         };
 
         m_showSystemLists = new DialogComponentBoolean(m_listSettings.getShowSystemListsModel(), "Show system lists");
+
+        if (!m_listSettings.showSystemListSettings()) {
+            m_showSystemLists.getComponentPanel().setVisible(false);
+        }
+
+        addListener();
 
         add(createListPanel());
     }
@@ -172,14 +183,19 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
         if (m_urlSwingWorker != null) {
             m_urlSwingWorker.cancel(true);
         }
+        clearStatusMessage();
         try {
             m_urlSwingWorker = new SwingWorkerWithContext<Void, Void>() {
 
                 @Override
                 protected Void doInBackgroundWithContext() throws Exception {
                     Thread.sleep(300);
-                    clearStatusMessage();
-                    m_listSelector.fetch();
+                    try {
+                        m_listSelector.fetchItems();
+                    } catch (Exception e) {
+                        // Catching the exception here otherwise we get popups on every key stroke
+                        setErrorMessage(e);
+                    }
                     return null;
                 }
             };
@@ -190,33 +206,30 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
     }
 
     /**
-     * Adds {@link ChangeListener} to the {@link SettingsModel}.
+     * Adds an external listener on the {@link SettingsModel}s.
      *
      * @param listener
-     *            the {@link ChangeListener}
+     *            a {@link ChangeListener}
      */
-    public void addListener(final ChangeListener listener) {
+    public void addExternalListener(final ChangeListener listener) {
         m_listSettings.getListModel().addChangeListener(listener);
-
-        m_listSettings.getShowSystemListsModel().addChangeListener(createChangelistener(listener, false));
-
-        final var l1 = createChangelistener(listener, true);
-        m_siteSettings.getModeModel().addChangeListener(l1);
-        m_siteSettings.getGroupModel().addChangeListener(l1);
-        m_siteSettings.getSubsiteModel().addChangeListener(l1);
-        m_siteSettings.getConnectToSubsiteModel().addChangeListener(l1);
-
-        m_siteSettings.getWebURLModel().addChangeListener(l -> {
-            ViewUtils.runOrInvokeLaterInEDT(this::webUrlChangeListener);
-            listener.stateChanged(l);
-        });
+        m_listSettings.getShowSystemListsModel().addChangeListener(listener);
+        m_siteSettings.getModeModel().addChangeListener(listener);
+        m_siteSettings.getGroupModel().addChangeListener(listener);
+        m_siteSettings.getSubsiteModel().addChangeListener(listener);
+        m_siteSettings.getConnectToSubsiteModel().addChangeListener(listener);
+        m_siteSettings.getWebURLModel().addChangeListener(listener);
     }
 
-    private ChangeListener createChangelistener(final ChangeListener listener, final boolean resetListModel) {
-        return l -> {
-            triggerFetching(resetListModel);
-            listener.stateChanged(l);
-        };
+    private void addListener() {
+        m_listSettings.getShowSystemListsModel().addChangeListener(l -> triggerFetching(false));
+        final ChangeListener listener = l -> triggerFetching(true);
+        m_siteSettings.getModeModel().addChangeListener(listener);
+        m_siteSettings.getGroupModel().addChangeListener(listener);
+        m_siteSettings.getSubsiteModel().addChangeListener(listener);
+        m_siteSettings.getConnectToSubsiteModel().addChangeListener(listener);
+        m_siteSettings.getWebURLModel()
+                .addChangeListener(l -> ViewUtils.runOrInvokeLaterInEDT(this::webUrlChangeListener));
     }
 
     /**
@@ -226,6 +239,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
      *            whether or not to reset the list {@link SettingsModelString}
      */
     public void triggerFetching(final boolean resetListModel) {
+        clearStatusMessage();
         if (!m_ignoreEvents) {
             if (resetListModel) {
                 m_listSettings.getListModel().setStringValue("");
@@ -307,13 +321,33 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
 
         private final SettingsModelBoolean m_showSystemLists;
 
+        private final boolean m_showSystemListSettings;
+
         /**
          * Creates new instance.
+         *
          */
         public ListSettings() {
+            this(true);
+        }
+
+        /**
+         * Creates new instance.
+         *
+         * @param showSystemListSettings
+         *            whether to show the showSystemListSettings or hide them
+         *
+         */
+        public ListSettings(final boolean showSystemListSettings) {
+            m_showSystemListSettings = showSystemListSettings;
             m_list = new SettingsModelString(KEY_LIST, "");
             m_listName = new SettingsModelString(KEY_LIST_NAME, "");
-            m_showSystemLists = new SettingsModelBoolean(KEY_SHOW_SYSTEM_LISTS, false);
+            m_showSystemLists = new SettingsModelBoolean(updateSystemListSettingsKey(), false);
+        }
+
+        private String updateSystemListSettingsKey() {
+            return m_showSystemListSettings ? KEY_SHOW_SYSTEM_LISTS
+                    : (KEY_SHOW_SYSTEM_LISTS + SettingsModel.CFGKEY_INTERNAL);
         }
 
         /**
@@ -323,6 +357,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          *            {@link ListSettings} to be copied
          */
         public ListSettings(final ListSettings toCopy) {
+            m_showSystemListSettings = toCopy.showSystemListSettings();
             m_list = toCopy.getListModel();
             m_listName = toCopy.getListNameModel();
             m_showSystemLists = toCopy.getShowSystemListsModel();
@@ -388,6 +423,13 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
          */
         public SettingsModelBoolean getShowSystemListsModel() {
             return m_showSystemLists;
+        }
+
+        /**
+         * @return whether or not to show the system list settings
+         */
+        public boolean showSystemListSettings() {
+            return m_showSystemListSettings;
         }
 
         @Override

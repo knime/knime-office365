@@ -44,47 +44,73 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   14 Feb 2022 (Lars Schweikardt, KNIME GmbH, Konstanz, Germany): created
+ *   2022-03-01 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.node;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import java.util.regex.Pattern;
 
 /**
- * “SharePoint List Writer” config.
+ * Sharepoint List utility method class.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public final class SharepointListWriterConfig {
+public final class SharePointListUtils {
 
-    private final SharepointListSettings m_sharepointListSettings;
+    // Pattern of the settings is actually "<displayName> (<internalName>)"
+    private static final Pattern SETTINGS_INTERNAL_LIST_NAME_PATTERN = Pattern.compile(".*\\(([^)]+)\\)");
 
-    SharepointListWriterConfig() {
-        m_sharepointListSettings = new SharepointListSettings(false);
+    // Matches everything until the last "("
+    private static final Pattern SETTINGS_DISPLAY_LIST_NAME_PATTERN = Pattern.compile("(.*(?=\\())");
+
+    private SharePointListUtils() {
+        // hide constructor for Utils class
     }
 
-    SharepointListSettings getSharepointListSettings() {
-        return m_sharepointListSettings;
+    /**
+     * Checks whether or not a list name matches the naming pattern.
+     *
+     * @param listSettingsName
+     *            the list name from the settings
+     * @return true or false whether or not a list name the naming pattern
+     */
+    public static boolean matchesSettingsListNamePattern(final String listSettingsName) {
+        return SETTINGS_INTERNAL_LIST_NAME_PATTERN.matcher(listSettingsName).matches();
     }
 
-    void saveSettings(final NodeSettingsWO settings) {
-        m_sharepointListSettings.getListSettings().saveSettingsTo(settings);
-        m_sharepointListSettings.getSiteSettings().saveSettingsTo(settings);
-        m_sharepointListSettings.getTimeoutSettings().saveSettingsTo(settings);
+    /**
+     * Returns the display name from the list settings name by matching the the
+     * settings pattern.
+     *
+     * @param listSettingsName
+     *            the list name from the settings
+     * @return the display name of the list settings name
+     */
+    public static String getListDisplayName(final String listSettingsName) {
+        if (matchesSettingsListNamePattern(listSettingsName)) {
+            final var m = SETTINGS_DISPLAY_LIST_NAME_PATTERN.matcher(listSettingsName);
+            if (m.find()) {
+                return m.group(1);
+            }
+        }
+        return listSettingsName;
     }
 
-    void loadSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_sharepointListSettings.getListSettings().loadSettingsFrom(settings);
-        m_sharepointListSettings.getSiteSettings().loadSettingsFrom(settings);
-        m_sharepointListSettings.getTimeoutSettings().loadSettingsFrom(settings);
-    }
-
-    void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_sharepointListSettings.getListSettings().validateSettings(settings);
-        m_sharepointListSettings.getSiteSettings().validateSettings(settings);
-        m_sharepointListSettings.getTimeoutSettings().validateSettings(settings);
+    /**
+     * Returns the internal name from the list settings name by matching the the
+     * settings pattern.
+     *
+     * @param listSettingsName
+     *            the list name from the settings
+     * @return the internal name of the list settings name
+     */
+    public static String getInternalListName(final String listSettingsName) {
+        if (matchesSettingsListNamePattern(listSettingsName)) {
+            final var m = SETTINGS_INTERNAL_LIST_NAME_PATTERN.matcher(listSettingsName);
+            if (m.find()) {
+                return m.group(1);
+            }
+        }
+        return listSettingsName;
     }
 }

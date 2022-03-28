@@ -48,9 +48,22 @@
  */
 package org.knime.ext.sharepoint.lists.node.writer;
 
+import java.awt.GridBagLayout;
+
+import javax.swing.Box;
+import javax.swing.JPanel;
+
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeLogger;
+import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.ext.sharepoint.dialog.TimeoutPanel;
+import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel;
+import org.knime.filehandling.core.util.GBCBuilder;
 
 /**
  * “SharePoint List Writer” implementation of a {@link NodeDialogPane}.
@@ -59,11 +72,67 @@ import org.knime.core.node.NodeSettingsWO;
  */
 public class SharepointListWriterNodeDialog extends NodeDialogPane {
 
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListWriterNodeDialog.class);
+
+    private final SharepointListWriterConfig m_config;
+
+    private final SharepointListSettingsPanel m_listSettingsPanel;
+
+    private final TimeoutPanel m_timeoutPanel;
 
     SharepointListWriterNodeDialog() {
+        m_config = new SharepointListWriterConfig();
+        m_listSettingsPanel = new SharepointListSettingsPanel(m_config.getSharepointListSettings(), true);
+        m_timeoutPanel = new TimeoutPanel(m_config.getSharepointListSettings().getTimeoutSettings());
+
+        addTab("Settings", createSettingsPanel());
+        addTab("Advanced", createAdvancedTab());
+    }
+
+    private JPanel createSettingsPanel() {
+        final var panel = new JPanel(new GridBagLayout());
+        final var gbc = new GBCBuilder().resetPos().weight(1, 0).anchorFirstLineStart().fillHorizontal();
+        panel.add(m_listSettingsPanel, gbc.build());
+        panel.add(Box.createHorizontalGlue(), gbc.setWeightY(1).build());
+
+        return panel;
+    }
+
+    private JPanel createAdvancedTab() {
+        final var panel = new JPanel(new GridBagLayout());
+
+        final var gbc = new GBCBuilder().resetPos().weight(1, 0).insets(5, 0, 5, 5).anchorFirstLineStart()
+                .fillHorizontal();
+        panel.add(m_timeoutPanel, gbc.build());
+        panel.add(Box.createHorizontalGlue(), gbc.setWeightY(1).build());
+
+        return panel;
+
     }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
+        m_config.saveSettings(settings);
+    }
+
+    @Override
+    protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+            throws NotConfigurableException {
+        if (specs[0] == null || ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential() == null) {
+            throw new NotConfigurableException("Authentication required!");
+        }
+
+        final var credential = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
+        try {
+            m_config.loadSettings(settings);
+        } catch (InvalidSettingsException ex) {
+            LOGGER.error("An unexpected error occured during the loading of the settings.", ex);
+        }
+        m_listSettingsPanel.settingsLoaded(credential);
+    }
+
+    @Override
+    public void onOpen() {
+        m_listSettingsPanel.triggerFetching(false);
     }
 }

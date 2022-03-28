@@ -46,9 +46,9 @@
  * History
  *   2021-09-29 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.reader;
+package org.knime.ext.sharepoint.lists.node;
 
-import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel.ListSettings;
+import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel.ListSettings;
 import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
 
 /**
@@ -63,9 +63,19 @@ public final class SharepointListSettings extends AbstractSharePointSettings<Sha
     /**
      * Constructor.
      */
-    SharepointListSettings() {
+    public SharepointListSettings() {
+        this(true);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param useSystemListsSettings
+     *            whether to show the showSystemListSettings or hide them
+     */
+    public SharepointListSettings(final boolean useSystemListsSettings) {
         super();
-        m_listSettings = new ListSettings();
+        m_listSettings = new ListSettings(useSystemListsSettings);
     }
 
     private SharepointListSettings(final SharepointListSettings toCopy) {

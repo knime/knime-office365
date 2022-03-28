@@ -80,7 +80,8 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
-import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel;
+import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
@@ -180,7 +181,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         final ChangeListener change = c -> configChanged();
 
         m_timeoutPanel.addChangeListener(change);
-        m_listSettingsPanel.addListener(change);
+        m_listSettingsPanel.addExternalListener(change);
 
         m_skipRowsEnabled.addActionListener(action);
         m_skipRowsNumber.addChangeListener(change);

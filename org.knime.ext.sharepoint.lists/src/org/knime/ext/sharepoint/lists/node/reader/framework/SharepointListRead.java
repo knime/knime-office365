@@ -52,7 +52,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.OptionalLong;
 
-import org.knime.ext.sharepoint.lists.node.reader.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
 import org.knime.filehandling.core.node.table.reader.randomaccess.AbstractRandomAccessible;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 import org.knime.filehandling.core.node.table.reader.read.Read;
