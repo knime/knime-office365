@@ -65,11 +65,16 @@ public enum Scope {
     /**
      * Sites.Read.All scope.
      */
-    SITES_READ("Sharepoint files (Read)", "Sites.Read.All"),
+    SITES_READ("Sharepoint files and list items (Read)", "Sites.Read.All"),
     /**
      * Sites.ReadWrite.All scope.
      */
-    SITES_READ_WRITE("Sharepoint files (Read/Write)", "Sites.ReadWrite.All"),
+    SITES_READ_WRITE("Sharepoint files and list items (Read/Write)", "Sites.ReadWrite.All"),
+
+    /**
+     * Sites.Manage.All scope.
+     */
+    SITES_MANAGE_ALL("Sharepoint files, lists and list items (Read/Write)", "Sites.Manage.All"),
 
     /**
      * Directory.Read.All scope.
@@ -119,6 +124,7 @@ public enum Scope {
         // resource: https://graph.microsoft.com
         scopesByResource.add(Set.of(SITES_READ, //
                 SITES_READ_WRITE, //
+                SITES_MANAGE_ALL, //
                 DIRECTORY_READ, //
                 USER_READ));
 

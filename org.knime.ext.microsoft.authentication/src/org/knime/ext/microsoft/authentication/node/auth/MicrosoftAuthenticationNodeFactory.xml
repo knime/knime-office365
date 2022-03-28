@@ -88,17 +88,24 @@
 
                 <p>Each option corresponds to one or more permissions:</p>
                 <ul>
-                    <li><b>Sharepoint files (Read):</b>
+                    <li><b>Sharepoint files and list items (Read):</b>
                         Requests the <a href="https://docs.microsoft.com/en-us/graph/permissions-reference#sites-permissions">Sites.Read.All</a> permission.
-                        This permission allows the token to be used for reading files stored on SharePoint Online. Note that access to any specific SharePoint site
-                        needs to be additionally granted to the user by that site.
+                        This permission allows the token to be used for reading files and list items stored on SharePoint Online. Note that access to any specific SharePoint
+                        site needs to be additionally granted to the user by that site.
                     </li>
                 </ul>
                 <ul>
-                    <li><b>Sharepoint files (Read/Write):</b>
+                    <li><b>Sharepoint files and list items (Read/Write):</b>
                         Requests the <a href="https://docs.microsoft.com/en-us/graph/permissions-reference#sites-permissions">Sites.ReadWrite.All</a> permission.
-                        This permission allows the token to read and write files stored on the SharePoint Online. Note that access to any specific SharePoint site
-                        needs to be additionally granted to the user by that site.
+                        This permission allows the token to read and write files as well as list items stored on SharePoint Online. This includes creating and deleting files,
+                        but not lists. Note that access to any specific SharePoint site needs to be additionally granted to the user by that site.
+                    </li>
+                </ul>
+                <ul>
+                    <li><b>Sharepoint files, lists and list items (Read/Write):</b>
+                        Requests the <a href="https://docs.microsoft.com/en-us/graph/permissions-reference#sites-permissions">Sites.Manage.All</a> permission.
+                        This permission allows the token to read and write files, lists as well as list items stored on SharePoint Online. This includes creating and deleting
+                        files as well as lists. Note that access to any specific SharePoint site needs to be additionally granted to the user by that site.
                     </li>
                 </ul>
                 <ul>
