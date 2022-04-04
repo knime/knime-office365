@@ -378,7 +378,8 @@ public abstract class LoadedItemsSelector extends JPanel {
             if (INTERNAL_NAME_PATTERN.matcher(title).matches()) {
                 final var m = DISPLAY_NAME_PATTERN.matcher(title);
                 if (m.find()) {
-                    return m.group(1).trim();
+                    final var displayName = m.group(1);
+                    return displayName.substring(0, displayName.length() - 1);
                 }
             }
             return "";
