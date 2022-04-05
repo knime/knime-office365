@@ -61,6 +61,7 @@ import org.knime.core.data.DataType;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
@@ -77,6 +78,7 @@ import com.microsoft.graph.models.extensions.ListItem;
 import com.microsoft.graph.requests.extensions.ColumnDefinitionCollectionPage;
 import com.microsoft.graph.requests.extensions.ColumnDefinitionCollectionResponse;
 import com.microsoft.graph.requests.extensions.IListItemCollectionPage;
+import com.microsoft.graph.requests.extensions.IListRequestBuilder;
 
 /**
  * Handles the actual writing process of the SharePoint List Writer node.
@@ -87,8 +89,6 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private final IGraphServiceClient m_client;
 
-    // TODO currently not in use since there are no other settings but will come
-    // with future tickets
     private final SharepointListWriterConfig m_config;
 
     private final SharepointListSettings m_sharePointListSettings;
@@ -103,8 +103,11 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private String m_listId;
 
+    private boolean m_listCreated;
+
     SharepointListWriterClient(final SharepointListWriterConfig config, final BufferedDataTable table,
-            final MicrosoftCredentialPortObjectSpec authPortSpec, final ExecutionContext exec) throws IOException {
+            final MicrosoftCredentialPortObjectSpec authPortSpec, final ExecutionContext exec)
+            throws IOException, InvalidSettingsException {
         m_config = config;
         m_sharePointListSettings = config.getSharepointListSettings();
         m_table = table;
@@ -115,8 +118,20 @@ class SharepointListWriterClient implements AutoCloseable {
         m_listId = getListId();
     }
 
+    /**
+     * Creates / overwrites a SharePoint list from a KNIME Table.
+     *
+     * @throws IOException
+     * @throws CanceledExecutionException
+     */
     void writeList() throws IOException, CanceledExecutionException {
         final String[] colNames = m_tableSpec.getColumnNames();
+
+        if (m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
+                && !m_listCreated) {
+            prepareOverwrite();
+        }
+
         final var colMap = mapColNames();
 
         long rowNo = 0;
@@ -171,16 +186,25 @@ class SharepointListWriterClient implements AutoCloseable {
      *
      * @return returns the list id
      * @throws IOException
+     * @throws InvalidSettingsException
      */
-    private String getListId() throws IOException {
-        final var listId = m_sharePointListSettings.getListSettings().getListModel().getStringValue();
+    private String getListId() throws IOException, InvalidSettingsException {
+        var listId = m_sharePointListSettings.getListSettings().getListModel().getStringValue();
+        var listExists = !listId.isEmpty();
 
         if (listId.isEmpty()) {
-            final var optionalOfListId = getListByName();
-            return optionalOfListId.isEmpty() ? createSharepointList() : optionalOfListId.get();
-        } else {
-            return listId;
+            final var optionalListId = getListIdByName();
+            listExists = optionalListId.isPresent();
+
+            listId = listExists ? optionalListId.get() : createSharepointList();
         }
+
+        if (listExists && m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.FAIL) {
+            throw new InvalidSettingsException(
+                    "The specified list already exists and the node fails due to overwrite settings");
+        }
+
+        return listId;
     }
 
     /**
@@ -190,33 +214,32 @@ class SharepointListWriterClient implements AutoCloseable {
      * @return an {@link Optional} of {@link String} with the list id
      * @throws IOException
      */
-    private Optional<String> getListByName() throws IOException {
-        final var listName = SharePointListUtils
-                .getListDisplayName(m_sharePointListSettings.getListSettings().getListNameModel().getStringValue());
+    private Optional<String> getListIdByName() throws IOException {
         try {
             final var resp = m_client.sites(m_siteId).lists().buildRequest().get();
             var lists = resp.getCurrentPage();
-
-            for (final var list : lists) {
-                if (listName.equals(list.displayName)) {
-                    return Optional.of(list.id);
-                }
+            var nextRequest = resp.getNextPage();
+            while (nextRequest != null) {
+                final var listsTmp = nextRequest.buildRequest().get().getCurrentPage();
+                lists.addAll(listsTmp);
+                nextRequest = resp.getNextPage();
             }
 
-            var req = resp.getNextPage();
-            while (req != null) {
-                final var l = req.buildRequest().get();
-                for (final var list : l.getCurrentPage()) {
-                    if (listName.equals(list.displayName)) {
-                        return Optional.of(list.id);
-                    }
-                }
-                req = l.getNextPage();
-            }
-            return Optional.empty();
+            return checkIfListExists(lists);
         } catch (GraphServiceException ex) {
             throw new IOException("Error during trying to retrieve list name: " + ex.getServiceError().message, ex);
         }
+    }
+
+    private Optional<String> checkIfListExists(final java.util.List<List> lists) {
+        final var listName = SharePointListUtils
+                .getInternalListName(m_sharePointListSettings.getListSettings().getListNameModel().getStringValue());
+        for (final var list : lists) {
+            if (list.name.equals(listName)) {
+                return Optional.of(list.id);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -238,6 +261,7 @@ class SharepointListWriterClient implements AutoCloseable {
 
         try {
             var response = m_client.sites(m_siteId).lists().buildRequest().post(list);
+            m_listCreated = true;
             return response.id;
         } catch (GraphServiceException ex) {
             throw new IOException("Error during the creation of the list with error: " + ex.getServiceError().message,
@@ -271,7 +295,7 @@ class SharepointListWriterClient implements AutoCloseable {
      */
     private Map<String, String> mapColNames() throws IOException {
         try {
-            final var columns = m_client.sites(m_siteId).lists(m_listId).columns().buildRequest().get();
+            final var columns = createListRequestBuilder().columns().buildRequest().get();
             final Map<String, String> colMap = new HashMap<>();
 
             columns.getRawObject().get("value").getAsJsonArray().iterator().forEachRemaining(j -> {
@@ -305,6 +329,7 @@ class SharepointListWriterClient implements AutoCloseable {
 
         for (final var cell : row) {
             final String colName = colMap.get(colNames[i]);
+
             if (!cell.isMissing() && colName != null) {
                 fvs.additionalDataManager().put(colName,
                         KNIMEToSharepointTypeConverter.TYPE_CONVERTER
@@ -318,17 +343,66 @@ class SharepointListWriterClient implements AutoCloseable {
         li.fields = fvs;
 
         try {
-            m_client.sites(m_siteId).lists(m_listId).items().buildRequest().post(li);
+            createListRequestBuilder().items().buildRequest().post(li);
         } catch (GraphServiceException ex) {
             throw new IOException("Error during creation of a row with error: " + ex.getServiceError().message, ex);
         }
     }
 
-    // TODO not used yet
+    /**
+     * Prepares the overwrite process by deleting all columns + the list items which
+     * will remain.
+     *
+     * @throws IOException
+     */
+    private void prepareOverwrite() throws IOException {
+        deleteColumns();
+        deleteListItems();
+        createColumns();
+    }
+
+    /**
+     * Deletes all (at least the one which are possible) columns from a list.
+     *
+     * @throws IOException
+     *             in case something goes wrong during deletion
+     */
+    private void deleteColumns() throws IOException {
+        try {
+            final var columns = createListRequestBuilder().columns().buildRequest().get();
+            var colDefList = columns.getCurrentPage();
+            deleteColumns(colDefList);
+            var nextRequest = columns.getNextPage();
+            while (nextRequest != null) {
+                colDefList = nextRequest.buildRequest().get().getCurrentPage();
+                deleteColumns(colDefList);
+                nextRequest = columns.getNextPage();
+            }
+        } catch (GraphServiceException ex) {
+            throw new IOException("Error during trying to delete columns: " + ex.getServiceError().message, ex);
+        }
+    }
+
+    private void deleteColumns(final java.util.List<ColumnDefinition> colDefList) {
+        colDefList.forEach(c -> {
+            // Read only columns and Title, ContentType and Attachments column can't be
+            // deleted
+            if (Boolean.FALSE.equals(c.readOnly) && !c.name.equals("Title") && !c.name.equals("ContentType")
+                    && !c.name.equals("Attachments")) {
+                createListRequestBuilder().columns(c.id).buildRequest().delete();
+            }
+        });
+    }
+
+    /**
+     * Deletes all list items.
+     *
+     * @throws IOException
+     *             in case something goes wrong during deletion
+     */
     private void deleteListItems() throws IOException {
         try {
-            final IListItemCollectionPage listItems = m_client.sites(m_siteId).lists(m_listId).items().buildRequest()
-                    .get();
+            final var listItems = createListRequestBuilder().items().buildRequest().get();
 
             deleteListItems(listItems);
 
@@ -336,7 +410,7 @@ class SharepointListWriterClient implements AutoCloseable {
             while (req != null) {
                 final var items = req.buildRequest().get();
                 deleteListItems(items);
-                items.getNextPage();
+                req = items.getNextPage();
             }
         } catch (GraphServiceException ex) {
             throw new IOException("Error during deletion of a list item with error: " + ex.getServiceError().message,
@@ -344,13 +418,31 @@ class SharepointListWriterClient implements AutoCloseable {
         }
     }
 
-    // TODO not used yet
     private void deleteListItems(final IListItemCollectionPage listItems) {
         final var listItemsJson = listItems.getRawObject().getAsJsonObject().get("value").getAsJsonArray();
         listItemsJson.forEach(i -> {
             final var id = i.getAsJsonObject().get("id").getAsString();
-            m_client.sites(m_siteId).lists(m_listId).items(id).buildRequest().delete();
+            createListRequestBuilder().items(id).buildRequest().delete();
         });
+    }
+
+    /**
+     * Creats columns for an existing list
+     *
+     * @throws IOException
+     */
+    private void createColumns() throws IOException {
+        try {
+            for (final var columnDefinition : createColumnDefinitions()) {
+                createListRequestBuilder().columns().buildRequest().post(columnDefinition);
+            }
+        } catch (GraphServiceException ex) {
+            throw new IOException("Error during the overwriting process: " + ex.getServiceError().message, ex);
+        }
+    }
+
+    private IListRequestBuilder createListRequestBuilder() {
+        return m_client.sites(m_siteId).lists(m_listId);
     }
 
     @Override

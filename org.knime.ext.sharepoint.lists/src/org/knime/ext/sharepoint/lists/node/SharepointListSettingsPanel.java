@@ -57,6 +57,7 @@ import java.util.Objects;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.event.ChangeListener;
 
@@ -65,6 +66,7 @@ import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
+import org.knime.core.node.defaultnodesettings.DialogComponentButtonGroup;
 import org.knime.core.node.defaultnodesettings.SettingsModel;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
@@ -75,6 +77,7 @@ import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.dialog.LoadedItemsSelector;
 import org.knime.ext.sharepoint.dialog.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
+import org.knime.ext.sharepoint.lists.node.writer.ListOverwritePolicy;
 import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.util.GBCBuilder;
@@ -106,6 +109,8 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
 
     private final DialogComponentBoolean m_showSystemLists;
 
+    private final DialogComponentButtonGroup m_overwriteOptions;
+
     private SwingWorkerWithContext<Void, Void> m_urlSwingWorker;
 
     private boolean m_ignoreEvents = true;
@@ -117,7 +122,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
      *            the {@link SharepointListSettings}
      */
     public SharepointListSettingsPanel(final SharepointListSettings listSettings) {
-        this(listSettings, false);
+        this(listSettings, false, false);
     }
 
     /**
@@ -127,8 +132,11 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
      *            the {@link SharepointListSettings}
      * @param editableListSelection
      *            flag to make the list selection editable
+     * @param hasOverwriteOptions
+     *            flag whether or not the panel will have overwrite options
      */
-    public SharepointListSettingsPanel(final SharepointListSettings listSettings, final boolean editableListSelection) {
+    public SharepointListSettingsPanel(final SharepointListSettings listSettings, final boolean editableListSelection,
+            final boolean hasOverwriteOptions) {
         super(listSettings.getSiteSettings());
         m_siteSettings = listSettings.getSiteSettings();
         m_listSettings = listSettings.getListSettings();
@@ -145,13 +153,16 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
 
         m_showSystemLists = new DialogComponentBoolean(m_listSettings.getShowSystemListsModel(), "Show system lists");
 
+        m_overwriteOptions = new DialogComponentButtonGroup(listSettings.getOverwritePolicyModel(), null, false,
+                ListOverwritePolicy.values());
+
         if (!m_listSettings.showSystemListSettings()) {
             m_showSystemLists.getComponentPanel().setVisible(false);
         }
 
         addListener();
 
-        add(createListPanel());
+        add(createListPanel(hasOverwriteOptions));
     }
 
     /**
@@ -262,13 +273,28 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
         m_ignoreEvents = false;
     }
 
-    private JPanel createListPanel() {
+    private JPanel createListPanel(final boolean hasOverwriteOptions) {
         final var panel = new JPanel(new GridBagLayout());
         final var gbc = new GBCBuilder().fillHorizontal().resetPos();
         panel.setBorder(BorderFactory.createTitledBorder("Sharepoint list"));
         panel.add(m_listSelector, gbc.setWeightX(1).setWidth(2).build());
-        panel.add(m_showSystemLists.getComponentPanel(), gbc.incY().setWeightX(0).setWidth(1).insetLeft(-2).build());
-        panel.add(Box.createHorizontalBox(), gbc.setWeightX(1).incX().build());
+        panel.add(m_showSystemLists.getComponentPanel(),
+                gbc.incY().setWeightX(0).anchorLineStart().setWidth(1).insetLeft(22).build());
+        panel.add(Box.createHorizontalBox(), gbc.incX().setWeightX(1).insetLeft(0).build());
+
+        if (hasOverwriteOptions) {
+            panel.add(createIfExistsPanel(), gbc.resetX().setWidth(2).incY().build());
+        }
+
+        return panel;
+    }
+
+    private JPanel createIfExistsPanel() {
+        final var panel = new JPanel(new GridBagLayout());
+        final var gbc = new GBCBuilder().fillHorizontal().resetPos();
+        panel.add(new JLabel("If exists:"), gbc.insetLeft(30).build());
+        panel.add(m_overwriteOptions.getComponentPanel(), gbc.incX().insetLeft(-5).build());
+        panel.add(Box.createHorizontalBox(), gbc.incX().setWeightX(1).build());
 
         return panel;
     }
@@ -286,16 +312,19 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
 
     private static List<IdComboboxItem> listLists(final String siteId, final IGraphServiceClient client,
             final boolean showSystemLists) {
-        final List<IdComboboxItem> result = new ArrayList<>();
-        var resp = client.sites(siteId).lists().buildRequest(showSystemLists ? OPTIONS_ITEMS : Collections.emptyList())
+
+        final var result = new ArrayList<IdComboboxItem>();
+        var resp = client.sites(siteId).lists() //
+                .buildRequest(showSystemLists ? OPTIONS_ITEMS : Collections.emptyList()) //
                 .get();
-        for (final com.microsoft.graph.models.extensions.List list : resp.getCurrentPage()) {
+
+        for (final var list : resp.getCurrentPage()) {
             result.add(new IdComboboxItem(list.id, String.format("%s (%s)", list.displayName, list.name)));
         }
 
         while (resp.getNextPage() != null) {
             resp = resp.getNextPage().buildRequest().get();
-            for (final com.microsoft.graph.models.extensions.List list : resp.getCurrentPage()) {
+            for (final var list : resp.getCurrentPage()) {
                 result.add(new IdComboboxItem(list.id, String.format("%s (%s)", list.displayName, list.name)));
             }
         }

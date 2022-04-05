@@ -48,7 +48,12 @@
  */
 package org.knime.ext.sharepoint.lists.node;
 
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel.ListSettings;
+import org.knime.ext.sharepoint.lists.node.writer.ListOverwritePolicy;
 import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
 
 /**
@@ -58,13 +63,20 @@ import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
  */
 public final class SharepointListSettings extends AbstractSharePointSettings<SharepointListSettings> {
 
+    /** Config key for the overwrite policy. */
+    private static final String CFG_OVERWRITE_POLICY = "if_list_exists";
+
     private final ListSettings m_listSettings;
+
+    private final SettingsModelString m_overwritePolicy;
+
+    private boolean m_hasOverwriteOptions = false;
 
     /**
      * Constructor.
      */
     public SharepointListSettings() {
-        this(true);
+        this(true, false);
     }
 
     /**
@@ -72,15 +84,20 @@ public final class SharepointListSettings extends AbstractSharePointSettings<Sha
      *
      * @param useSystemListsSettings
      *            whether to show the showSystemListSettings or hide them
+     * @param hasOverwriteOptions
+     *            flag whether or not the settings will have overwrite options
      */
-    public SharepointListSettings(final boolean useSystemListsSettings) {
+    public SharepointListSettings(final boolean useSystemListsSettings, final boolean hasOverwriteOptions) {
         super();
         m_listSettings = new ListSettings(useSystemListsSettings);
+        m_hasOverwriteOptions = hasOverwriteOptions;
+        m_overwritePolicy = new SettingsModelString(CFG_OVERWRITE_POLICY, ListOverwritePolicy.FAIL.getText());
     }
 
     private SharepointListSettings(final SharepointListSettings toCopy) {
         super(toCopy);
         m_listSettings = toCopy.getListSettings();
+        m_overwritePolicy = toCopy.getOverwritePolicyModel();
     }
 
     @Override
@@ -89,9 +106,64 @@ public final class SharepointListSettings extends AbstractSharePointSettings<Sha
     }
 
     /**
+     * Returns the settings model storing the selected {@link ListOverwritePolicy}.
+     *
+     * @return the settings model storing the selected {@link ListOverwritePolicy}
+     */
+    public SettingsModelString getOverwritePolicyModel() {
+        return m_overwritePolicy;
+    }
+
+    /**
+     * Sets the {@link ListOverwritePolicy} to the provided value.
+     *
+     * @param overwritePolicy
+     *            the {@link ListOverwritePolicy} to set
+     */
+    public final void setOverwritePolicy(final ListOverwritePolicy overwritePolicy) {
+        m_overwritePolicy.setStringValue(overwritePolicy.name());
+    }
+
+    /**
+     * Returns the selected {@link ListOverwritePolicy}.
+     *
+     * @return the selected {@link ListOverwritePolicy}
+     */
+    public final ListOverwritePolicy getOverwritePolicy() {
+        return ListOverwritePolicy.valueOf(m_overwritePolicy.getStringValue());
+    }
+
+    /**
      * @return the {@link ListSettings}
      */
     public ListSettings getListSettings() {
         return m_listSettings;
+    }
+
+    @Override
+    public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
+        super.loadSettingsFrom(settings);
+        m_listSettings.loadSettingsFrom(settings);
+        if (m_hasOverwriteOptions) {
+            m_overwritePolicy.loadSettingsFrom(settings);
+        }
+    }
+
+    @Override
+    public void saveSettingsTo(final NodeSettingsWO settings) {
+        super.saveSettingsTo(settings);
+        m_listSettings.saveSettingsTo(settings);
+        if (m_hasOverwriteOptions) {
+            m_overwritePolicy.saveSettingsTo(settings);
+        }
+    }
+
+    @Override
+    public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
+        super.validateSettings(settings);
+        m_listSettings.validateSettings(settings);
+        if (m_hasOverwriteOptions) {
+            m_overwritePolicy.validateSettings(settings);
+        }
     }
 }

@@ -52,6 +52,9 @@ import java.io.File;
 import java.io.IOException;
 
 import org.knime.core.data.DataTableSpec;
+import org.knime.core.data.DataType;
+import org.knime.core.data.blob.BinaryObjectDataCell;
+import org.knime.core.data.image.png.PNGImageCell;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -86,7 +89,12 @@ final class SharepointListWriterNodeModel extends NodeModel {
         final DataTableSpec inputTableSpec = (DataTableSpec) inSpecs[1];
 
         for (var i = 0; i < inputTableSpec.getNumColumns(); i++) {
-            final String colName = inputTableSpec.getColumnSpec(i).getName();
+            final var colSpec = inputTableSpec.getColumnSpec(i);
+            if (colSpec.getType().isCollectionType() || colSpec.getType() == BinaryObjectDataCell.TYPE
+                    || colSpec.getType().equals(DataType.getType(PNGImageCell.class))) {
+                throw new InvalidSettingsException(String.format("%s type is not supported.", colSpec.getType()));
+            }
+            final String colName = colSpec.getName();
             if (colName.length() > 255) {
                 throw new InvalidSettingsException(
                         "One or more column names do have a length over 255 characters, which is not allowed. Please reduce the length.");

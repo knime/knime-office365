@@ -343,8 +343,7 @@ public abstract class LoadedItemsSelector extends JPanel {
                 if (!selectedItem.getId().isEmpty()) {
                     m_comboModel.setSelectedItem(selectedItem);
                 } else {
-                    var found = findItem(comboBoxItems, selectedItem);
-                    if (!found) {
+                    if (!containsItemWithSameDisplayName(comboBoxItems, selectedItem)) {
                         m_comboModel.addElement(selectedItem);
                         m_comboModel.setSelectedItem(selectedItem);
                     }
@@ -364,7 +363,7 @@ public abstract class LoadedItemsSelector extends JPanel {
                     !comboBoxItems.isEmpty() && comboBoxItems.get(0).getId().equals(comboBoxItems.get(0).getTitle()));
         }
 
-        private boolean findItem(final List<IdComboboxItem> comboBoxItems, final IdComboboxItem item) {
+        private boolean containsItemWithSameDisplayName(final List<IdComboboxItem> comboBoxItems, final IdComboboxItem item) {
             for (final var i : comboBoxItems) {
                 if (getDisplayName(i.getTitle()).equals(item.getTitle())) {
                     m_comboModel.setSelectedItem(i);

@@ -48,6 +48,7 @@
  */
 package org.knime.ext.sharepoint.lists.node.writer;
 
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -60,6 +61,18 @@ import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.IntCell;
 import org.knime.core.data.def.LongCell;
 import org.knime.core.data.def.StringCell;
+import org.knime.core.data.time.duration.DurationCell;
+import org.knime.core.data.time.duration.DurationValue;
+import org.knime.core.data.time.localdate.LocalDateCell;
+import org.knime.core.data.time.localdate.LocalDateValue;
+import org.knime.core.data.time.localdatetime.LocalDateTimeCell;
+import org.knime.core.data.time.localdatetime.LocalDateTimeValue;
+import org.knime.core.data.time.localtime.LocalTimeCell;
+import org.knime.core.data.time.localtime.LocalTimeValue;
+import org.knime.core.data.time.period.PeriodCell;
+import org.knime.core.data.time.period.PeriodValue;
+import org.knime.core.data.time.zoneddatetime.ZonedDateTimeCell;
+import org.knime.core.data.time.zoneddatetime.ZonedDateTimeValue;
 import org.knime.core.util.Pair;
 
 import com.google.gson.JsonElement;
@@ -67,6 +80,7 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonPrimitive;
 import com.microsoft.graph.models.extensions.BooleanColumn;
 import com.microsoft.graph.models.extensions.ColumnDefinition;
+import com.microsoft.graph.models.extensions.DateTimeColumn;
 import com.microsoft.graph.models.extensions.NumberColumn;
 import com.microsoft.graph.models.extensions.TextColumn;
 
@@ -104,6 +118,52 @@ final class KNIMEToSharepointTypeConverter {
                 KNIMEToSharepointTypeConverter::createNumberColDefiniton));
         TYPE_CONVERTER.put(BooleanCell.TYPE, Pair.create(s -> new JsonPrimitive(((BooleanCell) s).getBooleanValue()),
                 KNIMEToSharepointTypeConverter::createBooleanColDefiniton));
+        TYPE_CONVERTER.put(DataType.getType(ZonedDateTimeCell.class),
+                Pair.create(KNIMEToSharepointTypeConverter::zonedDateTimeParser,
+                        KNIMEToSharepointTypeConverter::createDateTimeDefinition));
+        TYPE_CONVERTER.put(DataType.getType(LocalDateTimeCell.class),
+                Pair.create(KNIMEToSharepointTypeConverter::dateTimeParser,
+                        KNIMEToSharepointTypeConverter::createDateTimeDefinition));
+        TYPE_CONVERTER.put(DataType.getType(LocalTimeCell.class),
+                Pair.create(KNIMEToSharepointTypeConverter::localTimeParser,
+                        KNIMEToSharepointTypeConverter::createStringColDefiniton));
+        TYPE_CONVERTER.put(DataType.getType(LocalDateCell.class), Pair.create(
+                KNIMEToSharepointTypeConverter::localDateParser, KNIMEToSharepointTypeConverter::createDateDefinition));
+        TYPE_CONVERTER.put(DataType.getType(DurationCell.class),
+                Pair.create(KNIMEToSharepointTypeConverter::durationParser,
+                        KNIMEToSharepointTypeConverter::createStringColDefiniton));
+        TYPE_CONVERTER.put(DataType.getType(PeriodCell.class), Pair.create(KNIMEToSharepointTypeConverter::periodParser,
+                KNIMEToSharepointTypeConverter::createStringColDefiniton));
+    }
+
+    private static JsonElement periodParser(final DataCell dataCell) {
+        final var val = ((PeriodValue) dataCell).getPeriod().toString();
+        return new JsonPrimitive(val);
+    }
+
+    private static JsonElement durationParser(final DataCell dataCell) {
+        final var val = ((DurationValue) dataCell).getDuration().toString();
+        return new JsonPrimitive(val);
+    }
+
+    private static JsonElement localDateParser(final DataCell dataCell) {
+        final var val = ((LocalDateValue) dataCell).getLocalDate().toString();
+        return new JsonPrimitive(val);
+    }
+
+    private static JsonElement localTimeParser(final DataCell dataCell) {
+        final var val = ((LocalTimeValue) dataCell).getLocalTime().toString();
+        return new JsonPrimitive(val);
+    }
+
+    private static JsonElement zonedDateTimeParser(final DataCell dataCell) {
+        final var val = ((ZonedDateTimeValue) dataCell).getZonedDateTime().toInstant().toString();
+        return new JsonPrimitive(val);
+    }
+
+    private static JsonElement dateTimeParser(final DataCell dataCell) {
+        final var val = ((LocalDateTimeValue) dataCell).getLocalDateTime().toInstant(ZoneOffset.UTC).toString();
+        return new JsonPrimitive(val);
     }
 
     private static JsonElement doubleParser(final DataCell dataCell) {
@@ -140,4 +200,19 @@ final class KNIMEToSharepointTypeConverter {
         return colDef;
     }
 
+    private static ColumnDefinition createDateTimeDefinition(final String name) {
+        final ColumnDefinition colDef = createColDefintion(name);
+        final var dateTimeCol = new DateTimeColumn();
+        dateTimeCol.format = "dateTime";
+        colDef.dateTime = dateTimeCol;
+        return colDef;
+    }
+
+    private static ColumnDefinition createDateDefinition(final String name) {
+        final ColumnDefinition colDef = createColDefintion(name);
+        final var dateTimeCol = new DateTimeColumn();
+        dateTimeCol.format = "dateOnly";
+        colDef.dateTime = dateTimeCol;
+        return colDef;
+    }
 }

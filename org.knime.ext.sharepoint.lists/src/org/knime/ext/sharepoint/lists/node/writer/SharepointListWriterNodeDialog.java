@@ -82,7 +82,7 @@ public class SharepointListWriterNodeDialog extends NodeDialogPane {
 
     SharepointListWriterNodeDialog() {
         m_config = new SharepointListWriterConfig();
-        m_listSettingsPanel = new SharepointListSettingsPanel(m_config.getSharepointListSettings(), true);
+        m_listSettingsPanel = new SharepointListSettingsPanel(m_config.getSharepointListSettings(), true, true);
         m_timeoutPanel = new TimeoutPanel(m_config.getSharepointListSettings().getTimeoutSettings());
 
         addTab("Settings", createSettingsPanel());
@@ -91,9 +91,9 @@ public class SharepointListWriterNodeDialog extends NodeDialogPane {
 
     private JPanel createSettingsPanel() {
         final var panel = new JPanel(new GridBagLayout());
-        final var gbc = new GBCBuilder().resetPos().weight(1, 0).anchorFirstLineStart().fillHorizontal();
+        final var gbc = new GBCBuilder().resetPos().weight(1, 0).anchorLineStart().fillHorizontal();
         panel.add(m_listSettingsPanel, gbc.build());
-        panel.add(Box.createHorizontalGlue(), gbc.setWeightY(1).build());
+        panel.add(Box.createVerticalGlue(), gbc.setWeightY(1).build());
 
         return panel;
     }
@@ -107,7 +107,6 @@ public class SharepointListWriterNodeDialog extends NodeDialogPane {
         panel.add(Box.createHorizontalGlue(), gbc.setWeightY(1).build());
 
         return panel;
-
     }
 
     @Override
@@ -134,5 +133,10 @@ public class SharepointListWriterNodeDialog extends NodeDialogPane {
     @Override
     public void onOpen() {
         m_listSettingsPanel.triggerFetching(false);
+    }
+
+    @Override
+    public void onClose() {
+        m_listSettingsPanel.onClose();
     }
 }
