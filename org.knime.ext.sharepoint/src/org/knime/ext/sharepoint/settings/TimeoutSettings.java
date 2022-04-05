@@ -48,6 +48,8 @@
  */
 package org.knime.ext.sharepoint.settings;
 
+import java.time.Duration;
+
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
@@ -136,8 +138,8 @@ public final class TimeoutSettings {
     /**
      * @return the connectionTimeout
      */
-    public int getConnectionTimeout() {
-        return m_connectionTimeout.getIntValue();
+    public Duration getConnectionTimeout() {
+        return Duration.ofSeconds(m_connectionTimeout.getIntValue());
     }
 
     /**
@@ -150,8 +152,8 @@ public final class TimeoutSettings {
     /**
      * @return the readTimeout
      */
-    public int getReadTimeout() {
-        return m_readTimeout.getIntValue();
+    public Duration getReadTimeout() {
+        return Duration.ofSeconds(m_readTimeout.getIntValue());
     }
 
 }

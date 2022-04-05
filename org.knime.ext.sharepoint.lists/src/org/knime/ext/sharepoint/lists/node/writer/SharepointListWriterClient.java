@@ -49,7 +49,6 @@
 package org.knime.ext.sharepoint.lists.node.writer;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -164,14 +163,10 @@ class SharepointListWriterClient implements AutoCloseable {
         final var client = GraphApiUtil.createClient(authPortSpec.getMicrosoftCredential());
         final var timeoutSettings = m_sharePointListSettings.getTimeoutSettings();
         final var connectionConfig = new DefaultConnectionConfig();
-        connectionConfig.setConnectTimeout(toMilis(timeoutSettings.getConnectionTimeout()));
-        connectionConfig.setReadTimeout(toMilis(timeoutSettings.getReadTimeout()));
+        connectionConfig.setConnectTimeout(timeoutSettings.getConnectionTimeout().toMillisPart());
+        connectionConfig.setReadTimeout(timeoutSettings.getReadTimeout().toMillisPart());
         client.getHttpProvider().setConnectionConfig(connectionConfig);
         return client;
-    }
-
-    private static int toMilis(final int duration) {
-        return Math.toIntExact(Duration.ofSeconds(duration).toMillisPart());
     }
 
     /**

@@ -49,7 +49,6 @@
 package org.knime.ext.sharepoint.lists.node.reader.framework;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -143,13 +142,9 @@ public final class SharepointListClient {
     }
 
     private void updateHttpConfig(final TimeoutSettings settings) {
-        m_connectionConfig.setConnectTimeout(toMilis(settings.getConnectionTimeout()));
-        m_connectionConfig.setReadTimeout(toMilis(settings.getReadTimeout()));
+        m_connectionConfig.setConnectTimeout(settings.getConnectionTimeout().toMillisPart());
+        m_connectionConfig.setReadTimeout(settings.getReadTimeout().toMillisPart());
         m_client.getHttpProvider().setConnectionConfig(m_connectionConfig);
-    }
-
-    private static int toMilis(final int duration) {
-        return Math.toIntExact(Duration.ofSeconds(duration).toMillisPart());
     }
 
     /**
