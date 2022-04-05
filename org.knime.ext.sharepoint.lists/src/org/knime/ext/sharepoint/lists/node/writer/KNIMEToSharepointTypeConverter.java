@@ -76,7 +76,6 @@ import org.knime.core.data.time.zoneddatetime.ZonedDateTimeValue;
 import org.knime.core.util.Pair;
 
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
 import com.google.gson.JsonPrimitive;
 import com.microsoft.graph.models.extensions.BooleanColumn;
 import com.microsoft.graph.models.extensions.ColumnDefinition;
@@ -91,6 +90,12 @@ import com.microsoft.graph.models.extensions.TextColumn;
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
 final class KNIMEToSharepointTypeConverter {
+
+    // Upper threshold for double values
+    private static final double DOUBLE_MAX_VALUE = 1.79E308;
+
+    // Lower threshold for double values
+    private static final double DOUBLE_MIN_VALUE = -1.79E308;
 
     private KNIMEToSharepointTypeConverter() {
         // utility class
@@ -111,11 +116,11 @@ final class KNIMEToSharepointTypeConverter {
         TYPE_CONVERTER.put(StringCell.TYPE, Pair.create(s -> new JsonPrimitive(s.toString()),
                 KNIMEToSharepointTypeConverter::createStringColDefiniton));
         TYPE_CONVERTER.put(IntCell.TYPE, Pair.create(s -> new JsonPrimitive(((IntCell) s).getIntValue()),
-                KNIMEToSharepointTypeConverter::createNumberColDefiniton));
+                KNIMEToSharepointTypeConverter::createIntegerNumberColDefiniton));
         TYPE_CONVERTER.put(DoubleCell.TYPE, Pair.create(KNIMEToSharepointTypeConverter::doubleParser,
-                KNIMEToSharepointTypeConverter::createNumberColDefiniton));
+                KNIMEToSharepointTypeConverter::createDoubleNumberColDefiniton));
         TYPE_CONVERTER.put(LongCell.TYPE, Pair.create(s -> new JsonPrimitive(((LongCell) s).getLongValue()),
-                KNIMEToSharepointTypeConverter::createNumberColDefiniton));
+                KNIMEToSharepointTypeConverter::createIntegerNumberColDefiniton));
         TYPE_CONVERTER.put(BooleanCell.TYPE, Pair.create(s -> new JsonPrimitive(((BooleanCell) s).getBooleanValue()),
                 KNIMEToSharepointTypeConverter::createBooleanColDefiniton));
         TYPE_CONVERTER.put(DataType.getType(ZonedDateTimeCell.class),
@@ -134,6 +139,24 @@ final class KNIMEToSharepointTypeConverter {
                         KNIMEToSharepointTypeConverter::createStringColDefiniton));
         TYPE_CONVERTER.put(DataType.getType(PeriodCell.class), Pair.create(KNIMEToSharepointTypeConverter::periodParser,
                 KNIMEToSharepointTypeConverter::createStringColDefiniton));
+    }
+
+    private static JsonElement doubleParser(final DataCell dataCell) {
+        final var val = ((DoubleValue) dataCell).getDoubleValue();
+        checkDoubleValues(val);
+        return new JsonPrimitive(val);
+    }
+
+    private static void checkDoubleValues(final double val) {
+        if (Double.isInfinite(val) || Double.isNaN(val)) {
+            throw new IllegalArgumentException("SharePoint does not support non-finite values. " + val);
+        } else if (val < DOUBLE_MIN_VALUE) {
+            throw new IllegalArgumentException(
+                    "Double value is smaller than the supported smallest value of SharePoint. " + val);
+        } else if (val > DOUBLE_MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "Double value is bigger than the supported biggest value of SharePoint. " + val);
+        }
     }
 
     private static JsonElement periodParser(final DataCell dataCell) {
@@ -166,14 +189,6 @@ final class KNIMEToSharepointTypeConverter {
         return new JsonPrimitive(val);
     }
 
-    private static JsonElement doubleParser(final DataCell dataCell) {
-        final var val = ((DoubleValue) dataCell).getDoubleValue();
-        if (Double.isInfinite(val) || Double.isNaN(val)) {
-            return JsonNull.INSTANCE;
-        }
-        return new JsonPrimitive(val);
-    }
-
     private static ColumnDefinition createColDefintion(final String name) {
         final var colDef = new ColumnDefinition();
         colDef.name = name;
@@ -194,7 +209,15 @@ final class KNIMEToSharepointTypeConverter {
         return colDef;
     }
 
-    private static ColumnDefinition createNumberColDefiniton(final String name) {
+    private static ColumnDefinition createIntegerNumberColDefiniton(final String name) {
+        final ColumnDefinition colDef = createColDefintion(name);
+        final var numberCol = new NumberColumn();
+        numberCol.decimalPlaces = "none";
+        colDef.number = numberCol;
+        return colDef;
+    }
+
+    private static ColumnDefinition createDoubleNumberColDefiniton(final String name) {
         final ColumnDefinition colDef = createColDefintion(name);
         colDef.number = new NumberColumn();
         return colDef;

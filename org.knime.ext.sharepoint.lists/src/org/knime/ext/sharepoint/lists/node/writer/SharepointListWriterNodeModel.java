@@ -120,6 +120,7 @@ final class SharepointListWriterNodeModel extends NodeModel {
         return new PortObject[] {};
     }
 
+
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
         m_config.saveSettings(settings);

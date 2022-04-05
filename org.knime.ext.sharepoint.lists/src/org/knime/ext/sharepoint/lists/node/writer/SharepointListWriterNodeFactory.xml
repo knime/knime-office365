@@ -19,11 +19,22 @@
 			<u>Fully supported column types:</u>
                 <ul>
                     <li><i>String columns map to Multiple lines of text</i></li>
-                    <li><i>Double, Long, Integer columns map to Number</i></li>
+                    <li><i>Long, Integer columns map to Number</i></li>
                     <li><i>Boolean columns map to Yes/No</i></li>
                     <li><i>Date, Date and Time, Zoned Date Time map to Date and time</i></li>
                 </ul>
-                <u>Unsupported column types:</u><br/>
+                <u>Partially supported columns types:</u>
+                <ul>
+					<li>
+						<i>Double columns map to Number but they are only partially supported in terms of range
+							SharePoint is able to store double values. Number
+							columns can only have 5 decimal places and the
+							range is from 1.79E308 to -1.79E308 (for values above or below the node will fail). 
+							It also does not support infinity and NaN (the node will fail).
+						</i>
+					</li>
+                </ul>
+                <u>Unsupported column types (will be ignored during execution):</u><br/>
                 <ul>
                     <li><i>Collection columns are not supported since there is no counterpart type in SharePoint</i></li>
                     <li><i>Binary object columns</i> are not supported since there is no counterpart type in SharePoint</li>

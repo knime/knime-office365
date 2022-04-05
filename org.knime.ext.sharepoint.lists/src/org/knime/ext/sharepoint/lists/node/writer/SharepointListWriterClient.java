@@ -69,6 +69,7 @@ import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
 
+import com.google.gson.JsonPrimitive;
 import com.microsoft.graph.core.DefaultConnectionConfig;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.ColumnDefinition;
@@ -332,6 +333,8 @@ class SharepointListWriterClient implements AutoCloseable {
         var i = 0;
         final var li = new ListItem();
         final var fvs = new FieldValueSet();
+
+        fvs.additionalDataManager().put("Title", new JsonPrimitive(row.getKey().getString()));
 
         for (final var cell : row) {
             final String colName = colMap.get(colNames[i]);
