@@ -95,13 +95,8 @@ final class ListBatchRequest implements AutoCloseable {
      */
     private static final long UNKNOWN_ERROR_WAIT = 5;
 
-    /**
-     * Amount to wait in seconds after a “Service Unavailable” in hope that it will
-     * available again after this period.
-     */
-    private static final long SERVICE_UNAVAILABLE_WAIT = 60;
     /** Wait times in seconds after all batch request were unsuccessful. */
-    private static final long[] ALL_UNSUCCESSFUL_WAIT = new long[] { 5, 15, 30, 60, 300 };
+    private static final long[] ALL_UNSUCCESSFUL_WAIT = new long[] { 10, 20, 40, 80, 160 };
 
     static {
         CONTENT_TYPE_CACHE = new JsonObject();
@@ -250,7 +245,7 @@ final class ListBatchRequest implements AutoCloseable {
             } else {
                 final var wait = Math.max(time - m_currentWait, 0);
                 LOGGER.debug("All requests in batch were unsuccessful! Waiting for " + wait + "s…");
-                waitFor("Retrying all requests after ", wait);
+                waitFor("Retrying all requests after", wait);
             }
         }
         LOGGER.errorWithFormat("Errors occured while executing batch request: %s", retryableErrors.toString());
@@ -263,7 +258,7 @@ final class ListBatchRequest implements AutoCloseable {
             throws IOException, CanceledExecutionException {
         final var result = new JsonArray();
         final var errors = new LinkedList<String>();
-        m_currentWait = 0L;
+        m_currentWait = 0;
         try {
             final var responses = StreamSupport
                     .stream(createRequest().post(m_body).get("responses").getAsJsonArray().spliterator(), false)//
@@ -284,7 +279,6 @@ final class ListBatchRequest implements AutoCloseable {
                 checkToken();
                 // fallthrough
             case SERVICE_UNAVAILABLE:
-                waitFor("Service unavailable…", SERVICE_UNAVAILABLE_WAIT);
                 // fallthrough
             default:
                 retryableErrors.add(error);
@@ -317,16 +311,12 @@ final class ListBatchRequest implements AutoCloseable {
             checkToken();
             // fallthrough
         case SERVICE_UNAVAILABLE:
-            m_currentWait = Math.max(m_currentWait, SERVICE_UNAVAILABLE_WAIT);
-            retryableErrors.add(formatError(response));
-            break;
+            // fallthrough
         case FAILED_DEPENDENCY:
             retryableErrors.add(formatError(response));
             break; // just retry and hope for the best
         case UNKNOWN_ERROR:
             m_currentWait = Math.max(m_currentWait, UNKNOWN_ERROR_WAIT);
-            LOGGER.debugWithFormat("Encountered unknown error with body: '%s",
-                    m_requests.get(responseIndex).getAsJsonObject().get("body"));
             retryableErrors.add(formatError(response));
             break;
         case NON_RETRYABLE_ERROR:
