@@ -14,31 +14,35 @@
 			<p>
 				This node writes data from KNIME to a SharePoint list.
 			</p>
-			<b>SharePoint Online list column type support</b>
-			<b>All column types which are not mentioned below are partially supported and will get written with their String representation to a Text column in SharePoint</b>
+            <p>
+                <i>Note:</i>
+                Due to speed limitations of the SharePoint service, uploading
+                tables with more than a few hundred rows can take long time.
+			</p>
+            <b>SharePoint Online list column type support</b><br/>
+			<i>All column types which are not mentioned below are partially supported and will get written with their String representation to a Text column in SharePoint</i><br/>
 			<u>Fully supported column types:</u>
                 <ul>
-                    <li><i>String columns map to Multiple lines of text</i></li>
-                    <li><i>Long, Integer columns map to Number</i></li>
-                    <li><i>Boolean columns map to Yes/No</i></li>
-                    <li><i>Date, Date and Time, Zoned Date Time map to Date and time</i></li>
+                    <li><i>String columns</i> map to Multiple lines of text</li>
+                    <li><i>Long</i>, <i>Integer columns</i> map to Number</li>
+                    <li><i>Boolean columns</i> map to Yes/No</li>
+                    <li><i>Date</i>, <i>Date and Time</i>, <i>Zoned Date Time</i> map to Date and time</li>
                 </ul>
                 <u>Partially supported columns types:</u>
                 <ul>
 					<li>
-						<i>Double columns map to Number but they are only partially supported in terms of range
+                        <i>Double columns</i> map to Number but they are only partially supported in terms of range
 							SharePoint is able to store double values. Number
 							columns can only have 5 decimal places and the
-							range is from 1.79E308 to -1.79E308 (for values above or below the node will fail). 
+							range is from 1.79E308 to -1.79E308 (for values above or below the node will fail).
 							It also does not support infinity and NaN (the node will fail).
-						</i>
 					</li>
                 </ul>
-                <u>Unsupported column types (will be ignored during execution):</u><br/>
+                <u>Unsupported column types (node cannot be executed):</u><br/>
                 <ul>
-                    <li><i>Collection columns are not supported since there is no counterpart type in SharePoint</i></li>
+                    <li><i>Collection columns</i> are not supported since there is no counterpart type in SharePoint</li>
                     <li><i>Binary object columns</i> are not supported since there is no counterpart type in SharePoint</li>
-                    <li><i>Image columns</i> are not supported since the Graph API does not support this type currently.</li>
+                    <li><i>Image columns</i> are not supported since the Graph API does not support this type currently</li>
                 </ul>
 		</intro>
         <tab name="Settings">
@@ -46,10 +50,10 @@
                 There are three ways to specify SharePoint site:
                 <ul>
                     <li>
-                        <i>Root site:</i>Connect to the root site of the domain of the current user (see "Microsoft Connection" input port).
+                        <i>Root site:</i> Connect to the root site of the domain of the current user (see "Microsoft Connection" input port).
                     </li>
                     <li>
-                        <i>Web URL:</i>Specify the web URL of a SharePoint site, for example <i>https://mycompany.sharepoint.com</i>.
+                        <i>Web URL:</i> Specify the web URL of a SharePoint site, for example <i>https://mycompany.sharepoint.com</i>.
                     </li>
                     <li>
                         <i>Group site:</i> Connect to the team site of a particular Office 365 group.
