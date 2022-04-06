@@ -54,6 +54,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
@@ -62,8 +63,11 @@ import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
+import org.knime.core.util.Pair;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphApiUtil.RefreshableAuthenticationProvider;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
@@ -84,9 +88,16 @@ import com.microsoft.graph.requests.extensions.IListRequestBuilder;
  * Handles the actual writing process of the SharePoint List Writer node.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 class SharepointListWriterClient implements AutoCloseable {
+
+    // Attribute it to the node in the logs
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListWriterNodeModel.class); // NOSONAR
+    private static final long TOKEN_MAX_AGE = TimeUnit.MINUTES.toMillis(10);
+
     private final IGraphServiceClient m_client;
+    private final RefreshableAuthenticationProvider m_authProvider;
 
     private final SharepointListWriterConfig m_config;
 
@@ -118,9 +129,17 @@ class SharepointListWriterClient implements AutoCloseable {
         m_table = table;
         m_tableSpec = m_table.getDataTableSpec();
         m_exec = exec;
-        m_client = createGraphServiceClient(authPortSpec);
+        final var clientAndAuth = createGraphServiceClient(authPortSpec);
+        m_client = clientAndAuth.getFirst();
+        m_authProvider = clientAndAuth.getSecond();
         m_siteId = getSiteId();
         m_listId = getListId();
+    }
+
+    private void checkToken() throws IOException {
+        if (m_authProvider.refreshTokenIfOlder(TOKEN_MAX_AGE)) {
+            LOGGER.debug("Requested new token…");
+        }
     }
 
     /**
@@ -132,7 +151,7 @@ class SharepointListWriterClient implements AutoCloseable {
     void writeList() throws IOException, CanceledExecutionException {
         m_exec.setMessage("Writing rows…");
         final String[] colNames = m_tableSpec.getColumnNames();
-        try (final var batch = new ListBatchRequest(m_client, m_exec)) {
+        try (final var batch = new ListBatchRequest(m_client, m_authProvider, m_exec)) {
             if (m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
                     && !m_listCreated) {
                 prepareOverwrite(batch);
@@ -158,15 +177,17 @@ class SharepointListWriterClient implements AutoCloseable {
 
     }
 
-    private IGraphServiceClient createGraphServiceClient(final MicrosoftCredentialPortObjectSpec authPortSpec)
-            throws IOException {
-        final var client = GraphApiUtil.createClient(authPortSpec.getMicrosoftCredential());
+    private Pair<IGraphServiceClient, RefreshableAuthenticationProvider> createGraphServiceClient(
+            final MicrosoftCredentialPortObjectSpec authPortSpec) throws IOException {
+        final var result = GraphApiUtil
+                .createClientAndRefreshableAuthenticationProvider(authPortSpec.getMicrosoftCredential());
+        final var client = result.getFirst();
         final var timeoutSettings = m_sharePointListSettings.getTimeoutSettings();
         final var connectionConfig = new DefaultConnectionConfig();
         connectionConfig.setConnectTimeout(timeoutSettings.getConnectionTimeout().toMillisPart());
         connectionConfig.setReadTimeout(timeoutSettings.getReadTimeout().toMillisPart());
         client.getHttpProvider().setConnectionConfig(connectionConfig);
-        return client;
+        return result;
     }
 
     /**
@@ -177,9 +198,9 @@ class SharepointListWriterClient implements AutoCloseable {
      */
     private String getSiteId() throws IOException {
         final var settings = m_sharePointListSettings.getSiteSettings();
-        final var siteResolver = new SharepointSiteResolver(m_client,
-                settings.getMode(), settings.getSubsiteModel().getStringValue(),
-                settings.getWebURLModel().getStringValue(), settings.getGroupModel().getStringValue());
+        final var siteResolver = new SharepointSiteResolver(m_client, settings.getMode(),
+                settings.getSubsiteModel().getStringValue(), settings.getWebURLModel().getStringValue(),
+                settings.getGroupModel().getStringValue());
 
         return siteResolver.getTargetSiteId();
     }
@@ -292,6 +313,7 @@ class SharepointListWriterClient implements AutoCloseable {
      */
     private Map<String, String> mapColNames() throws IOException {
         try {
+            checkToken();
             final var columns = createListRequestBuilder().columns().buildRequest().get();
             final Map<String, String> colMap = new HashMap<>();
 
@@ -427,11 +449,13 @@ class SharepointListWriterClient implements AutoCloseable {
         m_exec.setMessage("Deleting columns…");
         try {
             m_columnsCleared = 0;
+            checkToken();
             final var columns = createListRequestBuilder().columns().buildRequest().get();
             var colDefList = columns.getCurrentPage();
             deleteColumns(colDefList, batch);
             var nextRequest = columns.getNextPage();
             while (nextRequest != null) {
+                checkToken();
                 colDefList = nextRequest.buildRequest().get().getCurrentPage();
                 deleteColumns(colDefList, batch);
                 nextRequest = columns.getNextPage();
@@ -474,12 +498,14 @@ class SharepointListWriterClient implements AutoCloseable {
         m_exec.setMessage("Deleting items…");
         try {
             m_itemsCleared = 0;
+            checkToken();
             final var listItems = createListRequestBuilder().items().buildRequest().get();
 
             deleteListItems(listItems, batch);
 
             var req = listItems.getNextPage();
             while (req != null) {
+                checkToken();
                 final var items = req.buildRequest().get();
                 deleteListItems(items, batch);
                 req = items.getNextPage();

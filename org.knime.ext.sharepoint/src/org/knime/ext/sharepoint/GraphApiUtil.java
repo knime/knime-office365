@@ -52,12 +52,14 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import org.knime.core.util.Pair;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 
 import com.google.gson.JsonObject;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.http.IHttpRequest;
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.requests.extensions.GraphServiceClient;
@@ -159,23 +161,101 @@ public final class GraphApiUtil {
     }
 
     /**
+     * Creates a {@link IGraphServiceClient} and a
+     * {@link RefreshableAuthenticationProvider} with a {@link MicrosoftCredential}.
+     *
+     * @param connection
+     *            the {@link MicrosoftCredential}
+     * @return the {@link IGraphServiceClient} and
+     *         {@link RefreshableAuthenticationProvider}
+     * @throws IOException
+     *             if the (new) token could not be accessed.
+     */
+    @SuppressWarnings("deprecation")
+    public static Pair<IGraphServiceClient, RefreshableAuthenticationProvider> createClientAndRefreshableAuthenticationProvider(
+            final MicrosoftCredential connection) throws IOException {
+        final var authProvider = createAuthenticationProvider(connection);
+        final var client = GraphServiceClient.builder().authenticationProvider(authProvider).buildClient();
+
+        return Pair.create(client, authProvider);
+    }
+
+    /**
      * Creates a {@link IAuthenticationProvider} with a {@link MicrosoftCredential}.
      *
      * @param connection
      *            the {@link MicrosoftCredential}
      * @return the {@link IAuthenticationProvider}
      * @throws IOException
+     *             if the (new) token could not be accessed.
      */
     @SuppressWarnings("deprecation")
-    public static IAuthenticationProvider createAuthenticationProvider(final MicrosoftCredential connection)
+    public static RefreshableAuthenticationProvider createAuthenticationProvider(final MicrosoftCredential connection)
             throws IOException {
-        if (!(connection instanceof OAuth2Credential)) {
-            throw new UnsupportedOperationException("Unsupported credential type: " + connection.getType());
-        }
-
-        final String accessToken = ((OAuth2Credential) connection).getAccessToken().getToken();
-
-        return (r -> r.addHeader("Authorization", "Bearer " + accessToken));
+        return new RefreshableAuthenticationProvider(connection);
     }
 
+    /**
+     * An {@link IAuthenticationProvider} that can refresh the bearer token.
+     *
+     * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+     */
+    @SuppressWarnings("deprecation")
+    public static final class RefreshableAuthenticationProvider implements IAuthenticationProvider {
+
+        private final OAuth2Credential m_credential;
+
+        private String m_field;
+        private long m_lastUpdateTime;
+        private long m_expiresAt;
+
+        private RefreshableAuthenticationProvider(final MicrosoftCredential connection) throws IOException {
+            if (!(connection instanceof OAuth2Credential)) {
+                throw new UnsupportedOperationException("Unsupported credential type: " + connection.getType());
+            }
+            m_credential = (OAuth2Credential) connection;
+            refreshTokenIfOlder(0);
+        }
+
+        /**
+         * Refreshes the bearer token sent by this Authentication provider if it is
+         * older than the given amount of time.
+         *
+         * @param millis
+         *            the age of the bearer token in milliseconds used as a maximum age
+         * @return if the token was older than the specified time
+         * @throws IOException
+         *             if the (new) token could not be accessed.
+         */
+        public boolean refreshTokenIfOlder(final long millis) throws IOException {
+            if (System.currentTimeMillis() - m_lastUpdateTime > millis) {
+                m_lastUpdateTime = System.currentTimeMillis();
+                final var token = m_credential.getAccessToken();
+                m_field = "Bearer " + token.getToken();
+                m_expiresAt = token.getAccessTokenExpiresAt().toEpochMilli();
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public void authenticateRequest(final IHttpRequest request) {
+            request.addHeader("Authorization", m_field);
+        }
+
+        /**
+         * @return the amount of epoch milliseconds since the token was updated
+         */
+        public long getLastUpdateTime() {
+            return m_lastUpdateTime;
+        }
+
+        /**
+         * @return the amount of epoch milliseconds when the token will expire
+         */
+        public long getExpiresAt() {
+            return m_expiresAt;
+        }
+
+    }
 }

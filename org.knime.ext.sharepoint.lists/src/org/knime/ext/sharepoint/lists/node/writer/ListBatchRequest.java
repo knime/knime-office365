@@ -58,6 +58,7 @@ import java.util.stream.StreamSupport;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.NodeLogger;
+import org.knime.ext.sharepoint.GraphApiUtil.RefreshableAuthenticationProvider;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -119,6 +120,7 @@ final class ListBatchRequest implements AutoCloseable {
     }
 
     private final IGraphServiceClient m_client;
+    private final RefreshableAuthenticationProvider m_authProvider;
     private final ExecutionContext m_exec;
     private final int m_absolutePrefixLength;
     private final ISerializer m_serializer;
@@ -138,11 +140,15 @@ final class ListBatchRequest implements AutoCloseable {
      *
      * @param client
      *            the client to create the requests
+     * @param authProvider
+     *            the AuthenticationProvider to refresh, if neccessary
      * @param exec
      *            the {@link ExecutionContext} to set the messages
      */
-    public ListBatchRequest(final IGraphServiceClient client, final ExecutionContext exec) {
+    public ListBatchRequest(final IGraphServiceClient client, final RefreshableAuthenticationProvider authProvider,
+            final ExecutionContext exec) {
         m_client = client;
+        m_authProvider = authProvider;
         m_exec = exec;
         m_serializer = client.getSerializer();
 
@@ -152,6 +158,11 @@ final class ListBatchRequest implements AutoCloseable {
         // API root. We get the length of this root by the finding the first part of the
         // custom request.
         m_absolutePrefixLength = createRequest().getRequestUrl().toString().indexOf("/$batch");
+    }
+
+    private void checkToken() throws IOException {
+        m_authProvider.refreshTokenIfOlder(0);
+        LOGGER.debug("Requested new token…");
     }
 
     private CustomRequest<JsonObject> createRequest() {
@@ -269,6 +280,9 @@ final class ListBatchRequest implements AutoCloseable {
             case NON_RETRYABLE_ERROR:
                 errors.add(error);
                 break;
+            case TOKEN_ERROR:
+                checkToken();
+                // fallthrough
             case SERVICE_UNAVAILABLE:
                 waitFor("Service unavailable…", SERVICE_UNAVAILABLE_WAIT);
                 // fallthrough
@@ -281,6 +295,7 @@ final class ListBatchRequest implements AutoCloseable {
             m_errored = true;
             throw new IOException(String.format("%d error(s) during execution: %s…", errors.size(), errors.get(0)));
         }
+
         waitFor("Throtted…", m_currentWait);
         redistributeIDs();
         if (m_requestsAccumulated > 0) {
@@ -290,7 +305,7 @@ final class ListBatchRequest implements AutoCloseable {
     }
 
     private void handleResponse(final JsonArray result, final List<String> nonRetryableErrors,
-            final List<String> retryableErrors, final int responseIndex, final JsonObject response) {
+            final List<String> retryableErrors, final int responseIndex, final JsonObject response) throws IOException {
         final var status = response.get("status").getAsInt();
         switch (ResponseStatus.getFromStatusCode(status)) {
         case THROTTLED:
@@ -298,6 +313,9 @@ final class ListBatchRequest implements AutoCloseable {
                     Long.parseLong(response.getAsJsonObject("headers").get("Retry-After").getAsString()));
             retryableErrors.add(formatError(response));
             break;
+        case TOKEN_ERROR:
+            checkToken();
+            // fallthrough
         case SERVICE_UNAVAILABLE:
             m_currentWait = Math.max(m_currentWait, SERVICE_UNAVAILABLE_WAIT);
             retryableErrors.add(formatError(response));
@@ -424,7 +442,7 @@ final class ListBatchRequest implements AutoCloseable {
     }
 
     private enum ResponseStatus {
-        THROTTLED, SERVICE_UNAVAILABLE, FAILED_DEPENDENCY, UNKNOWN_ERROR, NON_RETRYABLE_ERROR, SUCCESS;
+        THROTTLED, TOKEN_ERROR, SERVICE_UNAVAILABLE, FAILED_DEPENDENCY, UNKNOWN_ERROR, NON_RETRYABLE_ERROR, SUCCESS;
 
         static ResponseStatus getFromStatusCode(final int status) { // NOSONAR: this is nicer this way
             switch (status) {
@@ -432,6 +450,8 @@ final class ListBatchRequest implements AutoCloseable {
                 return THROTTLED;
             case 503:
                 return SERVICE_UNAVAILABLE;
+            case 401: // UNAUTHORISED
+                return TOKEN_ERROR;
             case 424:
                 return FAILED_DEPENDENCY;
             case 201: // CREATED (fallthrough)
