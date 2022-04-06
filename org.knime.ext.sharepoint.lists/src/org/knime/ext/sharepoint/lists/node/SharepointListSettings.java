@@ -91,7 +91,7 @@ public final class SharepointListSettings extends AbstractSharePointSettings<Sha
         super();
         m_listSettings = new ListSettings(useSystemListsSettings);
         m_hasOverwriteOptions = hasOverwriteOptions;
-        m_overwritePolicy = new SettingsModelString(CFG_OVERWRITE_POLICY, ListOverwritePolicy.FAIL.getText());
+        m_overwritePolicy = new SettingsModelString(CFG_OVERWRITE_POLICY, ListOverwritePolicy.FAIL.name());
     }
 
     private SharepointListSettings(final SharepointListSettings toCopy) {
