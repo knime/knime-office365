@@ -48,7 +48,10 @@
  */
 package org.knime.ext.sharepoint.lists.node.writer;
 
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -96,6 +99,12 @@ final class KNIMEToSharepointTypeConverter {
 
     // Lower threshold for double values
     private static final double DOUBLE_MIN_VALUE = -1.79E308;
+
+    // Max date which is supported by SharePoint
+    private static final Instant MAX_INSTANT = Instant.parse("8900-12-31T23:59:59Z");
+
+    // Min date which is supported by SharePoint
+    private static final Instant MIN_INSTANT = Instant.parse("1900-01-01T00:00:00Z");
 
     private KNIMEToSharepointTypeConverter() {
         // utility class
@@ -186,8 +195,9 @@ final class KNIMEToSharepointTypeConverter {
     }
 
     private static JsonElement localDateParser(final DataCell dataCell) {
-        final var val = ((LocalDateValue) dataCell).getLocalDate().toString();
-        return new JsonPrimitive(val);
+        final var val = ((LocalDateValue) dataCell).getLocalDate();
+        checkInstant(val.atStartOfDay(ZoneId.systemDefault()).toInstant());
+        return new JsonPrimitive(val.toString());
     }
 
     private static JsonElement localTimeParser(final DataCell dataCell) {
@@ -196,13 +206,24 @@ final class KNIMEToSharepointTypeConverter {
     }
 
     private static JsonElement zonedDateTimeParser(final DataCell dataCell) {
-        final var val = ((ZonedDateTimeValue) dataCell).getZonedDateTime().toInstant().toString();
-        return new JsonPrimitive(val);
+        final var val = ((ZonedDateTimeValue) dataCell).getZonedDateTime().toInstant().truncatedTo(ChronoUnit.SECONDS);
+        checkInstant(val);
+        return new JsonPrimitive(val.toString());
     }
 
     private static JsonElement dateTimeParser(final DataCell dataCell) {
-        final var val = ((LocalDateTimeValue) dataCell).getLocalDateTime().toInstant(ZoneOffset.UTC).toString();
-        return new JsonPrimitive(val);
+        final var val = ((LocalDateTimeValue) dataCell).getLocalDateTime().toInstant(ZoneOffset.UTC)
+                .truncatedTo(ChronoUnit.SECONDS);
+        checkInstant(val);
+        return new JsonPrimitive(val.toString());
+    }
+
+    private static void checkInstant(final Instant val) {
+        if (val.isBefore(MIN_INSTANT) || val.isAfter(MAX_INSTANT)) {
+            throw new IllegalArgumentException(String.format(
+                    "Local Date, Local Date Time or Zoned Date Time before %s or after %s are not supported. %s",
+                    MIN_INSTANT.toString(), MAX_INSTANT.toString(), val.toString()));
+        }
     }
 
     private static ColumnDefinition createColDefintion(final String name) {

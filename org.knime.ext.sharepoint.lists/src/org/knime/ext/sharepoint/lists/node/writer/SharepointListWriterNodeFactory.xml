@@ -27,7 +27,6 @@
                     <li><i>String columns</i> map to Multiple lines of text</li>
                     <li><i>Integer columns</i> map to Number</li>
                     <li><i>Boolean columns</i> map to Yes/No</li>
-                    <li><i>Date</i>, <i>Date and Time</i>, <i>Zoned Date Time</i> map to Date and time</li>
                 </ul>
                 <u>Partially supported columns types:</u>
                 <ul>
@@ -40,6 +39,10 @@
 							columns can only have 5 decimal places and the
 							range is from 1.79E308 to -1.79E308 (for values above or below the node will fail).
 							It also does not support infinity and NaN (the node will fail).
+					</li>
+					<li>
+					   <i>Date</i>, <i>Date and Time</i>, <i>Zoned Date Time</i> map to Date and time. Values before 1900-01-01T00:00:00Z and 
+					   after 8900-12-31T23:59:59Z are not supported (the node will fail). Note that the format is yyyy-MM-dd;HH:mm:ss when reading back. 
 					</li>
                 </ul>
                 <u>Unsupported column types (node cannot be executed):</u><br/>
