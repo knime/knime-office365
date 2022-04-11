@@ -53,10 +53,12 @@ import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.ports.PortsConfiguration;
+import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
@@ -79,11 +81,15 @@ import com.microsoft.aad.msal4j.SystemBrowserOptions;
  */
 public class InteractiveAuthProvider extends OAuth2Provider {
 
-    private static final String REDIRECT_URL = "http://localhost:51355/";
+    private static final String KEY_REDIRECT_URL = "redirectUrl";
+
+    private static final String DEFAULT_REDIRECT_URL = "http://localhost:51355/";
 
     private final PortsConfiguration m_portsConfig;
 
     private final StorageSettings m_storageSettings;
+
+    private final SettingsModelString m_redirectUrl;
 
     /**
      * Creates new instance.
@@ -93,7 +99,26 @@ public class InteractiveAuthProvider extends OAuth2Provider {
      */
     public InteractiveAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         m_portsConfig = portsConfig;
-        m_storageSettings = new StorageSettings(portsConfig, nodeInstanceId, getEndpoint());
+        m_storageSettings = new StorageSettings(portsConfig, nodeInstanceId, getEndpoint(), getAppId());
+        m_redirectUrl = new SettingsModelString(KEY_REDIRECT_URL, "");
+    }
+
+    /**
+     * @return the redirectUrl model
+     */
+    public SettingsModelString getRedirectUrlModel() {
+        return m_redirectUrl;
+    }
+
+    /**
+     * @return the redirectUrl
+     */
+    private String getRedirectUrl() {
+        if (getUseCustomAppIdModel().getBooleanValue()) {
+            return m_redirectUrl.getStringValue();
+        } else {
+            return DEFAULT_REDIRECT_URL;
+        }
     }
 
     /**
@@ -107,11 +132,11 @@ public class InteractiveAuthProvider extends OAuth2Provider {
      * @throws IOException
      */
     public LoginStatus performLogin() throws InterruptedException, ExecutionException, IOException {
-        final PublicClientApplication app = MSALUtil.createClientApp(getEndpoint());
+        final PublicClientApplication app = MSALUtil.createClientApp(getAppId(), getEndpoint());
 
         // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
         final InteractiveRequestParameters params = InteractiveRequestParameters
-                .builder(URI.create(REDIRECT_URL))
+                .builder(URI.create(getRedirectUrl()))
                 .scopes(getScopesStringSet())
                 .systemBrowserOptions(
                         SystemBrowserOptions.builder().openBrowserAction(new CustomOpenBrowserAction()).build())
@@ -150,7 +175,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
                 m_storageSettings.createAccessTokenSupplier(), //
                 loginStatus.getUsername(), //
                 getScopesStringSet(), //
-                getEndpoint());
+                getEndpoint(), getAppId());
     }
 
     @Override
@@ -167,6 +192,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
     public void saveSettingsTo(final NodeSettingsWO settings) {
         super.saveSettingsTo(settings);
         m_storageSettings.saveSettingsTo(settings);
+        m_redirectUrl.saveSettingsTo(settings);
     }
 
     @Override
@@ -180,12 +206,20 @@ public class InteractiveAuthProvider extends OAuth2Provider {
     public void validate() throws InvalidSettingsException {
         super.validate();
         m_storageSettings.validate();
+
+        if (getUseCustomAppIdModel().getBooleanValue() && StringUtils.isBlank(getRedirectUrl())) {
+            throw new InvalidSettingsException("Redirect URL must not be empty");
+        }
     }
 
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadSettingsFrom(settings);
         m_storageSettings.loadSettingsFrom(settings);
+
+        if (settings.containsKey(KEY_REDIRECT_URL)) {
+            m_redirectUrl.loadSettingsFrom(settings);
+        }
     }
 
     /**
@@ -201,5 +235,4 @@ public class InteractiveAuthProvider extends OAuth2Provider {
     public void clearMemoryTokenCache() {
         m_storageSettings.clearMemoryTokenCache();
     }
-
 }

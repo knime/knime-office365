@@ -50,6 +50,9 @@ package org.knime.ext.microsoft.authentication.node.auth;
 
 import java.awt.CardLayout;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -69,6 +72,7 @@ import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.oauth2.ApplicationIdEditComponent;
 import org.knime.ext.microsoft.authentication.providers.oauth2.AuthorizationEndpointEditComponent;
 
 
@@ -87,6 +91,8 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
     private Map<AuthProviderType, MicrosoftAuthProviderEditor> m_editors;
 
     private AuthorizationEndpointEditComponent m_endpointEditor;
+
+    private ApplicationIdEditComponent m_appIdEditor;
 
     /**
      * Creates new instance.
@@ -108,10 +114,28 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
     }
 
     private JComponent createAdvancedTab() {
-        final var panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        final var panel = new JPanel();
+        panel.setLayout(new GridBagLayout());
+        var c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.WEST;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.weightx = 1;
+        c.insets = new Insets(10, 10, 0, 10);
+        c.gridx = 0;
+        c.gridy = 0;
 
         m_endpointEditor = new AuthorizationEndpointEditComponent(m_settings);
-        panel.add(m_endpointEditor);
+        panel.add(m_endpointEditor, c);
+
+        c.gridy += 1;
+        m_appIdEditor = new ApplicationIdEditComponent(m_settings);
+        panel.add(m_appIdEditor, c);
+
+        c.gridy++;
+        c.fill = GridBagConstraints.BOTH;
+        c.weighty = 1;
+        panel.add(Box.createVerticalGlue(), c);
+
         return panel;
     }
 
@@ -158,6 +182,7 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
         AuthProviderType currProvider = m_settings.getProviderType();
         m_providerCombo.setSelectedItem(currProvider);
         m_endpointEditor.onShown();
+        m_appIdEditor.onShown();
     }
 
     @Override
@@ -185,6 +210,7 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
             editor.onClose();
         }
         m_endpointEditor.onClosed();
+        m_appIdEditor.onClosed();
         cancelLogin();
     }
 

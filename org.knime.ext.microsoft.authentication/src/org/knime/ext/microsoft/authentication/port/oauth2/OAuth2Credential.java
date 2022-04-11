@@ -64,6 +64,7 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
@@ -79,11 +80,13 @@ public class OAuth2Credential extends MicrosoftCredential {
                                                             // reasons
     private static final String KEY_USERNAME = "username";
     private static final String KEY_SCOPES = "scopes";
+    private static final String KEY_APP_ID = "appId";
 
-    private MemoryCacheAccessTokenSupplier m_tokenSupplier;
-    private String m_username;
-    private Set<String> m_scopes;
-    private String m_endpoint;
+    private final MemoryCacheAccessTokenSupplier m_tokenSupplier;
+    private final String m_username;
+    private final Set<String> m_scopes;
+    private final String m_endpoint;
+    private final String m_appId;
 
     /**
      * Creates new instance
@@ -95,18 +98,22 @@ public class OAuth2Credential extends MicrosoftCredential {
      *            The scopes
      * @param endpoint
      *            The OAuth2 authorization endpoint
+     * @param appId
+     *            The Application (client) ID
      */
     public OAuth2Credential(
             final MemoryCacheAccessTokenSupplier tokenSupplier, //
             final String username, //
             final Set<String> scopes, //
-            final String endpoint) {
+            final String endpoint, //
+            final String appId) {
 
         super(Type.OAUTH2_ACCESS_TOKEN);
         m_tokenSupplier = tokenSupplier;
         m_username = username;
         m_scopes = scopes;
         m_endpoint = endpoint;
+        m_appId = appId;
     }
 
     /**
@@ -141,6 +148,13 @@ public class OAuth2Credential extends MicrosoftCredential {
     }
 
     /**
+     * @return the appId
+     */
+    protected String getAppId() {
+        return m_appId;
+    }
+
+    /**
      * @return the OAuth2 authorization endpoint URL
      * @deprecated Use {@link #getEndpoint()} instead
      */
@@ -154,6 +168,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         super.saveSettings(config);
         config.addString(KEY_USERNAME, m_username);
         config.addString(KEY_ENDPOINT, m_endpoint);
+        config.addString(KEY_APP_ID, m_appId);
 
         final String[] scopes = m_scopes.toArray(new String[] {});
         config.addStringArray(KEY_SCOPES, scopes);
@@ -161,15 +176,20 @@ public class OAuth2Credential extends MicrosoftCredential {
     }
 
     public static MicrosoftCredential loadFromSettings(final ConfigRO config) throws InvalidSettingsException {
-        final String username = config.getString(KEY_USERNAME);
-        final String endpoint = config.getString(KEY_ENDPOINT);
+        final var username = config.getString(KEY_USERNAME);
+        final var endpoint = config.getString(KEY_ENDPOINT);
+        var appId = MSALUtil.DEFAULT_APP_ID;
+
+        if (config.containsKey(KEY_APP_ID)) {
+            appId = config.getString(KEY_APP_ID);
+        }
 
         final Set<String> scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
 
-        final MemoryCacheAccessTokenSupplier tokenSupplier = new MemoryCacheAccessTokenSupplier(endpoint);
+        final var tokenSupplier = new MemoryCacheAccessTokenSupplier(endpoint, appId);
         tokenSupplier.loadSettings(config.getConfig(KEY_TOKEN));
 
-        return new OAuth2Credential(tokenSupplier, username, scopes, endpoint);
+        return new OAuth2Credential(tokenSupplier, username, scopes, endpoint, appId);
     }
 
     @Override
@@ -182,6 +202,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         final Box labelBox = new Box(BoxLayout.Y_AXIS);
         labelBox.add(createLabel("Username: "));
         labelBox.add(createLabel("OAuth2 Authorization Endpoint: "));
+        labelBox.add(createLabel("Application (client) ID: "));
         labelBox.add(createLabel("Scopes: "));
         labelBox.add(Box.createVerticalGlue());
         panel.add(labelBox);
@@ -191,6 +212,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         final Box valueBox = new Box(BoxLayout.Y_AXIS);
         valueBox.add(createLabel(m_username));
         valueBox.add(createLabel(m_endpoint));
+        valueBox.add(createLabel(m_appId));
         valueBox.add(createLabel(String.join(", ", m_scopes.toArray(new String[] {}))));
         valueBox.add(Box.createVerticalGlue());
         panel.add(valueBox);

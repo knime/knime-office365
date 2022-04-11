@@ -61,7 +61,10 @@ import com.microsoft.aad.msal4j.PublicClientApplication;
  */
 public class MSALUtil {
 
-    private static final String APP_ID = "cf47ff49-7da6-4603-b339-f4475176432b";
+    /**
+     * The default Application (client) ID
+     */
+    public static final String DEFAULT_APP_ID = "cf47ff49-7da6-4603-b339-f4475176432b";
 
     /**
      * Common OAuth2 authorization endpoint to sign in work or school accounts and
@@ -84,20 +87,42 @@ public class MSALUtil {
     /**
      * Creates the {@link PublicClientApplication} instance.
      *
-     * @return The client application.
+     * @param appId
+     *            The Application (client) ID.
+     * @param endpoint
+     *            The OAuth authorization endpoint URL to use with the
+     *            {@link PublicClientApplication}.
+     *
+     * @return the {@link PublicClientApplication}.
      */
-    public static PublicClientApplication createClientApp(final String endpoint) {
+    public static PublicClientApplication createClientApp(final String appId, final String endpoint) {
         try {
-            return PublicClientApplication.builder(APP_ID).authority(endpoint).build();
+            return PublicClientApplication.builder(appId).authority(endpoint).build();
         } catch (MalformedURLException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
         }
     }
 
-    public static PublicClientApplication createClientAppWithToken(final String endpoint, final String tokenCache)
-            throws IOException {
+    /**
+     * Creates the {@link PublicClientApplication} instance.
+     *
+     * @param appId
+     *            The Application (client) ID
+     * @param endpoint
+     *            The OAuth authorization endpoint URL to use with the
+     *            {@link PublicClientApplication}.
+     * @param tokenCache
+     *            A string from which to load access/refresh token into the
+     *            {@link PublicClientApplication}.
+     * @return the {@link PublicClientApplication}.
+     * @throws IOException
+     *             when something went wrong while trying to load the access/refresh
+     *             token.
+     */
+    public static PublicClientApplication createClientAppWithToken(final String appId, final String endpoint,
+            final String tokenCache) throws IOException {
         try {
-            final PublicClientApplication app = MSALUtil.createClientApp(endpoint);
+            final PublicClientApplication app = createClientApp(appId, endpoint);
             app.tokenCache().deserialize(tokenCache);
             return app;
         } catch (MsalClientException e) {

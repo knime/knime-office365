@@ -89,10 +89,19 @@ public class StorageSettings {
 
     private final NodeSettingsStorage m_nodeSettingsStorage;
 
-    public StorageSettings(final PortsConfiguration portsConfig, final String nodeInstanceId, final String endpoint) {
-        m_inMemoryStorage = new InMemoryStorage(nodeInstanceId, endpoint);
-        m_nodeSettingsStorage = new NodeSettingsStorage(nodeInstanceId, endpoint);
-        m_fileStorage = new FileStorage(portsConfig, nodeInstanceId, endpoint);
+    /**
+     * Constructor.
+     *
+     * @param portsConfig
+     * @param nodeInstanceId
+     * @param endpoint
+     * @param appId
+     */
+    public StorageSettings(final PortsConfiguration portsConfig, final String nodeInstanceId, final String endpoint,
+            final String appId) {
+        m_inMemoryStorage = new InMemoryStorage(nodeInstanceId, endpoint, appId);
+        m_nodeSettingsStorage = new NodeSettingsStorage(nodeInstanceId, endpoint, appId);
+        m_fileStorage = new FileStorage(portsConfig, nodeInstanceId, endpoint, appId);
 
         m_storageType.addChangeListener((e) -> {
             m_fileStorage.getFileModel().setEnabled(getStorageType() == StorageType.FILE);

@@ -76,18 +76,37 @@ public class MemoryCacheAccessTokenSupplier {
     private static final String KEY_CACHE_KEY = "cacheKey";
 
     private final String m_endpoint;
+    private final String m_appId;
 
     private String m_cacheKey;
 
-    public MemoryCacheAccessTokenSupplier(final String endpoint) {
-        this(endpoint, null);
+    /**
+     * Constructor (used for deserialization only).
+     *
+     * @param endpoint
+     *            The endpoint to use during token refresh.
+     * @param appId
+     *            The Application (client) ID
+     */
+    public MemoryCacheAccessTokenSupplier(final String endpoint, final String appId) {
+        this(endpoint, null, appId);
     }
 
-    public MemoryCacheAccessTokenSupplier(final String endpoint, final String cacheKey) {
+    /**
+     * Constructor.
+     *
+     * @param endpoint
+     *            The endpoint to use during token refresh.
+     * @param cacheKey
+     *            The cache key to use against the in-memory token cache.
+     * @param appId
+     *            The Application (client) ID
+     */
+    public MemoryCacheAccessTokenSupplier(final String endpoint, final String cacheKey, final String appId) {
         m_endpoint = endpoint;
         m_cacheKey = cacheKey;
+        m_appId = appId;
     }
-
 
     /**
      * @return the OAuth2 authorization endpoint
@@ -129,7 +148,7 @@ public class MemoryCacheAccessTokenSupplier {
         if (tokenCacheString == null) {
             throw new IOException("No access token found. Please re-execute the Microsoft Authentication node.");
         }
-        return MSALUtil.createClientAppWithToken(m_endpoint, tokenCacheString);
+        return MSALUtil.createClientAppWithToken(m_appId, m_endpoint, tokenCacheString);
     }
 
     public void saveSettings(final ConfigWO config) {

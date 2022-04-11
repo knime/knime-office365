@@ -206,6 +206,15 @@
                 <li><b>Custom:</b>Use a custom endpoint. This can be used to specify an endpoint that is specific to an Azure AD tenant for example.</li>
                 </ul>
             </option>
+            <option name="Application ID">
+                When using OAuth2-based authentication <i>(Interactive</i> or <i>Username/password),</i>
+                these options can be used to set an <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/developer-glossary#application-id-client-id">Application ID (client ID):</a>
+
+                <ul>
+                <li><b>Default:</b> Use a KNIME's default Application ID <i>cf47ff49-7da6-4603-b339-f4475176432b.</i></li>
+                <li><b>Custom:</b>Use a custom Application ID and redirect URL. The redirect URL is used only with Interactive authentication.</li>
+                </ul>
+            </option>
         </tab>
 
 	</fullDescription>

@@ -123,8 +123,7 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
         var c = new GridBagConstraints();
         c.anchor = GridBagConstraints.WEST;
         c.fill = GridBagConstraints.NONE;
-        c.weightx = 0;
-        c.weighty = 0;
+        c.weightx = 1;
         c.insets = new Insets(10, 10, 0, 10);
         c.gridx = 0;
         c.gridy = 0;
