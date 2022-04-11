@@ -59,6 +59,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
@@ -132,11 +133,15 @@ public class InteractiveAuthProvider extends OAuth2Provider {
      * @throws IOException
      */
     public LoginStatus performLogin() throws InterruptedException, ExecutionException, IOException {
+        final var redirectUri = URI.create(getRedirectUrl());
+        CheckUtils.checkArgument(redirectUri.getScheme() != null, "Invalid redirect URL: %s", getRedirectUrl());
+        CheckUtils.checkArgument(redirectUri.getAuthority() != null, "Invalid redirect URL: %s", getRedirectUrl());
+
         final PublicClientApplication app = MSALUtil.createClientApp(getAppId(), getEndpoint());
 
         // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
         final InteractiveRequestParameters params = InteractiveRequestParameters
-                .builder(URI.create(getRedirectUrl()))
+                .builder(redirectUri)
                 .scopes(getScopesStringSet())
                 .systemBrowserOptions(
                         SystemBrowserOptions.builder().openBrowserAction(new CustomOpenBrowserAction()).build())
