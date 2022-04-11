@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -91,11 +92,16 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     private static final String KEY_USE_CUSTOM_AUTH_ENDPOINT = "useCustomEndpoint";
     private static final String KEY_CUSTOM_AUTH_ENDPOINT_URL = "customEndpoint";
 
+    private static final String KEY_USE_CUSTOM_APP_ID = "useCustomAppId";
+    private static final String KEY_CUSTOM_APP_ID = "customAppId";
+
     private final SettingsModelStringArray m_scopes;
     private final SettingsModelString m_blobStorageAccount;
     private final SettingsModelString m_otherScopes;
     private final SettingsModelBoolean m_useCustomEndpoint;
     private final SettingsModelString m_customEndpointUrl;
+    private final SettingsModelBoolean m_useCustomAppId;
+    private final SettingsModelString m_customAppId;
 
     /**
      * Creates new instance.
@@ -109,6 +115,8 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         m_otherScopes.setEnabled(false);
         m_useCustomEndpoint = new SettingsModelBoolean(KEY_USE_CUSTOM_AUTH_ENDPOINT, false);
         m_customEndpointUrl = new SettingsModelString(KEY_CUSTOM_AUTH_ENDPOINT_URL, "");
+        m_useCustomAppId = new SettingsModelBoolean(KEY_USE_CUSTOM_APP_ID, false);
+        m_customAppId = new SettingsModelString(KEY_CUSTOM_APP_ID, "");
     }
 
     /**
@@ -145,6 +153,20 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
      */
     public SettingsModelString getCustomEndpointUrlModel() {
         return m_customEndpointUrl;
+    }
+
+    /**
+     * @return the useCustomAppId model
+     */
+    protected SettingsModelBoolean getUseCustomAppIdModel() {
+        return m_useCustomAppId;
+    }
+
+    /**
+     * @return the customAppId model
+     */
+    protected SettingsModelString getCustomAppIdModel() {
+        return m_customAppId;
     }
 
     /**
@@ -205,6 +227,19 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     }
 
     /**
+     * Returns the Application (client) ID.
+     *
+     * @return The application id as a string.
+     */
+    protected String getAppId() {
+        if (m_useCustomAppId.getBooleanValue()) {
+            return m_customAppId.getStringValue();
+        } else {
+            return MSALUtil.DEFAULT_APP_ID;
+        }
+    }
+
+    /**
      * Returns the default endpoint for the current provider.
      *
      * @return The endpoint.
@@ -218,6 +253,8 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         m_otherScopes.saveSettingsTo(settings);
         m_useCustomEndpoint.saveSettingsTo(settings);
         m_customEndpointUrl.saveSettingsTo(settings);
+        m_useCustomAppId.saveSettingsTo(settings);
+        m_customAppId.saveSettingsTo(settings);
     }
 
     /**
@@ -227,7 +264,7 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
      */
     public void validate() throws InvalidSettingsException {
         String[] scopes = m_scopes.getStringArrayValue();
-        if (scopes == null || scopes.length == 0) {
+        if (ArrayUtils.isEmpty(scopes)) {
             throw new InvalidSettingsException("Scopes cannot be empty");
         }
 
@@ -241,6 +278,10 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
 
         if (m_useCustomEndpoint.getBooleanValue() && m_customEndpointUrl.getStringValue().isEmpty()) {
             throw new InvalidSettingsException("Custom OAuth authorization endpoint URL must not be empty");
+        }
+
+        if (m_useCustomAppId.getBooleanValue() && StringUtils.isBlank(m_customAppId.getStringValue())) {
+            throw new InvalidSettingsException("Custom Application (client) ID must not be empty");
         }
     }
 
@@ -262,6 +303,11 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
         if (settings.containsKey(KEY_USE_CUSTOM_AUTH_ENDPOINT)) {
             m_useCustomEndpoint.loadSettingsFrom(settings);
             m_customEndpointUrl.loadSettingsFrom(settings);
+        }
+
+        if (settings.containsKey(KEY_USE_CUSTOM_APP_ID)) {
+            m_useCustomAppId.loadSettingsFrom(settings);
+            m_customAppId.loadSettingsFrom(settings);
         }
     }
 }

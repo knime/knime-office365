@@ -73,18 +73,22 @@ class InMemoryStorage implements StorageProvider {
 
     private final String m_endpoint;
 
+    private final String m_appId;
+
     /**
      * @param nodeInstanceId
      * @param endpoint
+     * @param appId
      */
-    public InMemoryStorage(final String nodeInstanceId, final String endpoint) {
+    public InMemoryStorage(final String nodeInstanceId, final String endpoint, final String appId) {
         m_cacheKey = "mem-" + nodeInstanceId;
         m_endpoint = endpoint;
+        m_appId = appId;
     }
 
     @Override
     public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
-        return new MemoryCacheAccessTokenSupplier(m_endpoint, m_cacheKey);
+        return new MemoryCacheAccessTokenSupplier(m_endpoint, m_cacheKey, m_appId);
     }
 
     private String getMemoryCacheKey() {

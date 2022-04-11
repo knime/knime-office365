@@ -79,6 +79,8 @@ class NodeSettingsStorage implements StorageProvider {
 
     private final String m_endpoint;
 
+    private final String m_appId;
+
     /**
      * Stores the token cache, when storing the token cache in the node settings.
      */
@@ -88,10 +90,12 @@ class NodeSettingsStorage implements StorageProvider {
     /**
      * @param nodeInstanceId
      * @param endpoint
+     * @param appId
      */
-    public NodeSettingsStorage(final String nodeInstanceId, final String endpoint) {
+    public NodeSettingsStorage(final String nodeInstanceId, final String endpoint, final String appId) {
         m_cacheKey = "node-" + nodeInstanceId;
         m_endpoint = endpoint;
+        m_appId = appId;
     }
 
     @Override
@@ -117,7 +121,7 @@ class NodeSettingsStorage implements StorageProvider {
 
     @Override
     public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
-        return new MemoryCacheAccessTokenSupplier(m_endpoint, m_cacheKey);
+        return new MemoryCacheAccessTokenSupplier(m_endpoint, m_cacheKey, m_appId);
     }
 
     @Override

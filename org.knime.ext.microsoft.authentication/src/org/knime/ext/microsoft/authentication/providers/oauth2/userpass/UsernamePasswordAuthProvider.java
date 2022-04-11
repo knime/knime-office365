@@ -176,7 +176,7 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
             password = m_password.getStringValue();
         }
 
-        PublicClientApplication app = MSALUtil.createClientApp(getEndpoint());
+        PublicClientApplication app = MSALUtil.createClientApp(getAppId(), getEndpoint());
 
         try {
             final IAuthenticationResult result = app.acquireToken(
@@ -186,12 +186,12 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
             MemoryCredentialCache.put(m_cacheKey, app.tokenCache().serialize());
 
             final var tokenSupplier = new MemoryCacheAccessTokenSupplier(getEndpoint(),
-                    m_cacheKey);
+                    m_cacheKey, getAppId());
 
             return new OAuth2Credential(tokenSupplier, //
                     result.account().username(), //
                     getScopesStringSet(), //
-                    getEndpoint());
+                    getEndpoint(), getAppId());
         } catch (InterruptedException ex) { // NOSONAR we are rethrowing by attaching as cause to an IOE
             throw new IOException(ex);
         } catch (ExecutionException ex) { // NOSONAR this exception is being handled
