@@ -17,19 +17,23 @@
             <p>
                 <i>Note:</i>
                 Due to speed limitations of the SharePoint service, uploading
-                tables with more than a few hundred rows can take long time.
+                tables with more than a few hundred rows can take long time. Overwriting an existing table
+                can be also very slow in case a lot of rows needs to be deleted.
 			</p>
             <b>SharePoint Online list column type support</b><br/>
 			<i>All column types which are not mentioned below are partially supported and will get written with their String representation to a Text column in SharePoint</i><br/>
 			<u>Fully supported column types:</u>
                 <ul>
                     <li><i>String columns</i> map to Multiple lines of text</li>
-                    <li><i>Long</i>, <i>Integer columns</i> map to Number</li>
+                    <li><i>Integer columns</i> map to Number</li>
                     <li><i>Boolean columns</i> map to Yes/No</li>
                     <li><i>Date</i>, <i>Date and Time</i>, <i>Zoned Date Time</i> map to Date and time</li>
                 </ul>
                 <u>Partially supported columns types:</u>
                 <ul>
+                    <li>
+                        <i>Long</i> and <i>Double columns</i> map to Number and this is only precise up to 15 digits (for longer values the node will fail).
+                    </li>
 					<li>
                         <i>Double columns</i> map to Number but they are only partially supported in terms of range
 							SharePoint is able to store double values. Number

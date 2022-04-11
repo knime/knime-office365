@@ -119,7 +119,7 @@ final class KNIMEToSharepointTypeConverter {
                 KNIMEToSharepointTypeConverter::createIntegerNumberColDefiniton));
         TYPE_CONVERTER.put(DoubleCell.TYPE, Pair.create(KNIMEToSharepointTypeConverter::doubleParser,
                 KNIMEToSharepointTypeConverter::createDoubleNumberColDefiniton));
-        TYPE_CONVERTER.put(LongCell.TYPE, Pair.create(s -> new JsonPrimitive(((LongCell) s).getLongValue()),
+        TYPE_CONVERTER.put(LongCell.TYPE, Pair.create(KNIMEToSharepointTypeConverter::longParser,
                 KNIMEToSharepointTypeConverter::createIntegerNumberColDefiniton));
         TYPE_CONVERTER.put(BooleanCell.TYPE, Pair.create(s -> new JsonPrimitive(((BooleanCell) s).getBooleanValue()),
                 KNIMEToSharepointTypeConverter::createBooleanColDefiniton));
@@ -141,9 +141,18 @@ final class KNIMEToSharepointTypeConverter {
                 KNIMEToSharepointTypeConverter::createStringColDefiniton));
     }
 
+    private static JsonElement longParser(final DataCell dataCell) {
+        final var val = ((LongCell) dataCell).getLongValue();
+        if (String.valueOf(val).length() > 15) {
+            throw new IllegalArgumentException("Long values with more than 15 digits are not supported. " + val);
+        }
+        return new JsonPrimitive(val);
+    }
+
     private static JsonElement doubleParser(final DataCell dataCell) {
         final var val = ((DoubleValue) dataCell).getDoubleValue();
         checkDoubleValues(val);
+        checkLength(val);
         return new JsonPrimitive(val);
     }
 
@@ -156,6 +165,13 @@ final class KNIMEToSharepointTypeConverter {
         } else if (val > DOUBLE_MAX_VALUE) {
             throw new IllegalArgumentException(
                     "Double value is bigger than the supported biggest value of SharePoint. " + val);
+        }
+    }
+
+    private static void checkLength(final double val) {
+        if (String.valueOf((long) val).length() > 15) {
+            throw new IllegalArgumentException(
+                    "Double values with more than 15 digits before the decimal separator are not supported. " + val);
         }
     }
 
