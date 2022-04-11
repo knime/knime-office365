@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -73,7 +74,6 @@ import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.ColumnDefinition;
 import com.microsoft.graph.models.extensions.FieldValueSet;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.models.extensions.List;
 import com.microsoft.graph.models.extensions.ListItem;
 import com.microsoft.graph.requests.extensions.ColumnDefinitionCollectionPage;
 import com.microsoft.graph.requests.extensions.ColumnDefinitionCollectionResponse;
@@ -86,7 +86,6 @@ import com.microsoft.graph.requests.extensions.IListRequestBuilder;
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
 class SharepointListWriterClient implements AutoCloseable {
-
     private final IGraphServiceClient m_client;
 
     private final SharepointListWriterConfig m_config;
@@ -104,6 +103,12 @@ class SharepointListWriterClient implements AutoCloseable {
     private String m_listId;
 
     private boolean m_listCreated;
+
+    private long m_columnsCleared;
+
+    private long m_itemsCleared;
+
+    private boolean m_processItemsSequential = true; // change this with toggle later
 
     SharepointListWriterClient(final SharepointListWriterConfig config, final BufferedDataTable table,
             final MicrosoftCredentialPortObjectSpec authPortSpec, final ExecutionContext exec)
@@ -125,29 +130,32 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws CanceledExecutionException
      */
     void writeList() throws IOException, CanceledExecutionException {
+        m_exec.setMessage("Writing rows…");
         final String[] colNames = m_tableSpec.getColumnNames();
+        try (final var batch = new ListBatchRequest(m_client, m_exec)) {
+            if (m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
+                    && !m_listCreated) {
+                prepareOverwrite(batch);
+            }
 
-        if (m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
-                && !m_listCreated) {
-            prepareOverwrite();
-        }
+            final var colMap = mapColNames();
 
-        final var colMap = mapColNames();
+            long rowNumber = 0;
+            final long noRows = m_table.size();
+            try (final var iterator = m_table.iterator()) {
+                while (iterator.hasNext()) {
+                    final var row = iterator.next();
+                    createListItem(row, colNames, colMap, batch);
 
-        long rowNo = 0;
-        final long noRows = m_table.size();
-        try (final var iterator = m_table.iterator()) {
-            while (iterator.hasNext()) {
-                final var row = iterator.next();
-                createListItem(row, colNames, colMap);
-
-                // update progress
-                final long rowNoFinal = rowNo;
-                m_exec.setProgress(rowNo / (double) noRows, () -> ("Write row " + rowNoFinal));
-                m_exec.checkCanceled();
-                rowNo++;
+                    // update progress
+                    final long rowNumberFinal = rowNumber;
+                    m_exec.setProgress(rowNumber / (double) noRows, () -> ("Write row " + rowNumberFinal));
+                    m_exec.checkCanceled();
+                    rowNumber++;
+                }
             }
         }
+
     }
 
     private IGraphServiceClient createGraphServiceClient(final MicrosoftCredentialPortObjectSpec authPortSpec)
@@ -172,11 +180,10 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws IOException
      */
     private String getSiteId() throws IOException {
+        final var settings = m_sharePointListSettings.getSiteSettings();
         final var siteResolver = new SharepointSiteResolver(m_client,
-                m_sharePointListSettings.getSiteSettings().getMode(),
-                m_sharePointListSettings.getSiteSettings().getSubsiteModel().getStringValue(),
-                m_sharePointListSettings.getSiteSettings().getWebURLModel().getStringValue(),
-                m_sharePointListSettings.getSiteSettings().getGroupModel().getStringValue());
+                settings.getMode(), settings.getSubsiteModel().getStringValue(),
+                settings.getWebURLModel().getStringValue(), settings.getGroupModel().getStringValue());
 
         return siteResolver.getTargetSiteId();
     }
@@ -225,21 +232,16 @@ class SharepointListWriterClient implements AutoCloseable {
                 nextRequest = resp.getNextPage();
             }
 
-            return checkIfListExists(lists);
+            return findListId(lists);
         } catch (GraphServiceException ex) {
-            throw new IOException("Error during trying to retrieve list name: " + ex.getServiceError().message, ex);
+            throw new IOException("Error during list name retrival: " + ex.getServiceError().message, ex);
         }
     }
 
-    private Optional<String> checkIfListExists(final java.util.List<List> lists) {
+    private Optional<String> findListId(final List<com.microsoft.graph.models.extensions.List> lists) {
         final var listName = SharePointListUtils
                 .getInternalListName(m_sharePointListSettings.getListSettings().getListNameModel().getStringValue());
-        for (final var list : lists) {
-            if (list.name.equals(listName)) {
-                return Optional.of(list.id);
-            }
-        }
-        return Optional.empty();
+        return lists.stream().filter(l -> l.name.equals(listName)).findAny().map(l -> l.id);
     }
 
     /**
@@ -249,7 +251,7 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws IOException
      */
     private String createSharepointList() throws IOException {
-        final var list = new List();
+        final var list = new com.microsoft.graph.models.extensions.List();
         list.displayName = m_sharePointListSettings.getListSettings().getListNameModel().getStringValue();
 
         final var columnDefinitionCollectionResponse = new ColumnDefinitionCollectionResponse();
@@ -264,8 +266,7 @@ class SharepointListWriterClient implements AutoCloseable {
             m_listCreated = true;
             return response.id;
         } catch (GraphServiceException ex) {
-            throw new IOException("Error during the creation of the list with error: " + ex.getServiceError().message,
-                    ex);
+            throw new IOException("Error during list creation: " + ex.getServiceError().message, ex);
         }
     }
 
@@ -305,8 +306,7 @@ class SharepointListWriterClient implements AutoCloseable {
 
             return colMap;
         } catch (GraphServiceException ex) {
-            throw new IOException(
-                    "Error during the mapping of the column names with error: " + ex.getServiceError().message, ex);
+            throw new IOException("Error while mapping of column names: " + ex.getServiceError().message, ex);
         }
     }
 
@@ -319,10 +319,16 @@ class SharepointListWriterClient implements AutoCloseable {
      *            the column names of the table
      * @param colMap
      *            the mapping of the column names
-     * @throws Exception
+     * @param batch
+     *            {@link ListBatchRequest} used to accumulate and execute batch
+     *            requests
+     * @throws IOException
+     *             if creating the items failed. This may get triggered at a later
+     *             point due to batching.
+     * @throws CanceledExecutionException
      */
-    private void createListItem(final DataRow row, final String[] colNames, final Map<String, String> colMap)
-            throws IOException {
+    private void createListItem(final DataRow row, final String[] colNames, final Map<String, String> colMap,
+            final ListBatchRequest batch) throws IOException, CanceledExecutionException {
         var i = 0;
         final var li = new ListItem();
         final var fvs = new FieldValueSet();
@@ -343,9 +349,9 @@ class SharepointListWriterClient implements AutoCloseable {
         li.fields = fvs;
 
         try {
-            createListRequestBuilder().items().buildRequest().post(li);
+            batch.post(createListRequestBuilder().items().buildRequest(), li, m_processItemsSequential);
         } catch (GraphServiceException ex) {
-            throw new IOException("Error during creation of a row with error: " + ex.getServiceError().message, ex);
+            throw new IOException("Error during row creation: " + ex.getServiceError().message, ex);
         }
     }
 
@@ -353,91 +359,147 @@ class SharepointListWriterClient implements AutoCloseable {
      * Prepares the overwrite process by deleting all columns + the list items which
      * will remain.
      *
-     * @throws IOException
-     */
-    private void prepareOverwrite() throws IOException {
-        deleteColumns();
-        deleteListItems();
-        createColumns();
-    }
-
-    /**
-     * Deletes all (at least the one which are possible) columns from a list.
+     * @param batch
+     *            {@link ListBatchRequest} used to accumulate and execute batch
+     *            requests
      *
      * @throws IOException
-     *             in case something goes wrong during deletion
+     *             if some part of the overwrite failed. This may get triggered at a
+     *             later point due to batching.
+     * @throws CanceledExecutionException
      */
-    private void deleteColumns() throws IOException {
-        try {
-            final var columns = createListRequestBuilder().columns().buildRequest().get();
-            var colDefList = columns.getCurrentPage();
-            deleteColumns(colDefList);
-            var nextRequest = columns.getNextPage();
-            while (nextRequest != null) {
-                colDefList = nextRequest.buildRequest().get().getCurrentPage();
-                deleteColumns(colDefList);
-                nextRequest = columns.getNextPage();
-            }
-        } catch (GraphServiceException ex) {
-            throw new IOException("Error during trying to delete columns: " + ex.getServiceError().message, ex);
+    private void prepareOverwrite(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
+        // These are always sequential because SharePoint likes to stumble over itself
+        deleteColumns(batch);
+        createColumns(batch);
+        batch.tryCompleteAllCurrentRequests();
+        // The following may not so it has to be separated
+        deleteListItems(batch);
+        if (m_processItemsSequential) {
+            // Switch to sequential: has to separated
+            batch.tryCompleteAllCurrentRequests();
         }
     }
 
-    private void deleteColumns(final java.util.List<ColumnDefinition> colDefList) {
-        colDefList.forEach(c -> {
+    /**
+     * Creates columns for an existing list
+     *
+     * @param batch
+     *            {@link ListBatchRequest} used to accumulate and execute batch
+     *            requests
+     *
+     * @throws IOException
+     *             if some part of the column creation failed. This may get
+     *             triggered at a later point due to batching.
+     * @throws CanceledExecutionException
+     */
+    private void createColumns(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
+        m_exec.setMessage("Creating columns…");
+        try {
+            final var columnDefinitions = createColumnDefinitions();
+            var columnNumber = 0L;
+            final var totalColumns = columnDefinitions.size();
+            for (final var columnDefinition : columnDefinitions) {
+                columnNumber++;
+                m_exec.setMessage(String.format("Create column %d/%d", columnNumber, totalColumns));
+                m_exec.checkCanceled();
+                // force sequential here so that SharePoint doesn't stumble over itself and
+                // loses data…
+                batch.post(createListRequestBuilder().columns().buildRequest(), columnDefinition, true);
+            }
+            m_exec.setProgress(Double.NaN);
+        } catch (GraphServiceException ex) {
+            throw new IOException("Error during overwriting process: " + ex.getServiceError().message, ex);
+        }
+    }
+
+    /**
+     * Deletes all deleteable columns from a list.
+     *
+     * @param batch
+     *            {@link ListBatchRequest} used to accumulate and execute batch
+     *            requests
+     *
+     * @throws IOException
+     *             if some part of the column deletion failed. This may get
+     *             triggered at a later point due to batching.
+     * @throws CanceledExecutionException
+     */
+    private void deleteColumns(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
+        m_exec.setMessage("Deleting columns…");
+        try {
+            m_columnsCleared = 0;
+            final var columns = createListRequestBuilder().columns().buildRequest().get();
+            var colDefList = columns.getCurrentPage();
+            deleteColumns(colDefList, batch);
+            var nextRequest = columns.getNextPage();
+            while (nextRequest != null) {
+                colDefList = nextRequest.buildRequest().get().getCurrentPage();
+                deleteColumns(colDefList, batch);
+                nextRequest = columns.getNextPage();
+            }
+        } catch (GraphServiceException ex) {
+            throw new IOException("Error while trying to delete columns: " + ex.getServiceError().message, ex);
+        }
+    }
+
+    private void deleteColumns(final List<ColumnDefinition> colDefList, final ListBatchRequest batch)
+            throws IOException, CanceledExecutionException {
+        for (final var c : colDefList) {
             // Read only columns and Title, ContentType and Attachments column can't be
             // deleted
             if (Boolean.FALSE.equals(c.readOnly) && !c.name.equals("Title") && !c.name.equals("ContentType")
                     && !c.name.equals("Attachments")) {
-                createListRequestBuilder().columns(c.id).buildRequest().delete();
+                m_columnsCleared++;
+                m_exec.setMessage(m_columnsCleared + " columns cleared");
+                m_exec.checkCanceled();
+                // force sequential here so that SharePoint doesn't stumble over itself and
+                // loses data…
+                batch.delete(createListRequestBuilder().columns(c.id).buildRequest(), true);
             }
-        });
+        }
     }
 
     /**
      * Deletes all list items.
      *
+     * @param batch
+     *            {@link ListBatchRequest} used to accumulate and execute batch
+     *            requests
+     *
      * @throws IOException
-     *             in case something goes wrong during deletion
+     *             if some part of the item deletion failed. This may get triggered
+     *             at a later point due to batching.
+     * @throws CanceledExecutionException
      */
-    private void deleteListItems() throws IOException {
+    private void deleteListItems(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
+        m_exec.setMessage("Deleting items…");
         try {
+            m_itemsCleared = 0;
             final var listItems = createListRequestBuilder().items().buildRequest().get();
 
-            deleteListItems(listItems);
+            deleteListItems(listItems, batch);
 
             var req = listItems.getNextPage();
             while (req != null) {
                 final var items = req.buildRequest().get();
-                deleteListItems(items);
+                deleteListItems(items, batch);
                 req = items.getNextPage();
             }
         } catch (GraphServiceException ex) {
-            throw new IOException("Error during deletion of a list item with error: " + ex.getServiceError().message,
-                    ex);
+            throw new IOException("Error while deleting list item: " + ex.getServiceError().message, ex);
         }
     }
 
-    private void deleteListItems(final IListItemCollectionPage listItems) {
+    private void deleteListItems(final IListItemCollectionPage listItems, final ListBatchRequest batch)
+            throws IOException, CanceledExecutionException {
         final var listItemsJson = listItems.getRawObject().getAsJsonObject().get("value").getAsJsonArray();
-        listItemsJson.forEach(i -> {
-            final var id = i.getAsJsonObject().get("id").getAsString();
-            createListRequestBuilder().items(id).buildRequest().delete();
-        });
-    }
-
-    /**
-     * Creats columns for an existing list
-     *
-     * @throws IOException
-     */
-    private void createColumns() throws IOException {
-        try {
-            for (final var columnDefinition : createColumnDefinitions()) {
-                createListRequestBuilder().columns().buildRequest().post(columnDefinition);
-            }
-        } catch (GraphServiceException ex) {
-            throw new IOException("Error during the overwriting process: " + ex.getServiceError().message, ex);
+        for (final var item : listItemsJson) {
+            m_itemsCleared++;
+            m_exec.setMessage(m_itemsCleared + " items cleared");
+            m_exec.checkCanceled();
+            final var id = item.getAsJsonObject().get("id").getAsString();
+            batch.delete(createListRequestBuilder().items(id).buildRequest(), false);
         }
     }
 
@@ -449,4 +511,5 @@ class SharepointListWriterClient implements AutoCloseable {
     public void close() throws Exception {
         m_client.shutdown();
     }
+
 }
