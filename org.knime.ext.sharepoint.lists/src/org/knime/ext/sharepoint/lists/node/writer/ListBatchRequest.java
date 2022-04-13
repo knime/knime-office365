@@ -290,7 +290,7 @@ final class ListBatchRequest implements AutoCloseable {
             throw new IOException(String.format("%d error(s) during execution: %s…", errors.size(), errors.get(0)));
         }
 
-        waitFor("Throtted…", m_currentWait);
+        waitFor("Throttled…", m_currentWait);
         redistributeIDs();
         if (m_requestsAccumulated > 0) {
             LOGGER.debugWithFormat("Retrying %d request(s) in next batch…", m_requestsAccumulated);

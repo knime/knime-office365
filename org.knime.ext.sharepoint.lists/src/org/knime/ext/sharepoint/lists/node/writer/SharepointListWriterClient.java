@@ -99,6 +99,8 @@ class SharepointListWriterClient implements AutoCloseable {
     private final IGraphServiceClient m_client;
     private final RefreshableAuthenticationProvider m_authProvider;
 
+    private static final Object LOCK = new Object();
+
     private final SharepointListWriterConfig m_config;
 
     private final SharepointListSettings m_sharePointListSettings;
@@ -390,9 +392,13 @@ class SharepointListWriterClient implements AutoCloseable {
      */
     private void prepareOverwrite(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
         // These are always sequential because SharePoint likes to stumble over itself
-        deleteColumns(batch);
-        createColumns(batch);
-        batch.tryCompleteAllCurrentRequests();
+        synchronized (LOCK) { // Microsoft doesn't know what they're doing…
+            // Multiple parallel executions of different nodes may influence each other
+            // otherwise, resulting in weird errors… I know, right?
+            deleteColumns(batch);
+            createColumns(batch);
+            batch.tryCompleteAllCurrentRequests();
+        }
         // The following may not so it has to be separated
         deleteListItems(batch);
         if (m_processItemsSequential) {
