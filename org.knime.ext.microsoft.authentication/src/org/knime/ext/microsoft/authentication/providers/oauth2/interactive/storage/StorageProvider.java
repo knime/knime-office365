@@ -73,7 +73,7 @@ interface StorageProvider {
 
     String readTokenCache() throws IOException;
 
-    MemoryCacheAccessTokenSupplier createAccessTokenSupplier();
+    MemoryCacheAccessTokenSupplier createAccessTokenSupplier(final String endpoint, final String appId);
 
     void clear() throws IOException;
 

@@ -94,14 +94,11 @@ public class StorageSettings {
      *
      * @param portsConfig
      * @param nodeInstanceId
-     * @param endpoint
-     * @param appId
      */
-    public StorageSettings(final PortsConfiguration portsConfig, final String nodeInstanceId, final String endpoint,
-            final String appId) {
-        m_inMemoryStorage = new InMemoryStorage(nodeInstanceId, endpoint, appId);
-        m_nodeSettingsStorage = new NodeSettingsStorage(nodeInstanceId, endpoint, appId);
-        m_fileStorage = new FileStorage(portsConfig, nodeInstanceId, endpoint, appId);
+    public StorageSettings(final PortsConfiguration portsConfig, final String nodeInstanceId) {
+        m_inMemoryStorage = new InMemoryStorage(nodeInstanceId);
+        m_nodeSettingsStorage = new NodeSettingsStorage(nodeInstanceId);
+        m_fileStorage = new FileStorage(portsConfig, nodeInstanceId);
 
         m_storageType.addChangeListener((e) -> {
             m_fileStorage.getFileModel().setEnabled(getStorageType() == StorageType.FILE);
@@ -208,8 +205,15 @@ public class StorageSettings {
         getCurrentStorageProvider().validate();
     }
 
-    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier() {
-        return getCurrentStorageProvider().createAccessTokenSupplier();
+    /**
+     * @param endpoint
+     * @param appId
+     *            the Application (client) ID
+     * @return a {@link MemoryCacheAccessTokenSupplier} that provides the credential
+     *         from the current storage provider.
+     */
+    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier(final String endpoint, final String appId) {
+        return getCurrentStorageProvider().createAccessTokenSupplier(endpoint, appId);
     }
 
     public void writeTokenCache(final String tokenCacheString) throws IOException {

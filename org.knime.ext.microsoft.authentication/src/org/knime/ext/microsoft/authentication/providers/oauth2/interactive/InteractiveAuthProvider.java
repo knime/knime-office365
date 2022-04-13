@@ -100,7 +100,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
      */
     public InteractiveAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
         m_portsConfig = portsConfig;
-        m_storageSettings = new StorageSettings(portsConfig, nodeInstanceId, getEndpoint(), getAppId());
+        m_storageSettings = new StorageSettings(portsConfig, nodeInstanceId);
         m_redirectUrl = new SettingsModelString(KEY_REDIRECT_URL, "");
     }
 
@@ -177,7 +177,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
         }
 
         return new OAuth2Credential(
-                m_storageSettings.createAccessTokenSupplier(), //
+                m_storageSettings.createAccessTokenSupplier(getEndpoint(), getAppId()), //
                 loginStatus.getUsername(), //
                 getScopesStringSet(), //
                 getEndpoint(), getAppId());
