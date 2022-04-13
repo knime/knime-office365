@@ -415,7 +415,11 @@ final class ListBatchRequest implements AutoCloseable {
      *             if the execution was canceled.
      */
     public JsonArray tryCompleteAllCurrentRequests() throws IOException, CanceledExecutionException {
-        sendRequest();
+        // this will never create an infinite loop because #sendRequest() will fail
+        // after a finite amount of retries
+        while (m_requestsAccumulated > 0) {
+            sendRequest();
+        }
         final var result = new JsonArray(m_results.size());
         for (final var r : m_results) {
             result.add(r);
