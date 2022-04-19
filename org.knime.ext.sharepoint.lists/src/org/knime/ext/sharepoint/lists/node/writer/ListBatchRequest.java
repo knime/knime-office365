@@ -260,8 +260,9 @@ final class ListBatchRequest implements AutoCloseable {
         final var errors = new LinkedList<String>();
         m_currentWait = 0;
         try {
+            final var response = createRequest().post(m_body).get("responses");
             final var responses = StreamSupport
-                    .stream(createRequest().post(m_body).get("responses").getAsJsonArray().spliterator(), false)//
+                    .stream(response.getAsJsonArray().spliterator(), false)//
                     .map(JsonElement::getAsJsonObject)//
                     .sorted(Comparator.comparing(e -> e.get("id").getAsString()))// sort for correct removal
                     .toArray(JsonObject[]::new);
@@ -272,13 +273,17 @@ final class ListBatchRequest implements AutoCloseable {
             final var status = ResponseStatus.getFromStatusCode(ex.getResponseCode());
             final var error = formatError(ex);
             switch (status) {
+            case THROTTLED: // fallthrough
+            case SERVICE_UNAVAILABLE: // fallthrough
+            case UNKNOWN_ERROR:
+                processRetryAfter(ex.getError().rawObject);
+                retryableErrors.add(formatError(ex.getError().rawObject));
+                break;
             case NON_RETRYABLE_ERROR:
                 errors.add(error);
                 break;
             case TOKEN_ERROR:
                 checkToken();
-                // fallthrough
-            case SERVICE_UNAVAILABLE:
                 // fallthrough
             default:
                 retryableErrors.add(error);
@@ -302,20 +307,20 @@ final class ListBatchRequest implements AutoCloseable {
             final List<String> retryableErrors, final int responseIndex, final JsonObject response) throws IOException {
         final var status = response.get("status").getAsInt();
         switch (ResponseStatus.getFromStatusCode(status)) {
+        case SERVICE_UNAVAILABLE:
+            // fallthrough
         case THROTTLED:
-            m_currentWait = Math.max(m_currentWait,
-                    Long.parseLong(response.getAsJsonObject("headers").get("Retry-After").getAsString()));
+            processRetryAfter(response);
             retryableErrors.add(formatError(response));
             break;
         case TOKEN_ERROR:
             checkToken();
             // fallthrough
-        case SERVICE_UNAVAILABLE:
-            // fallthrough
         case FAILED_DEPENDENCY:
             retryableErrors.add(formatError(response));
             break; // just retry and hope for the best
         case UNKNOWN_ERROR:
+            processRetryAfter(response);
             m_currentWait = Math.max(m_currentWait, UNKNOWN_ERROR_WAIT);
             retryableErrors.add(formatError(response));
             break;
@@ -379,6 +384,13 @@ final class ListBatchRequest implements AutoCloseable {
         final var error = obj.getAsJsonObject("body").getAsJsonObject("error");
         return String.format("%s (status: %d, code: %s, context: %s)", error.get("message").getAsString(), status,
                 error.get("code").getAsString(), m_contexts.get(id)); // NOSONAR: max MAX_REQUESTS (20)
+    }
+
+    private void processRetryAfter(final JsonObject obj) {
+        if (obj.has("headers") && obj.getAsJsonObject("headers").has("Retry-After")) {
+            m_currentWait = Math.max(m_currentWait,
+                    Long.parseLong(obj.getAsJsonObject("headers").get("Retry-After").getAsString()));
+        }
     }
 
     private String getRelativeURL(final String url) {

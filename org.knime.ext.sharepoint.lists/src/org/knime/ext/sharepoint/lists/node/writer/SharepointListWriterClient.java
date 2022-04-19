@@ -395,6 +395,8 @@ class SharepointListWriterClient implements AutoCloseable {
         synchronized (LOCK) { // Microsoft doesn't know what they're doing…
             // Multiple parallel executions of different nodes may influence each other
             // otherwise, resulting in weird errors… I know, right?
+            // It still works if we wait for “Retry-After”, but it's _really_ slow.
+            // Just locking is a lot faster…
             deleteColumns(batch);
             createColumns(batch);
             batch.tryCompleteAllCurrentRequests();
