@@ -48,7 +48,9 @@ package org.knime.ext.sharepoint.lists.node;
  *   2020-05-17 (Alexander Bondaletov): created
  */
 
+import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -275,15 +277,36 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
 
     private JPanel createListPanel(final boolean hasOverwriteOptions) {
         final var panel = new JPanel(new GridBagLayout());
-        final var gbc = new GBCBuilder().fillHorizontal().resetPos();
+        final GridBagConstraints gbc = new GridBagConstraints();
+
         panel.setBorder(BorderFactory.createTitledBorder("Sharepoint list"));
-        panel.add(m_listSelector, gbc.setWeightX(1).setWidth(2).build());
-        panel.add(m_showSystemLists.getComponentPanel(),
-                gbc.incY().setWeightX(0).anchorLineStart().setWidth(1).insetLeft(22).build());
-        panel.add(Box.createHorizontalBox(), gbc.incX().setWeightX(1).insetLeft(0).build());
+
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+        gbc.gridwidth = 2;
+        panel.add(m_listSelector, gbc);
+
+        gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.anchor = GridBagConstraints.LINE_START;
+        gbc.gridwidth = 1;
+        gbc.insets = new Insets(0, 22, 0, 0);
+        panel.add(m_showSystemLists.getComponentPanel(), gbc);
+
+        gbc.gridx++;
+        gbc.weightx = 1;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        panel.add(Box.createHorizontalBox(), gbc);
 
         if (hasOverwriteOptions) {
-            panel.add(createIfExistsPanel(), gbc.resetX().setWidth(2).incY().build());
+            gbc.gridx = 0;
+            gbc.gridwidth = 2;
+            gbc.gridy++;
+            gbc.anchor = GridBagConstraints.EAST;
+            gbc.fill = GridBagConstraints.FIRST_LINE_END;
+            gbc.insets = new Insets(0, 0, 0, 75);
+
+            panel.add(createIfExistsPanel(), gbc);
         }
 
         return panel;
