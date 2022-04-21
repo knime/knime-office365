@@ -70,13 +70,15 @@ import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
-import org.knime.ext.sharepoint.dialog.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.ext.sharepoint.settings.SiteSettings;
+import org.knime.filehandling.core.connections.base.ui.LoadedItemsSelector;
+import org.knime.filehandling.core.connections.base.ui.LoadedItemsSelector.IdComboboxItem;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 import org.knime.filehandling.core.defaultnodesettings.status.DefaultStatusMessage;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusView;
 
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.models.extensions.Site;
@@ -211,6 +213,18 @@ public class SiteSettingsPanel extends JPanel {
             public List<IdComboboxItem> fetchItems() throws Exception {
                 return fetchGroups();
             }
+
+            @Override
+            public String fetchExceptionMessage(final Exception ex) {
+                String message = ex.getMessage();
+
+                if (ex instanceof GraphServiceException) {
+                    message = ((GraphServiceException) ex).getServiceError().message;
+                } else if (ex.getCause() instanceof GraphServiceException) {
+                    message = ((GraphServiceException) ex.getCause()).getServiceError().message;
+                }
+                return message;
+            }
         };
 
         m_cards = new JPanel(new CardLayout());
@@ -228,6 +242,18 @@ public class SiteSettingsPanel extends JPanel {
             @Override
             public List<IdComboboxItem> fetchItems() throws Exception {
                 return fetchSubsites();
+            }
+
+            @Override
+            public String fetchExceptionMessage(final Exception ex) {
+                String message = ex.getMessage();
+
+                if (ex instanceof GraphServiceException) {
+                    message = ((GraphServiceException) ex).getServiceError().message;
+                } else if (ex.getCause() instanceof GraphServiceException) {
+                    message = ((GraphServiceException) ex.getCause()).getServiceError().message;
+                }
+                return message;
             }
         };
 

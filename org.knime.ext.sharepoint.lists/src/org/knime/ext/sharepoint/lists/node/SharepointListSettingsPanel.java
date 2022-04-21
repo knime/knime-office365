@@ -76,14 +76,15 @@ import org.knime.core.node.util.ViewUtils;
 import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
-import org.knime.ext.sharepoint.dialog.LoadedItemsSelector;
-import org.knime.ext.sharepoint.dialog.LoadedItemsSelector.IdComboboxItem;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 import org.knime.ext.sharepoint.lists.node.writer.ListOverwritePolicy;
 import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.ext.sharepoint.settings.SiteSettings;
+import org.knime.filehandling.core.connections.base.ui.LoadedItemsSelector;
+import org.knime.filehandling.core.connections.base.ui.LoadedItemsSelector.IdComboboxItem;
 import org.knime.filehandling.core.util.GBCBuilder;
 
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
@@ -150,6 +151,18 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
             @Override
             public List<IdComboboxItem> fetchItems() throws Exception {
                 return fetchListPossible() ? fetchLists() : Collections.emptyList();
+            }
+
+            @Override
+            public String fetchExceptionMessage(final Exception ex) {
+                String message = ex.getMessage();
+
+                if (ex instanceof GraphServiceException) {
+                    message = ((GraphServiceException) ex).getServiceError().message;
+                } else if (ex.getCause() instanceof GraphServiceException) {
+                    message = ((GraphServiceException) ex.getCause()).getServiceError().message;
+                }
+                return message;
             }
         };
 
