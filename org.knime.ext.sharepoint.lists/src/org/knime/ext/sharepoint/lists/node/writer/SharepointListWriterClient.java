@@ -186,8 +186,8 @@ class SharepointListWriterClient implements AutoCloseable {
         final var client = result.getFirst();
         final var timeoutSettings = m_sharePointListSettings.getTimeoutSettings();
         final var connectionConfig = new DefaultConnectionConfig();
-        connectionConfig.setConnectTimeout(timeoutSettings.getConnectionTimeout().toMillisPart());
-        connectionConfig.setReadTimeout(timeoutSettings.getReadTimeout().toMillisPart());
+        connectionConfig.setConnectTimeout(timeoutSettings.getConnectionTimeout());
+        connectionConfig.setReadTimeout(timeoutSettings.getReadTimeout());
         client.getHttpProvider().setConnectionConfig(connectionConfig);
         return result;
     }
@@ -392,7 +392,7 @@ class SharepointListWriterClient implements AutoCloseable {
      */
     private void prepareOverwrite(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
         // These are always sequential because SharePoint likes to stumble over itself
-        synchronized (LOCK) { // Microsoft doesn't know what they're doing…
+        synchronized (LOCK) {
             // Multiple parallel executions of different nodes may influence each other
             // otherwise, resulting in weird errors… I know, right?
             // It still works if we wait for “Retry-After”, but it's _really_ slow.

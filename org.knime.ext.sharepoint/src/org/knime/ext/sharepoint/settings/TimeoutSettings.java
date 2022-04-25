@@ -63,6 +63,12 @@ import org.knime.ext.sharepoint.dialog.TimeoutPanel;
  */
 public final class TimeoutSettings {
 
+    /**
+     * Max timeout value to prevent overflow since the timeout needs to be set in
+     * milliseconds and this requires a multiplication by 1000 later
+     */
+    private static final int MAX_TIMEOUT = Integer.MAX_VALUE / 1000;
+
     private static final int DEFAULT_TIMEOUT = 20;
 
     private static final String KEY_CONNECTION_TIMEOUT = "connectionTimeout";
@@ -77,9 +83,8 @@ public final class TimeoutSettings {
      * Constructor.
      */
     public TimeoutSettings() {
-        m_connectionTimeout = new SettingsModelIntegerBounded(KEY_CONNECTION_TIMEOUT, DEFAULT_TIMEOUT, 0,
-                Integer.MAX_VALUE);
-        m_readTimeout = new SettingsModelIntegerBounded(KEY_READ_TIMEOUT, DEFAULT_TIMEOUT, 0, Integer.MAX_VALUE);
+        m_connectionTimeout = new SettingsModelIntegerBounded(KEY_CONNECTION_TIMEOUT, DEFAULT_TIMEOUT, 0, MAX_TIMEOUT);
+        m_readTimeout = new SettingsModelIntegerBounded(KEY_READ_TIMEOUT, DEFAULT_TIMEOUT, 0, MAX_TIMEOUT);
     }
 
     /**
@@ -136,10 +141,10 @@ public final class TimeoutSettings {
     }
 
     /**
-     * @return the connectionTimeout
+     * @return the connectionTimeout in milliseconds
      */
-    public Duration getConnectionTimeout() {
-        return Duration.ofSeconds(m_connectionTimeout.getIntValue());
+    public int getConnectionTimeout() {
+        return Math.toIntExact(Duration.ofSeconds(m_connectionTimeout.getIntValue()).toMillis());
     }
 
     /**
@@ -150,10 +155,10 @@ public final class TimeoutSettings {
     }
 
     /**
-     * @return the readTimeout
+     * @return the readTimeout in milliseconds
      */
-    public Duration getReadTimeout() {
-        return Duration.ofSeconds(m_readTimeout.getIntValue());
+    public int getReadTimeout() {
+        return Math.toIntExact(Duration.ofSeconds(m_readTimeout.getIntValue()).toMillis());
     }
 
 }

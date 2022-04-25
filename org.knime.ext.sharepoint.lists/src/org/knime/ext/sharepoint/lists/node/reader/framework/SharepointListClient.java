@@ -142,8 +142,8 @@ public final class SharepointListClient {
     }
 
     private void updateHttpConfig(final TimeoutSettings settings) {
-        m_connectionConfig.setConnectTimeout(settings.getConnectionTimeout().toMillisPart());
-        m_connectionConfig.setReadTimeout(settings.getReadTimeout().toMillisPart());
+        m_connectionConfig.setConnectTimeout(settings.getConnectionTimeout());
+        m_connectionConfig.setReadTimeout(settings.getReadTimeout());
         m_client.getHttpProvider().setConnectionConfig(m_connectionConfig);
     }
 
