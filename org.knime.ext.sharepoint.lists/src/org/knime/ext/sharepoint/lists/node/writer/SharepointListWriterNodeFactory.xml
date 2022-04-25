@@ -12,45 +12,71 @@
 	<fullDescription>
 		<intro>
 			<p>
-				This node writes data from KNIME to a SharePoint list.
+				This node writes a KNIME table to a SharePoint list.
 			</p>
+			
             <p>
                 <i>Note:</i>
-                Due to speed limitations of the SharePoint service, uploading
-                tables with more than a few hundred rows can take long time. Overwriting an existing table
-                can be also very slow in case a lot of rows needs to be deleted.
+                Writing tables with more than a few hundred rows can take long time. Overwriting an existing table
+                can be also very slow in case a lot of rows need to be deleted.
 			</p>
-            <b>SharePoint Online list column type support</b><br/>
-			<i>All column types which are not mentioned below are partially supported and will get written with their String representation to a Text column in SharePoint</i><br/>
-			<u>Fully supported column types:</u>
-                <ul>
-                    <li><i>String columns</i> map to Multiple lines of text</li>
-                    <li><i>Integer columns</i> map to Number</li>
-                    <li><i>Boolean columns</i> map to Yes/No</li>
-                </ul>
-                <u>Partially supported columns types:</u>
-                <ul>
-                    <li>
-                        <i>Long</i> and <i>Double columns</i> map to Number and this is only precise up to 15 digits (for longer values the node will fail).
-                    </li>
-					<li>
-                        <i>Double columns</i> map to Number but they are only partially supported in terms of range
-							SharePoint is able to store double values. Number
-							columns can only have 5 decimal places and the
-							range is from 1.79E308 to -1.79E308 (for values above or below the node will fail).
-							It also does not support infinity and NaN (the node will fail).
-					</li>
-					<li>
-					   <i>Date</i>, <i>Date and Time</i>, <i>Zoned Date Time</i> map to Date and time. Values before 1900-01-01T00:00:00Z and 
-					   after 8900-12-31T23:59:59Z are not supported (the node will fail). Note that the format is yyyy-MM-dd;HH:mm:ss when reading back. 
-					</li>
-                </ul>
-                <u>Unsupported column types (node cannot be executed):</u><br/>
-                <ul>
-                    <li><i>Collection columns</i> are not supported since there is no counterpart type in SharePoint</li>
-                    <li><i>Binary object columns</i> are not supported since there is no counterpart type in SharePoint</li>
-                    <li><i>Image columns</i> are not supported since the Graph API does not support this type currently</li>
-                </ul>
+			
+			<p>
+            <b>KNIME column type support</b><br/>
+            All KNIME column types which are not mentioned below are partially supported and will get written with their String representation to a Text column in SharePoint.
+            </p>
+
+            <p>
+			<u>Fully supported KNIME column types:</u>
+            <ul>
+                <li>
+                    <i>String columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Multiple lines of text</i></a>
+                </li>
+                <li>
+                    <i>Integer columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>
+                </li>
+                <li>
+                    <i>Boolean columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Yes/no</i></a>
+                </li>
+            </ul>
+            </p>
+            
+            <p>
+            <u>Partially supported KNIME columns types:</u>
+            <ul>
+                <li>
+                    <i>Long columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>.
+                    The node will fail for more than 15 digits.
+                </li>
+                <li>
+                    <i>Double columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>.
+                    The node will fail for infinity, NaN and values outside of [1.79E308,-1.79E308], as well as for numbers with more than 15 digits. 
+                </li>
+                <li>
+                    <i>Local Date and Local Date Time columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>
+                    Date and Time</i></a>, which stores a UTC timestamp with second-precision. Hence, values from KNIME are mapped to an instant in UTC
+                    and truncated to second-precision. For example, 2022-02-02 08:00:00 is stored as 2022-02-02 08:00:00 UTC. The node will fail for values before 1900-01-01 00:00:00 UTC and
+                    after 8900-12-31 23:59:59 UTC.
+                </li>
+                <li>
+                    <i>Zoned Date Time columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                    <i>Date and Time</i></a>, which stores a UTC timestamp with second-precision. Hence, Zoned Date Time values are converted to the UTC timezone and truncated to second-precision.
+                    For example, 2022-02-02 08:00:00 CET is stored as
+                    2022-02-02 07:00:00 UTC. The node will fail for values before 1900-01-01 00:00:00 UTC and after 8900-12-31 23:59:59 UTC.
+                </li>
+
+            </ul>
+            </p>
+              
+            <p>
+            <u>Unsupported KNIME column types:</u><br/>
+            For all unsupported column types the node cannot be executed since there is no corresponding type in SharePoint Online:
+            <ul>
+                <li><i>Collection columns</i></li>
+                <li><i>Binary object columns</i></li>
+                <li><i>Image columns</i></li>
+            </ul>
+            </p>
 		</intro>
         <tab name="Settings">
             <option name="SharePoint site">
