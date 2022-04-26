@@ -157,7 +157,7 @@ final class ListBatchRequest implements AutoCloseable {
 
     private void checkToken() throws IOException {
         m_authProvider.refreshTokenIfOlder(0);
-        LOGGER.debug("Requested new token…");
+        LOGGER.debug("Requested new token");
     }
 
     private CustomRequest<JsonObject> createRequest() {
@@ -244,7 +244,7 @@ final class ListBatchRequest implements AutoCloseable {
                 return;
             } else {
                 final var wait = Math.max(time - m_currentWait, 0);
-                LOGGER.debug("All requests in batch were unsuccessful! Waiting for " + wait + "s…");
+                LOGGER.debug("All requests in batch were unsuccessful! Waiting for " + wait + "s.");
                 waitFor("Retrying all requests after", wait);
             }
         }
@@ -292,13 +292,13 @@ final class ListBatchRequest implements AutoCloseable {
         if (!errors.isEmpty()) {
             LOGGER.errorWithFormat("Errors occured while executing batch request: %s", errors.toString());
             m_errored = true;
-            throw new IOException(String.format("%d error(s) during execution: %s…", errors.size(), errors.get(0)));
+            throw new IOException(String.format("%d error(s) during execution: %s", errors.size(), errors.get(0)));
         }
 
-        waitFor("Throttled…", m_currentWait);
+        waitFor("Throttled", m_currentWait);
         redistributeIDs();
         if (m_requestsAccumulated > 0) {
-            LOGGER.debugWithFormat("Retrying %d request(s) in next batch…", m_requestsAccumulated);
+            LOGGER.debugWithFormat("Retrying %d request(s) in next batch", m_requestsAccumulated);
         }
         return result;
     }
@@ -341,12 +341,12 @@ final class ListBatchRequest implements AutoCloseable {
         if (seconds <= 0) {
             return;
         }
-        final var message = String.format("%s waiting %ds…", cause, seconds);
+        final var message = String.format("%s waiting %ds", cause, seconds);
         final var oldMessage = m_exec.getProgressMonitor().getMessage();
         LOGGER.debug(message);
         try {
             while (seconds > 0) {
-                m_exec.setMessage(String.format("%s - %s waiting %ds…", oldMessage, cause, seconds));
+                m_exec.setMessage(String.format("%s - %s waiting %ds", oldMessage, cause, seconds));
                 Thread.sleep(TimeUnit.SECONDS.toMillis(1));
                 seconds--;
             }

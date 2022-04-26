@@ -140,7 +140,7 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private void checkToken() throws IOException {
         if (m_authProvider.refreshTokenIfOlder(TOKEN_MAX_AGE)) {
-            LOGGER.debug("Requested new token…");
+            LOGGER.debug("Requested new token");
         }
     }
 
@@ -151,7 +151,7 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws CanceledExecutionException
      */
     void writeList() throws IOException, CanceledExecutionException {
-        m_exec.setMessage("Writing rows…");
+        m_exec.setMessage("Writing rows");
         final String[] colNames = m_tableSpec.getColumnNames();
         try (final var batch = new ListBatchRequest(m_client, m_authProvider, m_exec)) {
             if (m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
@@ -394,9 +394,9 @@ class SharepointListWriterClient implements AutoCloseable {
         // These are always sequential because SharePoint likes to stumble over itself
         synchronized (LOCK) {
             // Multiple parallel executions of different nodes may influence each other
-            // otherwise, resulting in weird errors… I know, right?
-            // It still works if we wait for “Retry-After”, but it's _really_ slow.
-            // Just locking is a lot faster…
+            // otherwise, resulting in weird errors.
+            // It still works if we wait for "Retry-After", but it's _really_ slow.
+            // Just locking is a lot faster.
             deleteColumns(batch);
             createColumns(batch);
             batch.tryCompleteAllCurrentRequests();
@@ -422,7 +422,7 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws CanceledExecutionException
      */
     private void createColumns(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
-        m_exec.setMessage("Creating columns…");
+        m_exec.setMessage("Creating columns");
         try {
             final var columnDefinitions = createColumnDefinitions();
             var columnNumber = 0L;
@@ -432,7 +432,7 @@ class SharepointListWriterClient implements AutoCloseable {
                 m_exec.setMessage(String.format("Create column %d/%d", columnNumber, totalColumns));
                 m_exec.checkCanceled();
                 // force sequential here so that SharePoint doesn't stumble over itself and
-                // loses data…
+                // loses data.
                 batch.post(createListRequestBuilder().columns().buildRequest(), columnDefinition, true);
             }
             m_exec.setProgress(Double.NaN);
@@ -454,7 +454,7 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws CanceledExecutionException
      */
     private void deleteColumns(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
-        m_exec.setMessage("Deleting columns…");
+        m_exec.setMessage("Deleting columns");
         try {
             m_columnsCleared = 0;
             checkToken();
@@ -484,7 +484,7 @@ class SharepointListWriterClient implements AutoCloseable {
                 m_exec.setMessage(m_columnsCleared + " columns cleared");
                 m_exec.checkCanceled();
                 // force sequential here so that SharePoint doesn't stumble over itself and
-                // loses data…
+                // loses data.
                 batch.delete(createListRequestBuilder().columns(c.id).buildRequest(), true);
             }
         }
@@ -503,7 +503,7 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws CanceledExecutionException
      */
     private void deleteListItems(final ListBatchRequest batch) throws IOException, CanceledExecutionException {
-        m_exec.setMessage("Deleting items…");
+        m_exec.setMessage("Deleting items");
         try {
             m_itemsCleared = 0;
             checkToken();

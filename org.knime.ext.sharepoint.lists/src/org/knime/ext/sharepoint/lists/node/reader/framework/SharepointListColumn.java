@@ -525,7 +525,7 @@ abstract class SharepointListColumn<T> {
         ID, // "name": "ID" // special column that should be parsed as a long (typeless)
         SINGLE_LINE_TEXT, // "text": { "allowMultipleLines": false }
         MULTI_LINE_TEXT, // "text": { "allowMultipleLines": true }
-        LOCATION, // null | { …, "dispayName": ""}
+        LOCATION, // null | { ..., "dispayName": ""}
         NUMBER, // "number": {"decimalPlaces": "", "displayAs":""}
         YES_NO, // "boolean": {}
         PERSON, // "personOrGroup": {"displayAs": ""} |
