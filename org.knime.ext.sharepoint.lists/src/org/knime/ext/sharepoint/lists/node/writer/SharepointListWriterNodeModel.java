@@ -52,9 +52,7 @@ import java.io.File;
 import java.io.IOException;
 
 import org.knime.core.data.DataTableSpec;
-import org.knime.core.data.DataType;
-import org.knime.core.data.blob.BinaryObjectDataCell;
-import org.knime.core.data.image.png.PNGImageCell;
+import org.knime.core.data.StringValue;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
@@ -77,6 +75,7 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject
  */
 final class SharepointListWriterNodeModel extends NodeModel {
 
+
     private final SharepointListWriterConfig m_config;
 
     protected SharepointListWriterNodeModel() {
@@ -90,10 +89,15 @@ final class SharepointListWriterNodeModel extends NodeModel {
 
         for (var i = 0; i < inputTableSpec.getNumColumns(); i++) {
             final var colSpec = inputTableSpec.getColumnSpec(i);
-            if (colSpec.getType().isCollectionType() || colSpec.getType() == BinaryObjectDataCell.TYPE
-                    || colSpec.getType().equals(DataType.getType(PNGImageCell.class))) {
-                throw new InvalidSettingsException(String.format("%s type is not supported.", colSpec.getType()));
+            final var colType = colSpec.getType();
+
+            if (!KNIMEToSharepointTypeConverter.TYPE_CONVERTER.containsKey(colType)
+                    && !colType.isCompatible(StringValue.class)) {
+                throw new InvalidSettingsException(
+                        String.format("%s type in column '%s' is not supported",
+                        colSpec.getType(), colSpec.getName()));
             }
+
             final String colName = colSpec.getName();
             if (colName.length() > 255) {
                 throw new InvalidSettingsException(

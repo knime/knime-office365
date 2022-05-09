@@ -166,12 +166,12 @@ class SharepointListWriterClient implements AutoCloseable {
             try (final var iterator = m_table.iterator()) {
                 while (iterator.hasNext()) {
                     final var row = iterator.next();
-                    createListItem(row, colNames, colMap, batch);
-
                     // update progress
                     final long rowNumberFinal = rowNumber;
                     m_exec.setProgress(rowNumber / (double) noRows, () -> ("Write row " + rowNumberFinal));
                     m_exec.checkCanceled();
+
+                    createListItem(row, colNames, colMap, batch);
                     rowNumber++;
                 }
             }

@@ -54,6 +54,7 @@ import java.awt.Insets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -364,6 +365,9 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
                 result.add(new IdComboboxItem(list.id, String.format("%s (%s)", list.displayName, list.name)));
             }
         }
+
+        result.sort(Comparator.comparing(IdComboboxItem::getTitle));
+
         return result;
     }
 

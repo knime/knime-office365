@@ -48,6 +48,7 @@
  */
 package org.knime.ext.sharepoint.lists.node.writer;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -59,6 +60,7 @@ import java.util.function.Function;
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataType;
 import org.knime.core.data.DoubleValue;
+import org.knime.core.data.StringValue;
 import org.knime.core.data.def.BooleanCell;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.IntCell;
@@ -119,7 +121,17 @@ final class KNIMEToSharepointTypeConverter {
 
     /** If no suitable converter is available */
     static final Pair<Function<DataCell, JsonElement>, Function<String, ColumnDefinition>> DEFAULT_CONVERTER = Pair
-            .create(s -> new JsonPrimitive(s.toString()), KNIMEToSharepointTypeConverter::createStringColDefiniton);
+            .create(KNIMEToSharepointTypeConverter::defaultStringConverter,
+                    KNIMEToSharepointTypeConverter::createStringColDefiniton);
+
+    private static JsonPrimitive defaultStringConverter(final DataCell dataCell) {
+        if (dataCell instanceof StringValue) {
+            return new JsonPrimitive(((StringValue) dataCell).getStringValue());
+        } else {
+            // should never happen since we check in configure, just to be sure
+            throw new IllegalArgumentException("DataCell does not implement StringValue");
+        }
+    }
 
     static {
         TYPE_CONVERTER.put(StringCell.TYPE, Pair.create(s -> new JsonPrimitive(s.toString()),
@@ -152,16 +164,20 @@ final class KNIMEToSharepointTypeConverter {
 
     private static JsonElement longParser(final DataCell dataCell) {
         final var val = ((LongCell) dataCell).getLongValue();
-        if (String.valueOf(val).length() > 15) {
-            throw new IllegalArgumentException("Long values with more than 15 digits are not supported. " + val);
+        if (BigDecimal.valueOf(val).stripTrailingZeros().precision() > 15) {
+            throw new IllegalArgumentException(
+                    "Long values with more than 15 significant digits are not supported. " + val);
         }
         return new JsonPrimitive(val);
     }
 
     private static JsonElement doubleParser(final DataCell dataCell) {
         final var val = ((DoubleValue) dataCell).getDoubleValue();
+        if (BigDecimal.valueOf(val).stripTrailingZeros().precision() > 15) {
+            throw new IllegalArgumentException(
+                    "Double values with more than 15 significant digits  are not supported. " + val);
+        }
         checkDoubleValues(val);
-        checkLength(val);
         return new JsonPrimitive(val);
     }
 
@@ -177,13 +193,6 @@ final class KNIMEToSharepointTypeConverter {
         }
     }
 
-    private static void checkLength(final double val) {
-        if (String.valueOf((long) val).length() > 15) {
-            throw new IllegalArgumentException(
-                    "Double values with more than 15 digits before the decimal separator are not supported. " + val);
-        }
-    }
-
     private static JsonElement periodParser(final DataCell dataCell) {
         final var val = ((PeriodValue) dataCell).getPeriod().toString();
         return new JsonPrimitive(val);
@@ -196,8 +205,9 @@ final class KNIMEToSharepointTypeConverter {
 
     private static JsonElement localDateParser(final DataCell dataCell) {
         final var val = ((LocalDateValue) dataCell).getLocalDate();
-        checkInstant(val.atStartOfDay(ZoneId.systemDefault()).toInstant());
-        return new JsonPrimitive(val.toString());
+        final var instant = val.atStartOfDay(ZoneId.of("UTC")).toInstant();
+        checkInstant(instant);
+        return new JsonPrimitive(instant.toString());
     }
 
     private static JsonElement localTimeParser(final DataCell dataCell) {

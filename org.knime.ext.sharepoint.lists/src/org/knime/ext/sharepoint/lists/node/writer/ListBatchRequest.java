@@ -261,8 +261,7 @@ final class ListBatchRequest implements AutoCloseable {
         m_currentWait = 0;
         try {
             final var response = createRequest().post(m_body).get("responses");
-            final var responses = StreamSupport
-                    .stream(response.getAsJsonArray().spliterator(), false)//
+            final var responses = StreamSupport.stream(response.getAsJsonArray().spliterator(), false)//
                     .map(JsonElement::getAsJsonObject)//
                     .sorted(Comparator.comparing(e -> e.get("id").getAsString()))// sort for correct removal
                     .toArray(JsonObject[]::new);
