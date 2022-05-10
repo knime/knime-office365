@@ -23,7 +23,6 @@
 			
 			<p>
             <b>KNIME column type support</b><br/>
-            All KNIME column types which are not mentioned below are partially supported and will get written with their String representation to a Text column in SharePoint.
             </p>
 
             <p>
