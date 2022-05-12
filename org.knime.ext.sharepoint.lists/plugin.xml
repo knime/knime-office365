@@ -11,5 +11,9 @@
             category-path="/labs/"
             factory-class="org.knime.ext.sharepoint.lists.node.writer.SharepointListWriterNodeFactory"
             id="org.knime.ext.sharepoint.lists.node.writer.SharepointListWriterNodeFactory"/>
+       <node
+            category-path="/labs/"
+            factory-class="org.knime.ext.sharepoint.lists.node.delete.SharepointDeleteListNodeFactory"
+            id="org.knime.ext.sharepoint.lists.node.delete.SharepointDeleteListNodeFactory"/>
    </extension>
 </plugin>
