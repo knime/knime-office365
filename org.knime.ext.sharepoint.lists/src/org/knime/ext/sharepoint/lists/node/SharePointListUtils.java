@@ -48,7 +48,12 @@
  */
 package org.knime.ext.sharepoint.lists.node;
 
+import java.io.IOException;
+import java.util.Optional;
 import java.util.regex.Pattern;
+
+import com.microsoft.graph.http.GraphServiceException;
+import com.microsoft.graph.models.extensions.IGraphServiceClient;
 
 /**
  * Sharepoint List utility method class.
@@ -113,4 +118,38 @@ public final class SharePointListUtils {
         }
         return listSettingsName;
     }
+
+    /**
+     * Get a list by name by checking which list internal name matches the name.
+     *
+     * @param client
+     *            the {@link IGraphServiceClient}
+     * @param siteId
+     *            the ID of the SharePoint site
+     * @param listName
+     *            the name of the list
+     *
+     * @return an {@link Optional} of {@link String} with the list id
+     * @throws IOException
+     */
+    public static Optional<String> getListIdByName(final IGraphServiceClient client, final String siteId,
+            final String listName) throws IOException {
+        try {
+            final var resp = client.sites(siteId).lists().buildRequest().get();
+            var lists = resp.getCurrentPage();
+            var nextRequest = resp.getNextPage();
+            while (nextRequest != null) {
+                final var listsTmp = nextRequest.buildRequest().get().getCurrentPage();
+                lists.addAll(listsTmp);
+                nextRequest = resp.getNextPage();
+            }
+
+            final var name = getInternalListName(listName);
+
+            return lists.stream().filter(l -> l.name.equals(name)).findAny().map(l -> l.id);
+        } catch (GraphServiceException ex) {
+            throw new IOException("Error during list name retrival: " + ex.getServiceError().message, ex);
+        }
+    }
+
 }

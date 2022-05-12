@@ -53,7 +53,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -74,7 +73,6 @@ import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
 
 import com.google.gson.JsonPrimitive;
-import com.microsoft.graph.core.DefaultConnectionConfig;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.extensions.ColumnDefinition;
 import com.microsoft.graph.models.extensions.FieldValueSet;
@@ -189,11 +187,9 @@ class SharepointListWriterClient implements AutoCloseable {
         final var result = GraphApiUtil
                 .createClientAndRefreshableAuthenticationProvider(authPortSpec.getMicrosoftCredential());
         final var client = result.getFirst();
-        final var timeoutSettings = m_sharePointListSettings.getTimeoutSettings();
-        final var connectionConfig = new DefaultConnectionConfig();
-        connectionConfig.setConnectTimeout(timeoutSettings.getConnectionTimeout());
-        connectionConfig.setReadTimeout(timeoutSettings.getReadTimeout());
-        client.getHttpProvider().setConnectionConfig(connectionConfig);
+
+        GraphApiUtil.updateClientTimeoutSettings(client, m_sharePointListSettings.getTimeoutSettings());
+
         return result;
     }
 
@@ -224,7 +220,8 @@ class SharepointListWriterClient implements AutoCloseable {
         var listExists = !listId.isEmpty();
 
         if (listId.isEmpty()) {
-            final var optionalListId = getListIdByName();
+            final var optionalListId = SharePointListUtils.getListIdByName(m_client, m_siteId,
+                    m_sharePointListSettings.getListSettings().getListNameModel().getStringValue());
             listExists = optionalListId.isPresent();
 
             listId = listExists ? optionalListId.get() : createSharepointList();
@@ -237,36 +234,6 @@ class SharepointListWriterClient implements AutoCloseable {
         }
 
         return listId;
-    }
-
-    /**
-     * Get a list by name by checking which list internal name matches the name from
-     * the settings.
-     *
-     * @return an {@link Optional} of {@link String} with the list id
-     * @throws IOException
-     */
-    private Optional<String> getListIdByName() throws IOException {
-        try {
-            final var resp = m_client.sites(m_siteId).lists().buildRequest().get();
-            var lists = resp.getCurrentPage();
-            var nextRequest = resp.getNextPage();
-            while (nextRequest != null) {
-                final var listsTmp = nextRequest.buildRequest().get().getCurrentPage();
-                lists.addAll(listsTmp);
-                nextRequest = resp.getNextPage();
-            }
-
-            return findListId(lists);
-        } catch (GraphServiceException ex) {
-            throw new IOException("Error during list name retrival: " + ex.getServiceError().message, ex);
-        }
-    }
-
-    private Optional<String> findListId(final List<com.microsoft.graph.models.extensions.List> lists) {
-        final var listName = SharePointListUtils
-                .getInternalListName(m_sharePointListSettings.getListSettings().getListNameModel().getStringValue());
-        return lists.stream().filter(l -> l.name.equals(listName)).findAny().map(l -> l.id);
     }
 
     /**

@@ -55,10 +55,12 @@ import java.net.URL;
 import org.knime.core.util.Pair;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.sharepoint.settings.TimeoutSettings;
 
 import com.google.gson.JsonObject;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.core.DefaultConnectionConfig;
 import com.microsoft.graph.http.IHttpRequest;
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
@@ -154,7 +156,8 @@ public final class GraphApiUtil {
      * @throws IOException
      */
     @SuppressWarnings("deprecation")
-    public static IGraphServiceClient createClient(final MicrosoftCredential connection) throws IOException {
+    public static IGraphServiceClient createClient(final MicrosoftCredential connection)
+            throws IOException {
         final IAuthenticationProvider authProvider = createAuthenticationProvider(connection);
 
         return GraphServiceClient.builder().authenticationProvider(authProvider).buildClient();
@@ -171,13 +174,27 @@ public final class GraphApiUtil {
      * @throws IOException
      *             if the (new) token could not be accessed.
      */
-    @SuppressWarnings("deprecation")
     public static Pair<IGraphServiceClient, RefreshableAuthenticationProvider> createClientAndRefreshableAuthenticationProvider(
             final MicrosoftCredential connection) throws IOException {
         final var authProvider = createAuthenticationProvider(connection);
         final var client = GraphServiceClient.builder().authenticationProvider(authProvider).buildClient();
 
         return Pair.create(client, authProvider);
+    }
+
+    /**
+     * Update the timeout settings of the {@link IGraphServiceClient}.
+     *
+     * @param client
+     *            the {@link IGraphServiceClient}
+     * @param settings
+     *            the {@link TimeoutSettings}
+     */
+    public static void updateClientTimeoutSettings(final IGraphServiceClient client, final TimeoutSettings settings) {
+        final var connectionConfig = new DefaultConnectionConfig();
+        connectionConfig.setConnectTimeout(settings.getConnectionTimeout());
+        connectionConfig.setReadTimeout(settings.getReadTimeout());
+        client.getHttpProvider().setConnectionConfig(connectionConfig);
     }
 
     /**
@@ -189,7 +206,6 @@ public final class GraphApiUtil {
      * @throws IOException
      *             if the (new) token could not be accessed.
      */
-    @SuppressWarnings("deprecation")
     public static RefreshableAuthenticationProvider createAuthenticationProvider(final MicrosoftCredential connection)
             throws IOException {
         return new RefreshableAuthenticationProvider(connection);
