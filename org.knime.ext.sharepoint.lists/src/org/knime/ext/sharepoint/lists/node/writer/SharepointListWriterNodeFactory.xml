@@ -16,9 +16,17 @@
 			</p>
 			
             <p>
-                <i>Note:</i>
-                Writing tables with more than a few hundred rows can take long time. Overwriting an existing table
-                can be also very slow in case a lot of rows need to be deleted.
+                <i>Notes:</i>
+                <ul>
+                    <li>
+                        Writing tables with more than a few hundred rows can take long time. Overwriting an existing table
+                        can be also very slow in case a lot of rows need to be deleted.
+                    </li>
+                    <li>
+                        This node exports the ID of the written list to a flow variable called <tt>sharepoint_list_id</tt>. The ID can be
+                        be used in subsequent nodes to control the <tt>list</tt> setting via flow variable.
+                    </li>
+                </ul>
 			</p>
 			
 			<p>

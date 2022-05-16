@@ -50,6 +50,7 @@ package org.knime.ext.sharepoint.lists.node.writer;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.StringValue;
@@ -65,6 +66,7 @@ import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.core.node.workflow.VariableType;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 
@@ -75,8 +77,11 @@ import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject
  */
 final class SharepointListWriterNodeModel extends NodeModel {
 
+    private static final String LIST_ID_VAR_NAME = "sharepoint_list_id";
 
     private final SharepointListWriterConfig m_config;
+
+    private boolean m_raiseVariableOverwriteWarning;
 
     protected SharepointListWriterNodeModel() {
         super(new PortType[] { MicrosoftCredentialPortObject.TYPE, BufferedDataTable.TYPE }, new PortType[] {});
@@ -85,7 +90,7 @@ final class SharepointListWriterNodeModel extends NodeModel {
 
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        final DataTableSpec inputTableSpec = (DataTableSpec) inSpecs[1];
+        final var inputTableSpec = (DataTableSpec) inSpecs[1];
 
         for (var i = 0; i < inputTableSpec.getNumColumns(); i++) {
             final var colSpec = inputTableSpec.getColumnSpec(i);
@@ -94,8 +99,7 @@ final class SharepointListWriterNodeModel extends NodeModel {
             if (!KNIMEToSharepointTypeConverter.TYPE_CONVERTER.containsKey(colType)
                     && !colType.isCompatible(StringValue.class)) {
                 throw new InvalidSettingsException(
-                        String.format("%s type in column '%s' is not supported",
-                        colSpec.getType(), colSpec.getName()));
+                        String.format("%s type in column '%s' is not supported", colSpec.getType(), colSpec.getName()));
             }
 
             final String colName = colSpec.getName();
@@ -105,6 +109,14 @@ final class SharepointListWriterNodeModel extends NodeModel {
             }
         }
 
+        final var listID = m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue();
+        if (getAvailableFlowVariables(VariableType.StringType.INSTANCE).containsKey(LIST_ID_VAR_NAME)) {
+            m_raiseVariableOverwriteWarning = !Objects.equals(peekFlowVariableString(LIST_ID_VAR_NAME), listID);
+        } else {
+            m_raiseVariableOverwriteWarning = false;
+        }
+        pushListId(listID);
+
         return new PortObjectSpec[] {};
     }
 
@@ -113,17 +125,29 @@ final class SharepointListWriterNodeModel extends NodeModel {
         final var authPortSpec = (MicrosoftCredentialPortObjectSpec) inObjects[0].getSpec();
         final var table = (BufferedDataTable) inObjects[1];
 
-        CheckUtils.checkSetting(
-                !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty(),
+        CheckUtils.checkSetting(listSettingsEmpty(),
                 "No list selected or entered. Please select a list or enter a list name.");
 
-        try (final var client = new SharepointListWriterClient(m_config, table, authPortSpec, exec)) {
+        try (final var client = new SharepointListWriterClient(m_config, this::pushListId, table, authPortSpec, exec)) {
             client.writeList();
         }
 
         return new PortObject[] {};
     }
 
+    private boolean listSettingsEmpty() {
+        return !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty()
+                || !m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue().isEmpty();
+    }
+
+    private void pushListId(final String listID) {
+
+        if (m_raiseVariableOverwriteWarning) {
+            setWarningMessage(String.format("Value of existing flow variable '%s' was overwritten!", LIST_ID_VAR_NAME));
+        }
+
+        pushFlowVariableString(LIST_ID_VAR_NAME, listID);
+    }
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) {
@@ -143,7 +167,7 @@ final class SharepointListWriterNodeModel extends NodeModel {
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
-        // nothing to do
+        setWarningMessage("Sharepoint connection no longer available. Please re-execute the node.");
     }
 
     @Override

@@ -173,11 +173,11 @@ final class KNIMEToSharepointTypeConverter {
 
     private static JsonElement doubleParser(final DataCell dataCell) {
         final var val = ((DoubleValue) dataCell).getDoubleValue();
+        checkDoubleValues(val);
         if (BigDecimal.valueOf(val).stripTrailingZeros().precision() > 15) {
             throw new IllegalArgumentException(
                     "Double values with more than 15 significant digits  are not supported. " + val);
         }
-        checkDoubleValues(val);
         return new JsonPrimitive(val);
     }
 

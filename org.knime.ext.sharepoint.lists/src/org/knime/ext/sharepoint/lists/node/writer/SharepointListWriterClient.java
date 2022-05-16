@@ -55,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.knime.core.data.DataRow;
 import org.knime.core.data.DataTableSpec;
@@ -103,6 +104,8 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private final SharepointListWriterConfig m_config;
 
+    private final Consumer<String> m_pushListId;
+
     private final SharepointListSettings m_sharePointListSettings;
 
     private final BufferedDataTable m_table;
@@ -123,7 +126,8 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private boolean m_processItemsSequential = true; // change this with toggle later
 
-    SharepointListWriterClient(final SharepointListWriterConfig config, final BufferedDataTable table,
+    SharepointListWriterClient(final SharepointListWriterConfig config, final Consumer<String> pushListId,
+            final BufferedDataTable table,
             final MicrosoftCredentialPortObjectSpec authPortSpec, final ExecutionContext exec)
             throws IOException, InvalidSettingsException {
         m_config = config;
@@ -134,6 +138,7 @@ class SharepointListWriterClient implements AutoCloseable {
         final var clientAndAuth = createGraphServiceClient(authPortSpec);
         m_client = clientAndAuth.getFirst();
         m_authProvider = clientAndAuth.getSecond();
+        m_pushListId = pushListId;
         m_siteId = getSiteId();
         m_listId = getListId();
     }
@@ -224,6 +229,7 @@ class SharepointListWriterClient implements AutoCloseable {
 
             listId = listExists ? optionalListId.get() : createSharepointList();
         }
+        m_pushListId.accept(listId);
 
         if (listExists && m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.FAIL) {
             throw new InvalidSettingsException(
