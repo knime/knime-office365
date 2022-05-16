@@ -1,12 +1,7 @@
 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M11 11V11.5V12H16V11H11Z" fill="black"/>
-<path d="M11 13.5V14H16V13H11V13.5Z" fill="black"/>
-<path d="M11 15.5V16H16V15H11V15.5Z" fill="black"/>
-<path d="M5 2.5H5.5L5.5 7.5L0.5 7.5L0.5 0.5L2 0.5H3.5L3.5 1V1.5H4H4.5V2V2.5H5Z" fill="white" stroke="black"/>
-<rect x="3" y="1" width="1" height="2" fill="black"/>
-<rect x="4" y="1" width="1" height="2" fill="black"/>
-<path d="M7 6.5H7.5L7.5 11.5H2.5L2.5 4.5L4 4.5H5.5L5.5 5V5.5H6H6.5V6V6.5H7Z" fill="white" stroke="black"/>
-<rect x="5" y="5" width="1" height="2" fill="black"/>
-<rect x="6" y="5" width="1" height="2" fill="black"/>
-<path d="M13.5 10L16 7H14V1H10V2H13.0002V7H11L13.5 10Z" fill="black"/>
+<path d="M16 13L13 10V12L7 12V14L13 14V16L16 13Z" fill="black"/>
+<rect x="0.5" y="0.5" width="8" height="8" fill="white" stroke="#3E3A39"/>
+<path d="M2 2V2.5V3H7V2H2Z" fill="#3E3A39"/>
+<path d="M2 4.5V5H7V4H2V4.5Z" fill="#3E3A39"/>
+<path d="M2 6.5V7H7V6H2V6.5Z" fill="#3E3A39"/>
 </svg>
