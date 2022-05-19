@@ -54,6 +54,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.AccessMode;
 import java.nio.file.CopyOption;
 import java.nio.file.DirectoryNotEmptyException;
@@ -68,6 +69,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import org.knime.core.node.util.CheckUtils;
 import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 import org.knime.filehandling.core.connections.base.BaseFileSystemProvider;
 import org.knime.filehandling.core.connections.base.attributes.BaseFileAttributes;
@@ -96,6 +98,9 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     @Override
     protected void moveInternal(final SharepointPath source, final SharepointPath target, final CopyOption... options)
             throws IOException {
+
+        verifyInsideDocumentLibrary(target, "move files/folders to");
+
         IGraphServiceClient client = source.getFileSystem().getClient();
         DriveItem targetItem = target.getDriveItem(true);
 
@@ -193,6 +198,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     @Override
     protected OutputStream newOutputStreamInternal(final SharepointPath path, final OpenOption... options)
             throws IOException {
+        verifyInsideDocumentLibrary(path, "write file");
         final Set<OpenOption> opts = new HashSet<>(Arrays.asList(options));
         return Channels.newOutputStream(newByteChannel(path, opts));
     }
@@ -207,6 +213,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     @Override
     protected void createDirectoryInternal(final SharepointPath dir, final FileAttribute<?>... attrs)
             throws IOException {
+        verifyInsideDocumentLibrary(dir, "create folder");
         IGraphServiceClient client = dir.getFileSystem().getClient();
         if (dir.getItemPath() != null) {
             String parentId = dir.getParent().getDriveItem().id;
@@ -262,6 +269,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     @SuppressWarnings("resource")
     @Override
     protected void deleteInternal(final SharepointPath path) throws IOException {
+        verifyInsideDocumentLibrary(path, "delete files or folders");
         IGraphServiceClient client = path.getFileSystem().getClient();
         DriveItem item = path.getDriveItem(true);
 
@@ -279,5 +287,16 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     @Override
     public boolean isHidden(final Path path) throws IOException {
         return false;
+    }
+
+    private static void verifyInsideDocumentLibrary(final SharepointPath path, final String operation) throws IOException {
+        CheckUtils.checkArgument(path != null, "Path can not be null");
+
+        final var absPath = (SharepointPath) path.toAbsolutePath().normalize();
+
+        if (absPath.isRoot() || absPath.getParent().isRoot()) {
+            throw new AccessDeniedException(path.toString(), null,
+                    String.format("Cannot %s outside of document library.", operation));
+        }
     }
 }
