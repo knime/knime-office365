@@ -52,10 +52,10 @@
 				SharePoint. In addition to that the node also stores a unique technical ID (not
 				visible). If you pick a list from the dropdown, the node will store
 				all these three values,
-				and upon execution, the node will first try to delete a list with the
-				unique technical ID. If such a list does not exist, the node will
-				try to delete a list
-				with the configured internal name.
+				and upon execution, the node will try to delete a list with the
+				unique technical ID. If no such list exists, the node will fail. Only if the
+				technical ID is left empty, the node will try to delete a list with the configured
+				internal name.
 			</option>
 		</tab>
 		<tab name="Advanced">
