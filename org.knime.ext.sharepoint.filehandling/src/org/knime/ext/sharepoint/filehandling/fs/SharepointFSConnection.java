@@ -50,20 +50,20 @@ package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.io.IOException;
 
-import org.knime.core.node.util.FileSystemBrowser;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.FSFileSystem;
-import org.knime.filehandling.core.filechooser.NioFileSystemBrowser;
+import org.knime.filehandling.core.connections.base.BaseFSConnection;
 
 /**
  * Sharepoint implementation of {@link FSConnection} interface.
  *
  * @author Alexander Bondaletov
  */
-public class SharepointFSConnection implements FSConnection {
+public class SharepointFSConnection extends BaseFSConnection {
+
+    private static final long CACHE_TTL = 6000;
 
     private final SharepointFileSystem m_filesystem;
-    private final long m_cacheTTL = 6000;
 
     /**
      * @param config
@@ -72,17 +72,11 @@ public class SharepointFSConnection implements FSConnection {
      *
      */
     public SharepointFSConnection(final SharepointFSConnectionConfig config) throws IOException {
-        m_filesystem = new SharepointFileSystem(config, m_cacheTTL);
+        m_filesystem = new SharepointFileSystem(config, CACHE_TTL);
     }
 
     @Override
     public FSFileSystem<?> getFileSystem() {
         return m_filesystem;
     }
-
-    @Override
-    public FileSystemBrowser getFileSystemBrowser() {
-        return new NioFileSystemBrowser(this);
-    }
-
 }
