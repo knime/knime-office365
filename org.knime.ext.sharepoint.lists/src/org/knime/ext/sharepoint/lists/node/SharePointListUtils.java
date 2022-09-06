@@ -49,6 +49,7 @@
 package org.knime.ext.sharepoint.lists.node;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -135,11 +136,13 @@ public final class SharePointListUtils {
     public static Optional<String> getListIdByName(final IGraphServiceClient client, final String siteId,
             final String listName) throws IOException {
         try {
-            final var resp = client.sites(siteId).lists().buildRequest().get();
-            var lists = resp.getCurrentPage();
+            var resp = client.sites(siteId).lists().buildRequest().get();
+            final var lists = new ArrayList<>(resp.getCurrentPage());
+
             var nextRequest = resp.getNextPage();
             while (nextRequest != null) {
-                final var listsTmp = nextRequest.buildRequest().get().getCurrentPage();
+                resp = nextRequest.buildRequest().get();
+                final var listsTmp = resp.getCurrentPage();
                 lists.addAll(listsTmp);
                 nextRequest = resp.getNextPage();
             }
