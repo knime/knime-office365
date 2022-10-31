@@ -39,6 +39,10 @@
 						<i>Shared access signature (SAS) authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage and Azure Data Lake Storage Gen2</b>. Performs authentication using shared access signature (SAS).
 						For more details on shared access signatures see the <a href="https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview">Azure storage documentation.</a>
 					</li>
+					<li>
+						<i>Client secret authentication</i>: Performs authentication using <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow">OAuth 2.0 client credentials flow</a> 
+						to get access tokens. Access tokens will have a set of application permissions (not delegated). 
+					</li>
 				</ul>
 			</p>
 		</intro>
@@ -200,6 +204,56 @@
 			</option>
 			<option name="Credentials flow variable">
 				Allows to choose a credentials flow variable that provides the storage service SAS URL as the password field. 
+			</option>
+		</tab>
+		
+		<tab name="Client secret authentication">
+			<option name="Tenant ID/Domain">
+				The directory tenant the application plans to operate against, in GUID or domain-name format.
+			</option>
+			<option name="Client/Application ID">
+				The application ID that's assigned to your app. You can find this information in the portal where you registered your app.
+			</option>
+			<option name="Secret">
+				The client secret that you generated for your app in the app registration portal. 
+			</option>
+			<option name="Credentials flow variable">
+				Allows to choose a credentials flow variable that provides the Client/Application ID and Secret to login with. 
+			</option>
+			<option name="Request access to">
+                <p>Allows to define which resources should be requested for the token during login.</p> 
+
+                <p><b>Technical note:</b> Selecting any option here will request certain resource with <i>application</i> permissions (OAuth2 scopes) so that the
+                Azure AD app can perform API calls under their own identity and not on behalf of a user. 
+                The application permissions must be pre-configured using the Azure portal.
+                </p>
+
+                <p>Each option corresponds to one resource:</p>
+                <ul>
+                    <li><b>Sharepoint:</b>
+                        Requests the SharePoint with https://graph.microsoft.com/.default scope.
+                    </li>
+                </ul>
+                <ul>
+                    <li><b>Azure SQL Database:</b>
+                        Requests the Azure SQL AP with https://database.windows.net/.default scope.
+                    </li>
+                </ul>
+                <ul>
+                    <li><b>Power BI:</b>
+                        Requests the Power BI with https://analysis.windows.net/powerbi/api/.default scope.
+                        Note that default workspace, usually called “My Workspace”, does not support application permissions. 
+                    </li>
+                </ul>
+                <ul>
+                    <li><b>Other:</b>
+                        Resource identifier (application ID URI) of the resource you want to access to. 
+                        Example of resource identifier:
+						<tt>
+							https://graph.microsoft.com/.default
+						</tt>
+                    </li>
+                </ul>               
 			</option>
 		</tab>
 

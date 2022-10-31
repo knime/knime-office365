@@ -172,6 +172,9 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
 
     @Override
     protected void saveSettingsTo(final NodeSettingsWO settings) throws InvalidSettingsException {
+        for (MicrosoftAuthProviderEditor editor : m_editors.values()) {
+            editor.beforeSaveSettings(settings);
+        }
         m_settings.saveSettingsTo(settings);
     }
 

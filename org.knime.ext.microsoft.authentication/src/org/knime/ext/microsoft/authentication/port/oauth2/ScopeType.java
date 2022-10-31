@@ -44,79 +44,52 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-06 (Alexander Bondaletov): created
+ *   2022-10-21 (Zkriya Rakhimberdiyev): created
  */
-package org.knime.ext.microsoft.authentication.providers.oauth2;
+package org.knime.ext.microsoft.authentication.port.oauth2;
 
-import java.util.Arrays;
-import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import javax.swing.JCheckBox;
-import javax.swing.JPanel;
-
-import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
+import java.util.stream.Stream;
 
 /**
- * Editor component for selecting Microsoft scopes.
+ * Scope types.
  *
- * @author Alexander Bondaletov
+ * @author Zkriya Rakhimberdiyev
  */
-public class ScopesEditComponent extends JPanel {
-
-    private static final long serialVersionUID = 1L;
-
-    /** scopes **/
-    protected final SettingsModelStringArray m_scopes; // NOSONAR not intended for serialization
-
-    /** check boxes */
-    protected final Map<Scope, JCheckBox> m_checkboxes; // NOSONAR
+public enum ScopeType {
 
     /**
-     * Constructor
-     *
-     * @param scopes
+     * Delegated scopes are used by apps that have a signed-in user present. The app
+     * is delegated with the permission to act as a signed-in user when it makes
+     * calls to the target resource.
      */
-    public ScopesEditComponent(final SettingsModelStringArray scopes) {
-        m_scopes = scopes;
-        m_checkboxes = new EnumMap<>(Scope.class);
+    DELEGATED("delegated"),
+
+    /**
+     * Application scopes are used by apps that run without a signed-in user
+     * present.
+     */
+    APPLICATION("application");
+
+    private final String m_settingsValue;
+
+    private ScopeType(final String settingsValue) {
+        m_settingsValue = settingsValue;
     }
 
     /**
-     * @param scope
-     *            {@link Scope}
-     * @return created check box from scope
+     * @return the settingsValue
      */
-    protected JCheckBox createCheckbox(final Scope scope) {
-        var cb = new JCheckBox(scope.getTitle());
-        cb.addActionListener(e -> onSelected(scope, cb.isSelected()));
-        m_checkboxes.put(scope, cb);
-        return cb;
-    }
-
-    private void onSelected(final Scope scope, final boolean selected) {
-        final var currentScopes = scopes();
-        final var newScopes = new HashSet<String>();
-
-        if (selected) {
-            newScopes.add(scope.getScope());
-            currentScopes.stream() //
-                    .filter(s -> Scope.fromScope(s).canBeGroupedWith(scope)) //
-                    .forEach(newScopes::add);
-        } else {
-            newScopes.addAll(currentScopes);
-            newScopes.remove(scope.getScope());
-        }
-        m_scopes.setStringArrayValue(newScopes.toArray(String[]::new));
+    public String getSettingsValue() {
+        return m_settingsValue;
     }
 
     /**
-     * @return scopes as set
+     * @param settingsValue
+     *            settings value to search
+     * @return found scope type otherwise default delegated scope type
      */
-    protected Set<String> scopes() {
-        return new HashSet<>(Arrays.asList(m_scopes.getStringArrayValue()));
+    public static ScopeType forSettingsValue(final String settingsValue) {
+        return Stream.of(ScopeType.values()).filter(s -> s.getSettingsValue().equalsIgnoreCase(settingsValue)).findAny()
+                .orElse(DELEGATED);
     }
 }

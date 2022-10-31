@@ -67,8 +67,8 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.util.SwingWorkerWithContext;
+import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsScopesEditComponent;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
-import org.knime.ext.microsoft.authentication.providers.oauth2.ScopesEditComponent;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.StorageEditor;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
@@ -130,8 +130,8 @@ public class InteractiveAuthProviderEditor extends MSALAuthProviderEditor<Intera
         box.add(m_storageEditor);
         box.add(Box.createVerticalStrut(10));
 
-        box.add(new ScopesEditComponent(m_provider.getScopesModel(), m_provider.getBlobStorageAccountModel(),
-                m_provider.getOtherScopesModel()));
+        box.add(new DelegatedPermissionsScopesEditComponent(m_provider.getScopesModel(),
+                m_provider.getBlobStorageAccountModel(), m_provider.getOtherScopesModel()));
         box.add(Box.createVerticalGlue());
         return box;
     }

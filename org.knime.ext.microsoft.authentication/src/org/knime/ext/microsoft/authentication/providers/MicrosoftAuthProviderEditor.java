@@ -50,7 +50,9 @@ package org.knime.ext.microsoft.authentication.providers;
 
 import javax.swing.JComponent;
 
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 
@@ -93,4 +95,14 @@ public interface MicrosoftAuthProviderEditor {
      */
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException;
+
+    /**
+     * Performs saving of the dialog components that should be executed before
+     * settings are saved.
+     *
+     * @param settings
+     *            The node settings
+     * @throws InvalidSettingsException
+     */
+    public void beforeSaveSettings(final NodeSettingsWO settings) throws InvalidSettingsException;
 }

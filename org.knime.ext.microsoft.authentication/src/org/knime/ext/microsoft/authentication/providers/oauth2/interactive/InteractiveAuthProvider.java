@@ -64,9 +64,10 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsOAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
-import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.StorageSettings;
 
 import com.microsoft.aad.msal4j.IAuthenticationResult;
@@ -75,12 +76,12 @@ import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.aad.msal4j.SystemBrowserOptions;
 
 /**
- * {@link OAuth2Provider} implementation that performs interactive
+ * {@link DelegatedPermissionsOAuth2Provider} implementation that performs interactive
  * authentication by opening a browser window.
  *
  * @author Alexander Bondaletov
  */
-public class InteractiveAuthProvider extends OAuth2Provider {
+public class InteractiveAuthProvider extends DelegatedPermissionsOAuth2Provider {
 
     private static final String KEY_REDIRECT_URL = "redirectUrl";
 
@@ -180,7 +181,7 @@ public class InteractiveAuthProvider extends OAuth2Provider {
                 m_storageSettings.createAccessTokenSupplier(getEndpoint(), getAppId()), //
                 loginStatus.getUsername(), //
                 getScopesStringSet(), //
-                getEndpoint(), getAppId());
+                getEndpoint(), getAppId(), ScopeType.DELEGATED);
     }
 
     @Override

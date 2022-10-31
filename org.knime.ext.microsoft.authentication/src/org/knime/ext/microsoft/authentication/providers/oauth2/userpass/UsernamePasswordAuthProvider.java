@@ -62,11 +62,12 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsOAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
-import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.DelegatedPermissionsTokenSupplier;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
 import com.microsoft.aad.msal4j.IAuthenticationResult;
@@ -74,12 +75,12 @@ import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.aad.msal4j.UserNamePasswordParameters;
 
 /**
- * {@link OAuth2Provider} implementation that performs authentication
+ * {@link DelegatedPermissionsOAuth2Provider} implementation that performs authentication
  * using username and password provided by user.
  *
  * @author Alexander Bondaletov
  */
-public class UsernamePasswordAuthProvider extends OAuth2Provider {
+public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Provider {
 
     private static final String KEY_USERNAME = "username";
     private static final String KEY_PASSWORD = "password";
@@ -185,13 +186,13 @@ public class UsernamePasswordAuthProvider extends OAuth2Provider {
 
             MemoryCredentialCache.put(m_cacheKey, app.tokenCache().serialize());
 
-            final var tokenSupplier = new MemoryCacheAccessTokenSupplier(getEndpoint(),
+            final var tokenSupplier = new DelegatedPermissionsTokenSupplier(getEndpoint(),
                     m_cacheKey, getAppId());
 
             return new OAuth2Credential(tokenSupplier, //
                     result.account().username(), //
                     getScopesStringSet(), //
-                    getEndpoint(), getAppId());
+                    getEndpoint(), getAppId(), ScopeType.DELEGATED);
         } catch (InterruptedException ex) { // NOSONAR we are rethrowing by attaching as cause to an IOE
             throw new IOException(ex);
         } catch (ExecutionException ex) { // NOSONAR this exception is being handled

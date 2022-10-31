@@ -134,6 +134,10 @@ final class SharepointListReaderNodeModel extends NodeModel {
         if (m_config.hasTableSpecConfig()) {
             return new PortObjectSpec[] { m_config.getTableSpecConfig().getDataTableSpec() };
         }
+
+        final var authPortSpec = (MicrosoftCredentialPortObjectSpec) inSpecs[0];
+        m_config.getReaderSpecificConfig().getSharepointListSettings()
+                .validateCredential(authPortSpec.getMicrosoftCredential());
         return new PortObjectSpec[1];
     }
 

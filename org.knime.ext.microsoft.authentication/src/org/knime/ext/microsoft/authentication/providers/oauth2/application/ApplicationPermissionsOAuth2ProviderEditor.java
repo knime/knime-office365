@@ -44,14 +44,15 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-06-06 (Alexander Bondaletov): created
+ *   2022-10-16 (Zkriya Rakhimberdiyev): created
  */
-package org.knime.ext.microsoft.authentication.providers.oauth2.userpass;
+package org.knime.ext.microsoft.authentication.providers.oauth2.application;
 
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Insets;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -62,53 +63,49 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DialogComponentFlowVariableNameSelection2;
 import org.knime.core.node.defaultnodesettings.DialogComponentPasswordField;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.node.util.StringHistoryPanel;
 import org.knime.core.node.workflow.VariableType.CredentialsType;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsScopesEditComponent;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
 
-
 /**
- * Editor component for {@link UsernamePasswordAuthProvider}.
+ * Editor component for {@link ApplicationPermissionsOAuth2Provider}.
  *
- * @author Alexander Bondaletov
+ * @author Zkriya Rakhimberdiyev
  */
-public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<UsernamePasswordAuthProvider> {
+public class ApplicationPermissionsOAuth2ProviderEditor
+        extends MSALAuthProviderEditor<ApplicationPermissionsOAuth2Provider> {
 
-    private MicrosoftAuthenticationNodeDialog m_parent;
+    private final MicrosoftAuthenticationNodeDialog m_parent;
 
+    private final StringHistoryPanel m_tenantIdInput;
     private JRadioButton m_rbEnterCreds;
     private JRadioButton m_rbUseFw;
     private DialogComponentFlowVariableNameSelection2 m_flowVarSelector;
 
     /**
-     * Creates new instance.
-     *
      * @param provider
-     *            The auth provider.
-     * @param parent
-     *            The node dialog.
-     *
      */
-    public UsernamePasswordProviderEditor(final UsernamePasswordAuthProvider provider,
+    ApplicationPermissionsOAuth2ProviderEditor(final ApplicationPermissionsOAuth2Provider provider,
             final MicrosoftAuthenticationNodeDialog parent) {
         super(provider);
-
+        m_tenantIdInput = new StringHistoryPanel("tenant_id");
         m_parent = parent;
-        m_flowVarSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(),
-                "",
+        m_flowVarSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(), "",
                 () -> m_parent.getAvailableFlowVariables(CredentialsType.INSTANCE));
     }
 
     @Override
     protected JComponent createContentPane() {
-        m_rbEnterCreds = new JRadioButton("Username/Password");
+        m_rbEnterCreds = new JRadioButton("Client secret");
         m_rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
 
         m_rbUseFw = new JRadioButton("Credentials flow variable");
@@ -125,49 +122,54 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
         flowVarPanel.add(m_rbUseFw);
         flowVarPanel.add(m_flowVarSelector.getComponentPanel());
 
-        var usernamePasswordPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        usernamePasswordPanel.add(createUsernamePasswordPanel());
+        var clientIdSecretPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        clientIdSecretPanel.add(createClientIdSecretPanel());
 
         var box = new Box(BoxLayout.PAGE_AXIS);
         box.add(enterCredPanel);
-        box.add(usernamePasswordPanel);
+        box.add(clientIdSecretPanel);
         box.add(flowVarPanel);
-        box.add(Box.createVerticalStrut(10));
 
-        box.add(new DelegatedPermissionsScopesEditComponent(m_provider.getScopesModel(),
-                m_provider.getBlobStorageAccountModel(), m_provider.getOtherScopesModel()));
+        box.add(new ApplicationPermissionsScopesEditComponent(m_provider.getScopesModel(),
+                m_provider.getOtherScopeModel()));
         return box;
     }
 
-    private JPanel createUsernamePasswordPanel() {
-        var usernameInput = new DialogComponentString(m_provider.getUsernameModel(), "", false, 30);
-        usernameInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
+    private JPanel createClientIdSecretPanel() {
+        final var clientIdInput = new DialogComponentString(m_provider.getClientIdModel(), "", false, 26);
+        clientIdInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        var passwordInput = new DialogComponentPasswordField(m_provider.getPasswordModel(), "",
-                30);
-        passwordInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
+        final var secretInput = new DialogComponentPasswordField(m_provider.getSecretModel(), "", 26);
+        secretInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
 
         final var panel = new JPanel(new GridBagLayout());
         final var gbc = new GridBagConstraints();
         gbc.anchor = GridBagConstraints.WEST;
-        gbc.fill = GridBagConstraints.NONE;
-        panel.add(new JLabel("Username: "), gbc);
 
+        panel.add(new JLabel("Tenant ID/Domain:"), gbc);
         gbc.gridy = 1;
-        panel.add(new JLabel("Password: "), gbc);
+        panel.add(new JLabel("Client/Application ID: "), gbc);
+        gbc.gridy = 2;
+        panel.add(new JLabel("Secret: "), gbc);
 
         gbc.gridx = 1;
         gbc.gridy = 0;
-        panel.add(usernameInput.getComponentPanel(), gbc);
 
+        gbc.insets = new Insets(0, 12, 0, 0);
+        panel.add(m_tenantIdInput, gbc);
+        gbc.insets = new Insets(0, 0, 0, 0);
         gbc.gridy = 1;
-        panel.add(passwordInput.getComponentPanel(), gbc);
+        panel.add(clientIdInput.getComponentPanel(), gbc);
+        gbc.gridy = 2;
+        panel.add(secretInput.getComponentPanel(), gbc);
 
         gbc.weightx = 1;
         gbc.gridx = 2;
         gbc.gridy = 0;
         panel.add(Box.createHorizontalGlue(), gbc);
         gbc.gridy = 1;
+        panel.add(Box.createHorizontalGlue(), gbc);
+        gbc.gridy = 2;
         panel.add(Box.createHorizontalGlue(), gbc);
 
         panel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
@@ -177,7 +179,17 @@ public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<Usern
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
+        m_tenantIdInput.setSelectedString(m_provider.getTenantIdModel().getStringValue());
+        m_tenantIdInput.commitSelectedToHistory();
+        m_tenantIdInput.updateHistory();
+
         m_flowVarSelector.loadSettingsFrom(settings, specs);
+    }
+
+    @Override
+    public void beforeSaveSettings(final NodeSettingsWO settings) throws InvalidSettingsException {
+        m_provider.getTenantIdModel().setStringValue(m_tenantIdInput.getSelectedString());
+        m_tenantIdInput.commitSelectedToHistory();
     }
 
     @Override

@@ -89,6 +89,9 @@ final class SharepointDeleteListNodeModel extends NodeModel {
 
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        final var authPortSpec = (MicrosoftCredentialPortObjectSpec) inSpecs[0];
+        m_config.getSharepointListSettings().validateCredential(authPortSpec.getMicrosoftCredential());
+
         return new PortObjectSpec[] {};
     }
 

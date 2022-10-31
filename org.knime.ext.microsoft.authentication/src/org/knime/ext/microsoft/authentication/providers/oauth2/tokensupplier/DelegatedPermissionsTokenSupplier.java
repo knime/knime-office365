@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-07-03 (bjoern): created
+ *   2022-10-18 (Zkriya Rakhimberdiyev): created
  */
 package org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier;
 
@@ -52,31 +52,21 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.config.ConfigRO;
-import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2AccessToken;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
+import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
+
+import com.microsoft.aad.msal4j.IAccount;
+import com.microsoft.aad.msal4j.IAuthenticationResult;
+import com.microsoft.aad.msal4j.PublicClientApplication;
+import com.microsoft.aad.msal4j.SilentParameters;
 
 /**
- * Access token supplier that reads the MSAL4J token cache from the JVM global
- * {@link MemoryCredentialCache} and uses the contained refresh token to produce a
- * fresh access token when needed.
+ * Token supplier for delegated permissions.
  *
- * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Zkriya Rakhimberdiyev
  */
-public abstract class MemoryCacheAccessTokenSupplier {
-
-    private static final String KEY_CACHE_KEY = "cacheKey";
-
-    /** The endpoint to use during token refresh. **/
-    protected final String m_endpoint;
-
-    /** The Application (client) ID **/
-    protected final String m_appId;
-
-    /** The cache key to use against the in-memory token cache. **/
-    protected String m_cacheKey;
+public class DelegatedPermissionsTokenSupplier extends MemoryCacheAccessTokenSupplier {
 
     /**
      * Constructor (used for deserialization only).
@@ -86,8 +76,8 @@ public abstract class MemoryCacheAccessTokenSupplier {
      * @param appId
      *            The Application (client) ID
      */
-    protected MemoryCacheAccessTokenSupplier(final String endpoint, final String appId) {
-        this(endpoint, null, appId);
+    public DelegatedPermissionsTokenSupplier(final String endpoint, final String appId) {
+        super(endpoint, appId);
     }
 
     /**
@@ -100,59 +90,43 @@ public abstract class MemoryCacheAccessTokenSupplier {
      * @param appId
      *            The Application (client) ID
      */
-    protected MemoryCacheAccessTokenSupplier(final String endpoint, final String cacheKey, final String appId) {
-        m_endpoint = endpoint;
-        m_cacheKey = cacheKey;
-        m_appId = appId;
+    public DelegatedPermissionsTokenSupplier(final String endpoint, final String cacheKey, final String appId) {
+        super(endpoint, cacheKey, appId);
     }
 
     /**
-     * @return the OAuth2 authorization endpoint
-     */
-    public String getEndpoint() {
-        return m_endpoint;
-    }
-
-    /**
+     * Retrieves a cached access token from the in-memory cache and refreshes it if
+     * necessary.
+     *
      * @param scopes
-     *            set of scopes
-     * @return {@link OAuth2AccessToken} access token
+     *            The OAuth2 scopes to use.
+     * @return The (possibly refreshed) access token.
      * @throws IOException
+     *             usually if something went wrong while refreshing the access
+     *             token.
      */
-    public abstract OAuth2AccessToken getAuthenticationResult(final Set<String> scopes) throws IOException;
+    @Override
+    public final OAuth2AccessToken getAuthenticationResult(final Set<String> scopes) throws IOException {
+        final var app = createPublicClientApplication();
 
-    /**
-     * @param ex
-     *            instance of exception
-     * @return unwrapped IOException
-     */
-    protected static IOException unwrapIOE(final ExecutionException ex) {
-        Throwable cause = ex.getCause();
-        while (cause != null) {
-            if (cause instanceof IOException) {
-                return (IOException) cause;
-            }
-            cause = cause.getCause();
+        try {
+            IAccount account = app.getAccounts().get().iterator().next();
+            IAuthenticationResult result = app.acquireTokenSilently(SilentParameters.builder(scopes, account).build())
+                    .get();
+
+            return new OAuth2AccessToken(result.accessToken(), result.expiresOnDate().toInstant());
+        } catch (InterruptedException e) { // NOSONAR rethrowing as cause of IOE
+            throw new IOException("Canceled while acquiring access token", e);
+        } catch (ExecutionException ex) {
+            throw unwrapIOE(ex);
         }
-        return new IOException("Error during refreshing access token", ex.getCause());
     }
 
-    /**
-     * Saves settings to the given {@link ConfigWO}.
-     *
-     * @param config
-     */
-    public void saveSettings(final ConfigWO config) {
-        config.addString(KEY_CACHE_KEY, m_cacheKey);
-    }
-
-    /**
-     * Loads settings from the given {@link ConfigRO}.
-     *
-     * @param config
-     * @throws InvalidSettingsException
-     */
-    public void loadSettings(final ConfigRO config) throws InvalidSettingsException {
-        m_cacheKey = config.getString(KEY_CACHE_KEY);
+    private PublicClientApplication createPublicClientApplication() throws IOException {
+        final var tokenCacheString = MemoryCredentialCache.get(m_cacheKey);
+        if (tokenCacheString == null) {
+            throw new IOException("No access token found. Please re-execute the Microsoft Authentication node.");
+        }
+        return MSALUtil.createClientAppWithToken(m_appId, m_endpoint, tokenCacheString);
     }
 }

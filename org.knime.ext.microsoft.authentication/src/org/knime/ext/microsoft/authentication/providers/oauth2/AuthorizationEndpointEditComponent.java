@@ -65,7 +65,7 @@ import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 
 /**
  * Editor component for editing the OAuth 2 authorization endpoint URL for
- * {@link OAuth2Provider} providers.
+ * {@link DelegatedPermissionsOAuth2Provider} providers.
  *
  * @author Alexander Bondaletov
  */
@@ -99,7 +99,7 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
         }
     };
 
-    private OAuth2Provider m_provider; // NOSONAR not intended for serialization
+    private DelegatedPermissionsOAuth2Provider m_provider; // NOSONAR not intended for serialization
 
     private JRadioButton m_useDefaultEndpoint;
     private JRadioButton m_useCustomEndpoint;
@@ -160,8 +160,8 @@ public final class AuthorizationEndpointEditComponent extends JPanel {
     private void onProviderChanged() {
         MicrosoftAuthProvider current = m_settings.getCurrentProvider();
 
-        if (current instanceof OAuth2Provider) {
-            m_provider = (OAuth2Provider) current;
+        if (current instanceof DelegatedPermissionsOAuth2Provider) {
+            m_provider = (DelegatedPermissionsOAuth2Provider) current;
         } else {
             m_provider = null;
         }

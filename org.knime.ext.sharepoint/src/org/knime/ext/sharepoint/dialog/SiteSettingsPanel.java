@@ -68,6 +68,8 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.settings.SiteMode;
@@ -109,6 +111,8 @@ public class SiteSettingsPanel extends JPanel {
 
     private LoadedItemsSelector m_subsiteSelector;
 
+    private JRadioButton m_rbGroup;
+
     /**
      * @param settings
      */
@@ -138,26 +142,29 @@ public class SiteSettingsPanel extends JPanel {
     public void settingsLoaded(final MicrosoftCredential credentials) {
         m_credential = credentials;
 
+        final var isGroupEnabled = m_credential instanceof OAuth2Credential
+                && ((OAuth2Credential) m_credential).getScopeType() == ScopeType.DELEGATED;
+        m_rbGroup.setEnabled(isGroupEnabled);
+
         m_subsiteSelector.onSettingsLoaded();
         m_groupSelector.onSettingsLoaded();
-
         showModePanel(m_settings.getMode());
     }
 
     private JPanel createRadioSelectorPanel() {
         final var rbRoot = createModeRadiobutton(SiteMode.ROOT);
         final var rbSite = createModeRadiobutton(SiteMode.WEB_URL);
-        final var rbGroup = createModeRadiobutton(SiteMode.GROUP);
+        m_rbGroup = createModeRadiobutton(SiteMode.GROUP);
 
         final var group = new ButtonGroup();
         group.add(rbRoot);
         group.add(rbSite);
-        group.add(rbGroup);
+        group.add(m_rbGroup);
 
         final var buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonsPanel.add(rbRoot);
         buttonsPanel.add(rbSite);
-        buttonsPanel.add(rbGroup);
+        buttonsPanel.add(m_rbGroup);
         buttonsPanel.add(Box.createHorizontalGlue());
         return buttonsPanel;
     }

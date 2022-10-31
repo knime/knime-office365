@@ -52,13 +52,15 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 
 /**
- * Base class for editor component for {@link OAuth2Provider}.
+ * Base class for editor component for {@link DelegatedPermissionsOAuth2Provider}.
  *
  *
  * @param <T>
@@ -68,7 +70,7 @@ import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEdi
 public abstract class MSALAuthProviderEditor<T extends OAuth2Provider> implements MicrosoftAuthProviderEditor {
 
     /**
-     * {@link OAuth2Provider} instance.
+     * {@link DelegatedPermissionsOAuth2Provider} instance.
      */
     protected final T m_provider;
     /**
@@ -104,6 +106,11 @@ public abstract class MSALAuthProviderEditor<T extends OAuth2Provider> implement
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
+        // default empty implementation
+    }
+
+    @Override
+    public void beforeSaveSettings(final NodeSettingsWO settings) throws InvalidSettingsException {
         // default empty implementation
     }
 

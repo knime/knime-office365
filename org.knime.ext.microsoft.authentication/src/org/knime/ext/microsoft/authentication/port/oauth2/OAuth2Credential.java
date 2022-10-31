@@ -65,6 +65,8 @@ import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.ApplicationPermissionsTokenSupplier;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.DelegatedPermissionsTokenSupplier;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
@@ -81,12 +83,14 @@ public class OAuth2Credential extends MicrosoftCredential {
     private static final String KEY_USERNAME = "username";
     private static final String KEY_SCOPES = "scopes";
     private static final String KEY_APP_ID = "appId";
+    private static final String KEY_SCOPE_TYPE = "scope_type";
 
     private final MemoryCacheAccessTokenSupplier m_tokenSupplier;
     private final String m_username;
     private final Set<String> m_scopes;
     private final String m_endpoint;
     private final String m_appId;
+    private final String m_scopeTypeValue;
 
     /**
      * Creates new instance
@@ -100,13 +104,16 @@ public class OAuth2Credential extends MicrosoftCredential {
      *            The OAuth2 authorization endpoint
      * @param appId
      *            The Application (client) ID
+     * @param scopeType
+     *            The scope type {@link ScopeType}
      */
     public OAuth2Credential(
             final MemoryCacheAccessTokenSupplier tokenSupplier, //
             final String username, //
             final Set<String> scopes, //
             final String endpoint, //
-            final String appId) {
+            final String appId, //
+            final ScopeType scopeType) {
 
         super(Type.OAUTH2_ACCESS_TOKEN);
         m_tokenSupplier = tokenSupplier;
@@ -114,6 +121,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         m_scopes = scopes;
         m_endpoint = endpoint;
         m_appId = appId;
+        m_scopeTypeValue = scopeType.getSettingsValue();
     }
 
     /**
@@ -155,6 +163,13 @@ public class OAuth2Credential extends MicrosoftCredential {
     }
 
     /**
+     * @return the scope type
+     */
+    public ScopeType getScopeType() {
+        return ScopeType.forSettingsValue(m_scopeTypeValue);
+    }
+
+    /**
      * @return the OAuth2 authorization endpoint URL
      * @deprecated since 4.5.2, use {@link #getEndpoint()} instead
      */
@@ -169,6 +184,7 @@ public class OAuth2Credential extends MicrosoftCredential {
         config.addString(KEY_USERNAME, m_username);
         config.addString(KEY_ENDPOINT, m_endpoint);
         config.addString(KEY_APP_ID, m_appId);
+        config.addString(KEY_SCOPE_TYPE, m_scopeTypeValue);
 
         final String[] scopes = m_scopes.toArray(new String[] {});
         config.addStringArray(KEY_SCOPES, scopes);
@@ -193,12 +209,19 @@ public class OAuth2Credential extends MicrosoftCredential {
             appId = config.getString(KEY_APP_ID);
         }
 
+        var scopeType = ScopeType.DELEGATED;
+        if (config.containsKey(KEY_SCOPE_TYPE)) {
+            scopeType = ScopeType.forSettingsValue(config.getString(KEY_SCOPE_TYPE));
+        }
+
         final var scopes = new HashSet<>(Arrays.asList(config.getStringArray(KEY_SCOPES)));
 
-        final var tokenSupplier = new MemoryCacheAccessTokenSupplier(endpoint, appId);
-        tokenSupplier.loadSettings(config.getConfig(KEY_TOKEN));
+        final var tokenSupplier = scopeType == ScopeType.DELEGATED
+                ? new DelegatedPermissionsTokenSupplier(endpoint, appId)
+                : new ApplicationPermissionsTokenSupplier(endpoint, appId);
 
-        return new OAuth2Credential(tokenSupplier, username, scopes, endpoint, appId);
+        tokenSupplier.loadSettings(config.getConfig(KEY_TOKEN));
+        return new OAuth2Credential(tokenSupplier, username, scopes, endpoint, appId, scopeType);
     }
 
     @Override

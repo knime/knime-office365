@@ -44,7 +44,7 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-07-03 (bjoern): created
+ *   2022-10-18 (Zkriya Rakhimberdiyev): created
  */
 package org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier;
 
@@ -52,42 +52,40 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2AccessToken;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 
+import com.microsoft.aad.msal4j.ClientCredentialFactory;
+import com.microsoft.aad.msal4j.ConfidentialClientApplication;
+import com.microsoft.aad.msal4j.IAuthenticationResult;
+import com.microsoft.aad.msal4j.IClientCredential;
+import com.microsoft.aad.msal4j.SilentParameters;
+
 /**
- * Access token supplier that reads the MSAL4J token cache from the JVM global
- * {@link MemoryCredentialCache} and uses the contained refresh token to produce a
- * fresh access token when needed.
+ * Token supplier for application permissions.
  *
- * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Zkriya Rakhimberdiyev
  */
-public abstract class MemoryCacheAccessTokenSupplier {
+public class ApplicationPermissionsTokenSupplier extends MemoryCacheAccessTokenSupplier {
 
-    private static final String KEY_CACHE_KEY = "cacheKey";
+    private static final String KEY_SECRET_CACHE_KEY = "secretCacheKey";
 
-    /** The endpoint to use during token refresh. **/
-    protected final String m_endpoint;
-
-    /** The Application (client) ID **/
-    protected final String m_appId;
-
-    /** The cache key to use against the in-memory token cache. **/
-    protected String m_cacheKey;
+    private String m_secretCacheKey;
 
     /**
      * Constructor (used for deserialization only).
      *
      * @param endpoint
      *            The endpoint to use during token refresh.
-     * @param appId
+     * @param clientId
      *            The Application (client) ID
      */
-    protected MemoryCacheAccessTokenSupplier(final String endpoint, final String appId) {
-        this(endpoint, null, appId);
+    public ApplicationPermissionsTokenSupplier(final String endpoint, final String clientId) {
+        super(endpoint, clientId);
     }
 
     /**
@@ -97,62 +95,62 @@ public abstract class MemoryCacheAccessTokenSupplier {
      *            The endpoint to use during token refresh.
      * @param cacheKey
      *            The cache key to use against the in-memory token cache.
-     * @param appId
+     * @param clientId
      *            The Application (client) ID
+     * @param secretCacheKey
+     *            The secrect cache key to use against the in-memory cache.
      */
-    protected MemoryCacheAccessTokenSupplier(final String endpoint, final String cacheKey, final String appId) {
-        m_endpoint = endpoint;
-        m_cacheKey = cacheKey;
-        m_appId = appId;
+    public ApplicationPermissionsTokenSupplier(final String endpoint, final String cacheKey, final String clientId,
+            final String secretCacheKey) {
+        super(endpoint, cacheKey, clientId);
+        m_secretCacheKey = secretCacheKey;
     }
 
-    /**
-     * @return the OAuth2 authorization endpoint
-     */
-    public String getEndpoint() {
-        return m_endpoint;
-    }
+    @Override
+    public OAuth2AccessToken getAuthenticationResult(final Set<String> scopes) throws IOException {
+        final var app = createConfidentialClientApplication();
 
-    /**
-     * @param scopes
-     *            set of scopes
-     * @return {@link OAuth2AccessToken} access token
-     * @throws IOException
-     */
-    public abstract OAuth2AccessToken getAuthenticationResult(final Set<String> scopes) throws IOException;
+        try {
+            IAuthenticationResult result = app.acquireTokenSilently(SilentParameters.builder(scopes).build())
+                    .get();
 
-    /**
-     * @param ex
-     *            instance of exception
-     * @return unwrapped IOException
-     */
-    protected static IOException unwrapIOE(final ExecutionException ex) {
-        Throwable cause = ex.getCause();
-        while (cause != null) {
-            if (cause instanceof IOException) {
-                return (IOException) cause;
-            }
-            cause = cause.getCause();
+            return new OAuth2AccessToken(result.accessToken(), result.expiresOnDate().toInstant());
+        } catch (InterruptedException e) { // NOSONAR rethrowing as cause of IOE
+            throw new IOException("Canceled while acquiring access token", e);
+        } catch (ExecutionException ex) {
+            throw unwrapIOE(ex);
         }
-        return new IOException("Error during refreshing access token", ex.getCause());
     }
 
-    /**
-     * Saves settings to the given {@link ConfigWO}.
-     *
-     * @param config
-     */
+    private ConfidentialClientApplication createConfidentialClientApplication() throws IOException {
+        final var tokenCacheString = MemoryCredentialCache.get(m_cacheKey);
+        if (StringUtils.isBlank(tokenCacheString)) {
+            throw new IOException("No access token found. Please re-execute the Microsoft Authentication node.");
+        }
+        final var secret = MemoryCredentialCache.get(m_secretCacheKey);
+        if (StringUtils.isBlank(secret)) {
+            throw new IOException("No secret found. Please re-execute the Microsoft Authentication node.");
+        }
+
+        IClientCredential credential = ClientCredentialFactory.createFromSecret(secret);
+        ConfidentialClientApplication app = ConfidentialClientApplication.builder(m_appId, credential)
+                .authority(m_endpoint).build();
+
+        app.tokenCache().deserialize(tokenCacheString);
+        return app;
+    }
+
+    @Override
     public void saveSettings(final ConfigWO config) {
-        config.addString(KEY_CACHE_KEY, m_cacheKey);
+        super.saveSettings(config);
+        config.addString(KEY_SECRET_CACHE_KEY, m_secretCacheKey);
     }
 
-    /**
-     * Loads settings from the given {@link ConfigRO}.
-     *
-     * @param config
-     * @throws InvalidSettingsException
-     */
+    @Override
     public void loadSettings(final ConfigRO config) throws InvalidSettingsException {
-        m_cacheKey = config.getString(KEY_CACHE_KEY);
+        super.loadSettings(config);
+        if (config.containsKey(KEY_SECRET_CACHE_KEY)) {
+            m_secretCacheKey = config.getString(KEY_SECRET_CACHE_KEY);
+        }
     }
 }

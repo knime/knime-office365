@@ -132,7 +132,7 @@ public final class ApplicationIdEditComponent extends JPanel {
     private final JTextField m_redirectUrl;
     private final JLabel m_redirectUrlLabel;
 
-    private OAuth2Provider m_provider; // NOSONAR not intended for serialization
+    private DelegatedPermissionsOAuth2Provider m_provider; // NOSONAR not intended for serialization
 
     /**
      * Creates new instance
@@ -221,8 +221,8 @@ public final class ApplicationIdEditComponent extends JPanel {
     private void onProviderChanged() {
         MicrosoftAuthProvider current = m_settings.getCurrentProvider();
 
-        if (current instanceof OAuth2Provider) {
-            m_provider = (OAuth2Provider) current;
+        if (current instanceof DelegatedPermissionsOAuth2Provider) {
+            m_provider = (DelegatedPermissionsOAuth2Provider) current;
         } else {
             m_provider = null;
         }

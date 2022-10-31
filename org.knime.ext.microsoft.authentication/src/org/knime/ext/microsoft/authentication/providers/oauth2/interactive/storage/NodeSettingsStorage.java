@@ -57,6 +57,7 @@ import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.DelegatedPermissionsTokenSupplier;
 
 /**
  * Concrete storage provider that stores an MSAL4J token cache string in node
@@ -113,7 +114,7 @@ class NodeSettingsStorage implements StorageProvider {
 
     @Override
     public MemoryCacheAccessTokenSupplier createAccessTokenSupplier(final String endpoint, final String appId) {
-        return new MemoryCacheAccessTokenSupplier(endpoint, m_cacheKey, appId);
+        return new DelegatedPermissionsTokenSupplier(endpoint, m_cacheKey, appId);
     }
 
     @Override

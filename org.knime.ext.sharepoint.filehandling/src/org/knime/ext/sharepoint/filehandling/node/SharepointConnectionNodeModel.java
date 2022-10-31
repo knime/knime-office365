@@ -109,6 +109,7 @@ final class SharepointConnectionNodeModel extends NodeModel {
         if (connection == null) {
             throw new InvalidSettingsException("Not authenticated");
         }
+        m_settings.validateCredential(connection);
         m_fsId = FSConnectionRegistry.getInstance().getKey();
         return new PortObjectSpec[] { createSpec() };
     }

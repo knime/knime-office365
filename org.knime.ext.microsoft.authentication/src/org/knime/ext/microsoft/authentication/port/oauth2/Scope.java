@@ -54,6 +54,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Enum holding different OAuth2 scopes for the Microsoft Office365/Azure cloud.
@@ -65,51 +67,77 @@ public enum Scope {
     /**
      * Sites.Read.All scope.
      */
-    SITES_READ("Sharepoint files and list items (Read)", "Sites.Read.All"),
+    SITES_READ("Sharepoint files and list items (Read)", "Sites.Read.All", ScopeType.DELEGATED),
+
     /**
      * Sites.ReadWrite.All scope.
      */
-    SITES_READ_WRITE("Sharepoint files and list items (Read/Write)", "Sites.ReadWrite.All"),
+    SITES_READ_WRITE("Sharepoint files and list items (Read/Write)", "Sites.ReadWrite.All", ScopeType.DELEGATED),
 
     /**
      * Sites.Manage.All scope.
      */
-    SITES_MANAGE_ALL("Sharepoint files, lists and list items (Read/Write)", "Sites.Manage.All"),
+    SITES_MANAGE_ALL("Sharepoint files, lists and list items (Read/Write)", "Sites.Manage.All", 
+            ScopeType.DELEGATED),
+
+    /**
+     * Resource identifier of the Microsoft Graph
+     */
+    GRAPH_APP("Sharepoint", "https://graph.microsoft.com/.default", ScopeType.APPLICATION),
 
     /**
      * Directory.Read.All scope.
      */
     DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>",
-            "Directory.Read.All"),
+            "Directory.Read.All", ScopeType.DELEGATED),
     /**
      * User.Read scope.
      */
-    USER_READ("<html>User Groups (Read) <i>(Limited)</i><html", "User.Read"),
+    USER_READ("<html>User Groups (Read) <i>(Limited)</i><html", "User.Read", ScopeType.DELEGATED),
     /**
      * Azure Blob storage scope
      */
     AZURE_BLOB_STORAGE("Azure Blob Storage/Azure Data Lake Storage Gen2",
-            "https://%s.blob.core.windows.net/user_impersonation"),
+            "https://%s.blob.core.windows.net/user_impersonation", ScopeType.DELEGATED),
 
     /**
      * Azure SQL Database scope
      */
-    AZURE_SQL_DATABASE("Azure SQL Database", "https://database.windows.net/user_impersonation"),
+    AZURE_SQL_DATABASE("Azure SQL Database", "https://database.windows.net/user_impersonation", ScopeType.DELEGATED),
+
+    /**
+     * Resource identifier of the Azure SQL database
+     */
+    AZURE_SQL_DATABASE_APP("Azure SQL Database", "https://database.windows.net/.default", ScopeType.APPLICATION),
 
     /**
      * Power BI
      */
     POWER_BI("Power BI", "https://analysis.windows.net/powerbi/api/Dataset.ReadWrite.All "
-            + "https://analysis.windows.net/powerbi/api/Workspace.Read.All"),
+            + "https://analysis.windows.net/powerbi/api/Workspace.Read.All", ScopeType.DELEGATED),
+
+    /**
+     * Resource identifier of the Power BI
+     */
+    POWER_BI_APP("Power BI", "https://analysis.windows.net/powerbi/api/.default", ScopeType.APPLICATION),
+
+    /**
+     * Other scope manually entered by the user
+     */
+    OTHER("Other", "<other>", ScopeType.APPLICATION),
 
     /**
      * Other scopes manually entered by the user e.g. for Snowflake.
      */
-    OTHERS("Others (one per line)", "<others>");
+    OTHERS("Others (one per line)", "<others>", ScopeType.DELEGATED);
 
     private static final Map<String, Scope> SCOPES = new HashMap<>();
     static {
         for (Scope scopeEnum : Scope.values()) {
+            if (SCOPES.containsKey(scopeEnum.getScope())) {
+                // some sanity checking
+                throw new IllegalStateException("Duplicate scope " + scopeEnum.getScope());
+            }
             SCOPES.put(scopeEnum.getScope(), scopeEnum);
         }
     }
@@ -140,6 +168,14 @@ public enum Scope {
         // resource: not known beforehand
         scopesByResource.add(Set.of(OTHERS));
 
+        scopesByResource.add(Set.of(GRAPH_APP));
+
+        scopesByResource.add(Set.of(AZURE_SQL_DATABASE_APP));
+
+        scopesByResource.add(Set.of(POWER_BI_APP));
+
+        scopesByResource.add(Set.of(OTHER));
+
         for (Set<Scope> resourceScopes : scopesByResource) {
             for (Scope scope : resourceScopes) {
                 if (GROUPABLE_SCOPES.containsKey(scope)) {
@@ -152,12 +188,14 @@ public enum Scope {
         }
     }
 
-    private String m_scope;
     private String m_title;
+    private String m_scope;
+    private ScopeType m_scopeType;
 
-    private Scope(final String title, final String scope) {
+    private Scope(final String title, final String scope, final ScopeType scopeType) {
         m_title = title;
         m_scope = scope;
+        m_scopeType = scopeType;
     }
 
     /**
@@ -172,6 +210,13 @@ public enum Scope {
      */
     public String getTitle() {
         return m_title;
+    }
+
+    /**
+     * @return the type
+     */
+    public ScopeType getScopeType() {
+        return m_scopeType;
     }
 
     /**
@@ -194,5 +239,14 @@ public enum Scope {
      */
     public static Scope fromScope(final String scope) {
         return SCOPES.get(scope);
+    }
+
+    /**
+     * @param scopeType
+     *            scope type {@link ScopeType}
+     * @return the list of scopes
+     */
+    public static List<Scope> listByScopeType(final ScopeType scopeType) {
+        return Stream.of(values()).filter(s -> s.getScopeType() == scopeType).collect(Collectors.toList());
     }
 }

@@ -54,6 +54,7 @@ import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory;
 import org.knime.ext.microsoft.authentication.providers.azure.storage.sas.AzureStorageSasTokenAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.azure.storage.sharedkey.AzureSharedKeyAuthProvider;
+import org.knime.ext.microsoft.authentication.providers.oauth2.application.ApplicationPermissionsOAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.InteractiveAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.userpass.UsernamePasswordAuthProvider;
 
@@ -81,7 +82,12 @@ public enum AuthProviderType {
      * Azure Storage SAS token authentication provider.
      */
     AZURE_STORAGE_SAS("Shared access signature (SAS) authentication (Azure Storage only)",
-            AzureStorageSasTokenAuthProvider::new);
+            AzureStorageSasTokenAuthProvider::new),
+
+    /**
+     * Application permissions authentication provider.
+     */
+    CLIENT_SECRET("Client secret authentication", ApplicationPermissionsOAuth2Provider::new);
 
     private String m_title;
     private BiFunction<PortsConfiguration, String, MicrosoftAuthProvider> m_createProvider;

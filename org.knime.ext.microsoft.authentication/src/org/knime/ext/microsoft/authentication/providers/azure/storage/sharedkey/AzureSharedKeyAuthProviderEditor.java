@@ -62,7 +62,9 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
+import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
+import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DialogComponentFlowVariableNameSelection2;
 import org.knime.core.node.defaultnodesettings.DialogComponentPasswordField;
@@ -203,6 +205,11 @@ public class AzureSharedKeyAuthProviderEditor implements MicrosoftAuthProviderEd
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
         m_flowVarSelector.loadSettingsFrom(settings, specs);
+    }
+
+    @Override
+    public void beforeSaveSettings(final NodeSettingsWO settings) throws InvalidSettingsException {
+        // default empty implementation
     }
 
     @Override

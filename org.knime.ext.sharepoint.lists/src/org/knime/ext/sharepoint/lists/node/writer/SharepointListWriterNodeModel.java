@@ -117,6 +117,9 @@ final class SharepointListWriterNodeModel extends NodeModel {
         }
         pushListId(listID);
 
+        final var authPortSpec = (MicrosoftCredentialPortObjectSpec) inSpecs[0];
+        m_config.getSharepointListSettings().validateCredential(authPortSpec.getMicrosoftCredential());
+
         return new PortObjectSpec[] {};
     }
 

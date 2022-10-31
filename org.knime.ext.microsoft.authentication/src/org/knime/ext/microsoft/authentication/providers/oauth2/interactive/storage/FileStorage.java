@@ -75,6 +75,7 @@ import org.knime.core.util.crypto.IEncrypter;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
+import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.DelegatedPermissionsTokenSupplier;
 import org.knime.filehandling.core.connections.FSFiles;
 import org.knime.filehandling.core.connections.FSPath;
 import org.knime.filehandling.core.defaultnodesettings.EnumConfig;
@@ -223,7 +224,7 @@ class FileStorage implements StorageProvider {
 
     @Override
     public MemoryCacheAccessTokenSupplier createAccessTokenSupplier(final String endpoint, final String appId) {
-        return new MemoryCacheAccessTokenSupplier(endpoint, m_cacheKey, appId);
+        return new DelegatedPermissionsTokenSupplier(endpoint, m_cacheKey, appId);
     }
 
     @Override
