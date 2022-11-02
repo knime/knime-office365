@@ -19,17 +19,28 @@
 				It supports these authentication modes:
 				<ul>
 					<li>
-						<i>Interactive authentication</i>: Performs an interactive, web browser based login by by clicking on <i>Login</i>
-						in the node dialog. In the browser window that pops up, you may be asked to consent to the requested level of access
+						<i>Interactive authentication</i>: Performs an interactive <i>user login</i> in your web browser, when you click on <i>Login</i>.
+						In the browser window that pops up, you may be asked to consent to the requested level of access
 						The login results in a token being stored in a configurable location. The token will be valid for a certain amount of time
-						that is defined by your Azure AD settings. 
+						that is defined by your Azure AD settings. Technically, the login uses the
+						<a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow">OAuth 2.0 authorization code flow</a>.
 					</li>
 					<li>
-						<i>Username/password authentication</i>: Performs a non-interactive login to obtain a fresh token every time the node executes.
-						Since this login is non-interactive and you get a fresh token every time, this mode is well-suited for workflows on KNIME Server.
-						However, it also has some limitations: First, you cannot to consent to the requested level of access, hence consent must be 
+						<i>Username/password authentication</i>: Performs a non-interactive <i>user login</i> to obtain a fresh token every time the node executes.
+						Since this login is non-interactive and you get a fresh token every time, this mode is well-suited for workflows on KNIME Server/
+						Hub. However, it also has some limitations: First, you cannot to consent to the requested level of access, hence consent must be 
 						given beforehand, e.g. during a previous interactive login, or by an Azure AD directory admin. Second, accounts that require
-						multi-factor authentication (MFA) will not work.
+						multi-factor authentication (MFA) will not work. Technically, the login uses the
+                        <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth-ropc">OAuth 2.0 Resource Owner Password Credentials flow</a>.
+					</li>
+					<li>
+						<i>Client/Application secret authentication</i>: Performs a non-interactive <i>application login</i> to obtain a fresh token every time the node executes.
+						Since this login is non-interactive and you get a fresh token every time, this mode is well-suited for workflows on KNIME Server/
+                        Hub. Please note however, that Microsoft Azure/Office 365 cloud services are accessed on behalf of the application, not
+                        on behalf of a user <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/scenario-daemon-overview">(see here).</a>
+						Technically, the login uses the
+						<a
+							href="https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow">OAuth 2.0 client credentials flow</a>.
 					</li>
 					<li>
 						<i>Shared key authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage and Azure Data Lake Storage Gen2</b>. Performs authentication using an Azure storage account
@@ -38,10 +49,6 @@
 					<li>
 						<i>Shared access signature (SAS) authentication (Azure Storage only)</i>: <b>Specific to Azure Blob Storage and Azure Data Lake Storage Gen2</b>. Performs authentication using shared access signature (SAS).
 						For more details on shared access signatures see the <a href="https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview">Azure storage documentation.</a>
-					</li>
-					<li>
-						<i>Client secret authentication</i>: Performs authentication using <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-client-creds-grant-flow">OAuth 2.0 client credentials flow</a> 
-						to get access tokens. Access tokens will have a set of application permissions (not delegated). 
 					</li>
 				</ul>
 			</p>
@@ -180,6 +187,69 @@
 			</option>
 		</tab>
 		
+        <tab name="Client/Application secret authentication">
+            <description>
+                Before using this mode, (1) an Azure AD application has to be registered, (2) an application secret has to be created, and (3) 
+                an admin has to grant <i>application</i> permissions (not delegated) to the application service principal in the Azure AD tenant
+                to access. In this mode, Azure/Office 365 cloud services are accessed with the application identity and not on behalf of a user.
+                <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/scenario-daemon-overview">See here</a> for more information.
+            </description>
+
+            <option name="Tenant ID/Domain">
+                The directory tenant the application plans to operate against, in ID or domain-name format, for example <i>cf47ff49-7da6-4603-b339-f4475176432b,</i>
+                or <i>mycompany.onmicrosoft.com.</i>
+            </option>
+            <option name="Client/Application ID">
+                The application ID that's assigned to your app. You can find this information in the portal where you registered your app.
+            </option>
+            <option name="Secret">
+                The client secret that you generated for your app in the app registration portal. 
+            </option>
+            <option name="Credentials flow variable">
+                If credentials flow variables are available, then this option allows to choose such a flow variable to provide the
+                Client/Application ID and Secret to login with. 
+            </option>
+            <option name="Request access to">
+                <p>Allows to define which permissions/scopes should be requested during login.</p> 
+
+                <p><b>Technical note:</b> Selecting an option here will request <i>application</i> permissions (not delegated) so that the
+                Azure AD application can perform API calls under its own identity, and not on behalf of a user. 
+                The application permissions must be granted beforehand to the application service principal by an admin.
+                </p>
+                
+                <p>Each option corresponds to one resource:</p>
+                <ul>
+                    <li><b>SharePoint Online:</b>
+                        Requests the <tt>https://graph.microsoft.com/.default</tt> scope. If the application and service principal are
+                        set up correctly, this provides access to reading/writing files and lists in SharePoint Online.
+                        
+                    </li>
+                </ul>
+                <ul>
+                    <li><b>Azure SQL Database:</b>
+                        Requests the <tt>https://database.windows.net/.default</tt> scope. If the application/service principal are
+                        set up accordingly, this provides access to Azure SQL databases.
+                    </li>
+                </ul>
+                <ul>
+                    <li><b>Power BI:</b>
+                        Requests the <tt>https://analysis.windows.net/powerbi/api/.default</tt> scope. If the application/service principal are
+                        set up accordingly, this provides access to Power BI. Note that default workspace, usually called “My Workspace”,
+                        does not support application permissions. 
+                    </li>
+                </ul>
+                <ul>
+                    <li><b>Other:</b>
+                        Resource identifier (application ID URI) of the resource you want to access to. 
+                        Example of resource identifier:
+                        <tt>
+                            https://graph.microsoft.com/.default
+                        </tt>
+                    </li>
+                </ul>               
+            </option>
+        </tab>
+		
 		<tab name="Shared key authentication (Azure Storage only)">
 			<option name="Account">
 				Azure Storage account name.
@@ -207,56 +277,6 @@
 			</option>
 		</tab>
 		
-		<tab name="Client secret authentication">
-			<option name="Tenant ID/Domain">
-				The directory tenant the application plans to operate against, in GUID or domain-name format.
-			</option>
-			<option name="Client/Application ID">
-				The application ID that's assigned to your app. You can find this information in the portal where you registered your app.
-			</option>
-			<option name="Secret">
-				The client secret that you generated for your app in the app registration portal. 
-			</option>
-			<option name="Credentials flow variable">
-				Allows to choose a credentials flow variable that provides the Client/Application ID and Secret to login with. 
-			</option>
-			<option name="Request access to">
-                <p>Allows to define which resources should be requested for the token during login.</p> 
-
-                <p><b>Technical note:</b> Selecting any option here will request certain resource with <i>application</i> permissions (OAuth2 scopes) so that the
-                Azure AD app can perform API calls under their own identity and not on behalf of a user. 
-                The application permissions must be pre-configured using the Azure portal.
-                </p>
-
-                <p>Each option corresponds to one resource:</p>
-                <ul>
-                    <li><b>Sharepoint:</b>
-                        Requests the SharePoint with https://graph.microsoft.com/.default scope.
-                    </li>
-                </ul>
-                <ul>
-                    <li><b>Azure SQL Database:</b>
-                        Requests the Azure SQL AP with https://database.windows.net/.default scope.
-                    </li>
-                </ul>
-                <ul>
-                    <li><b>Power BI:</b>
-                        Requests the Power BI with https://analysis.windows.net/powerbi/api/.default scope.
-                        Note that default workspace, usually called “My Workspace”, does not support application permissions. 
-                    </li>
-                </ul>
-                <ul>
-                    <li><b>Other:</b>
-                        Resource identifier (application ID URI) of the resource you want to access to. 
-                        Example of resource identifier:
-						<tt>
-							https://graph.microsoft.com/.default
-						</tt>
-                    </li>
-                </ul>               
-			</option>
-		</tab>
-
         <tab name="Advanced">
             <option name="OAuth 2.0 authorization endpoint">
                 When using OAuth2-based authentication <i>(Interactive</i> or <i>Username/password),</i>

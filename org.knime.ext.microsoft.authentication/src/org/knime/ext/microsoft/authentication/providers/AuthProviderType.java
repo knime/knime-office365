@@ -69,11 +69,14 @@ public enum AuthProviderType {
      * Interactive provider.
      */
     INTERACTIVE("Interactive authentication", InteractiveAuthProvider::new),
-
     /**
      * Username and password authentication provider.
      */
     USERNAME_PASSWORD("Username/password authentication", UsernamePasswordAuthProvider::new),
+    /**
+     * Application permissions authentication provider.
+     */
+    CLIENT_SECRET("Client/Application secret authentication", ApplicationPermissionsOAuth2Provider::new),
     /**
      * Azure Storage shared key authentication provider.
      */
@@ -82,12 +85,8 @@ public enum AuthProviderType {
      * Azure Storage SAS token authentication provider.
      */
     AZURE_STORAGE_SAS("Shared access signature (SAS) authentication (Azure Storage only)",
-            AzureStorageSasTokenAuthProvider::new),
+            AzureStorageSasTokenAuthProvider::new);
 
-    /**
-     * Application permissions authentication provider.
-     */
-    CLIENT_SECRET("Client secret authentication", ApplicationPermissionsOAuth2Provider::new);
 
     private String m_title;
     private BiFunction<PortsConfiguration, String, MicrosoftAuthProvider> m_createProvider;

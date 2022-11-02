@@ -50,16 +50,15 @@ package org.knime.ext.microsoft.authentication.providers.oauth2.application;
 
 import static org.knime.ext.microsoft.authentication.port.oauth2.Scope.OTHER;
 
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.Insets;
 import java.util.Map.Entry;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JCheckBox;
-import javax.swing.JLabel;
 
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
@@ -78,8 +77,6 @@ public class ApplicationPermissionsScopesEditComponent extends ScopesEditCompone
     private static final long serialVersionUID = 1L;
 
     private final SettingsModelString m_manualScope; // NOSONAR not intended for serialization
-
-    private JLabel m_resourceIdentifierLabel;
 
     /**
      * Creates new instance.
@@ -100,8 +97,7 @@ public class ApplicationPermissionsScopesEditComponent extends ScopesEditCompone
     }
 
     private void initUI() {
-        m_resourceIdentifierLabel = new JLabel("Resource identifier:");
-        final var otherScope = new DialogComponentString(m_manualScope, "");
+        final var otherScope = new DialogComponentString(m_manualScope, "", false, 80);
         otherScope.getComponentPanel().setLayout(new FlowLayout(FlowLayout.LEFT));
         otherScope.getComponentPanel().setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
 
@@ -114,25 +110,16 @@ public class ApplicationPermissionsScopesEditComponent extends ScopesEditCompone
         gbc.gridx = 0;
         gbc.gridy = 0;
 
+        add(Box.createRigidArea(new Dimension(0, 20)), gbc);
+        gbc.gridy += 1;
+
         for (Scope scope : Scope.listByScopeType(ScopeType.APPLICATION)) {
 
             add(createCheckbox(scope), gbc);
             gbc.gridy += 1;
 
             if (scope == OTHER) {
-                gbc.weightx = 0;
-                gbc.gridwidth = 1;
-                gbc.insets = new Insets(0, 20, 0, 5);
-                add(m_resourceIdentifierLabel, gbc);
-
-                gbc.insets = new Insets(0, 15, 0, 5);
-                gbc.gridx = 1;
-                gbc.weightx = 0.5;
-                gbc.insets = new Insets(0, 0, 0, 0);
                 add(otherScope.getComponentPanel(), gbc);
-
-                gbc.gridx = 0;
-                gbc.gridwidth = 2;
                 gbc.gridy += 1;
             }
         }
@@ -149,7 +136,6 @@ public class ApplicationPermissionsScopesEditComponent extends ScopesEditCompone
         for (Entry<Scope, JCheckBox> entry : m_checkboxes.entrySet()) {
             entry.getValue().setSelected(set.contains(entry.getKey().getScope()));
         }
-        m_resourceIdentifierLabel.setEnabled(set.contains(OTHER.getScope()));
         m_manualScope.setEnabled(set.contains(OTHER.getScope()));
     }
 }

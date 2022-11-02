@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.providers.oauth2;
 import static org.knime.ext.microsoft.authentication.port.oauth2.Scope.AZURE_BLOB_STORAGE;
 import static org.knime.ext.microsoft.authentication.port.oauth2.Scope.OTHERS;
 
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -125,6 +126,9 @@ public class DelegatedPermissionsScopesEditComponent extends ScopesEditComponent
         gbc.gridwidth = 2;
         gbc.gridx = 0;
         gbc.gridy = 0;
+
+        add(Box.createRigidArea(new Dimension(0, 20)), gbc);
+        gbc.gridy += 1;
 
         for (Scope scope : Scope.listByScopeType(ScopeType.DELEGATED)) {
 

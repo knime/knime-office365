@@ -49,29 +49,28 @@
 package org.knime.ext.microsoft.authentication.providers.oauth2.application;
 
 import java.awt.Component;
-import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.util.Map;
+import java.util.function.Supplier;
 
-import javax.swing.BorderFactory;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
+import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
 import org.knime.core.node.defaultnodesettings.DialogComponentFlowVariableNameSelection2;
 import org.knime.core.node.defaultnodesettings.DialogComponentPasswordField;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.StringHistoryPanel;
+import org.knime.core.node.workflow.FlowVariable;
 import org.knime.core.node.workflow.VariableType.CredentialsType;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
@@ -84,96 +83,142 @@ import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderE
 public class ApplicationPermissionsOAuth2ProviderEditor
         extends MSALAuthProviderEditor<ApplicationPermissionsOAuth2Provider> {
 
-    private final MicrosoftAuthenticationNodeDialog m_parent;
-
     private final StringHistoryPanel m_tenantIdInput;
-    private JRadioButton m_rbEnterCreds;
-    private JRadioButton m_rbUseFw;
-    private DialogComponentFlowVariableNameSelection2 m_flowVarSelector;
 
-    /**
-     * @param provider
-     */
+    private final DialogComponentString m_clientIdInput;
+
+    private final DialogComponentPasswordField m_secretInput;
+
+    private final DialogComponentBoolean m_useCredentials; // NOSONAR not using serialization
+
+    private final DialogComponentFlowVariableNameSelection2 m_credentialsFlowVarChooser;
+
+    private final Supplier<Map<String, FlowVariable>> m_flowVariablesSupplier;
+
+    private final JLabel m_clientIdLabel = new JLabel("Client/Application ID: ");
+
+    private final JLabel m_secretLabel = new JLabel("Secret: ");
+
     ApplicationPermissionsOAuth2ProviderEditor(final ApplicationPermissionsOAuth2Provider provider,
             final MicrosoftAuthenticationNodeDialog parent) {
         super(provider);
-        m_tenantIdInput = new StringHistoryPanel("tenant_id");
-        m_parent = parent;
-        m_flowVarSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(), "",
-                () -> m_parent.getAvailableFlowVariables(CredentialsType.INSTANCE));
+
+        m_tenantIdInput = new StringHistoryPanel("msauth.tenant_id");
+        m_tenantIdInput.setPrototypeDisplayValue("M".repeat(40));
+
+        m_clientIdInput = new DialogComponentString(m_provider.getClientIdModel(), "", false, 46);
+        m_clientIdInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        m_secretInput = new DialogComponentPasswordField(m_provider.getSecretModel(), "", 46);
+        m_secretInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        m_flowVariablesSupplier = () -> parent.getAvailableFlowVariables(CredentialsType.INSTANCE);
+        m_useCredentials = new DialogComponentBoolean(m_provider.getUseCredentialsModel(), "Use credentials:");
+        m_credentialsFlowVarChooser = new DialogComponentFlowVariableNameSelection2(
+                m_provider.getCredentialsNameModel(), "",
+                m_flowVariablesSupplier);
+
+        m_provider.getUseCredentialsModel().addChangeListener(e -> updateEnabledness());
+    }
+
+    @SuppressWarnings("deprecation")
+    private void updateEnabledness() {
+        if (m_flowVariablesSupplier.get().isEmpty()) {
+            m_provider.getUseCredentialsModel().setBooleanValue(false);
+            m_useCredentials.setEnabled(false);
+        } else {
+            m_useCredentials.setEnabled(true);
+        }
+
+        m_clientIdLabel.setEnabled(!m_provider.getUseCredentialsModel().getBooleanValue());
+        m_secretLabel.setEnabled(!m_provider.getUseCredentialsModel().getBooleanValue());
     }
 
     @Override
     protected JComponent createContentPane() {
-        m_rbEnterCreds = new JRadioButton("Client secret");
-        m_rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
+        var panel = new JPanel(new GridBagLayout());
 
-        m_rbUseFw = new JRadioButton("Credentials flow variable");
-        m_rbUseFw.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(true));
+        final var gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.LINE_START;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(10, 5, 5, 5);
+        panel.add(new JLabel("Tenant ID/Domain:"), gbc);
 
-        var group = new ButtonGroup();
-        group.add(m_rbEnterCreds);
-        group.add(m_rbUseFw);
+        gbc.gridx++;
+        gbc.insets = new Insets(10, 10, 5, 5);
+        panel.add(m_tenantIdInput, gbc);
 
-        var enterCredPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        enterCredPanel.add(m_rbEnterCreds);
+        gbc.gridx++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+        panel.add(Box.createHorizontalGlue(), gbc);
 
-        var flowVarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        flowVarPanel.add(m_rbUseFw);
-        flowVarPanel.add(m_flowVarSelector.getComponentPanel());
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(20, 5, 5, 5);
+        panel.add(m_clientIdLabel, gbc);
 
-        var clientIdSecretPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        clientIdSecretPanel.add(createClientIdSecretPanel());
+        gbc.gridx++;
+        gbc.insets = new Insets(20, 0, 5, 5);
+        panel.add(m_clientIdInput.getComponentPanel(), gbc);
 
-        var box = new Box(BoxLayout.PAGE_AXIS);
-        box.add(enterCredPanel);
-        box.add(clientIdSecretPanel);
-        box.add(flowVarPanel);
+        gbc.gridx++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+        panel.add(Box.createHorizontalGlue(), gbc);
 
-        box.add(new ApplicationPermissionsScopesEditComponent(m_provider.getScopesModel(),
-                m_provider.getOtherScopeModel()));
-        return box;
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.insets = new Insets(0, 5, 5, 5);
+        panel.add(m_secretLabel, gbc);
+
+        gbc.gridx++;
+        gbc.insets = new Insets(0, 0, 5, 5);
+        panel.add(m_secretInput.getComponentPanel(), gbc);
+
+        gbc.gridx++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+        panel.add(Box.createHorizontalGlue(), gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        panel.add(m_useCredentials.getComponentPanel(), gbc);
+
+        gbc.gridx++;
+        panel.add(m_credentialsFlowVarChooser.getComponentPanel(), gbc);
+
+        gbc.gridx++;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1;
+        panel.add(Box.createHorizontalGlue(), gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridwidth = 3;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        panel.add(new ApplicationPermissionsScopesEditComponent(m_provider.getScopesModel(),
+                m_provider.getOtherScopeModel()), gbc);
+
+        gbc.gridy++;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 1;
+        panel.add(Box.createVerticalGlue(), gbc);
+
+        return panel;
     }
 
-    private JPanel createClientIdSecretPanel() {
-        final var clientIdInput = new DialogComponentString(m_provider.getClientIdModel(), "", false, 26);
-        clientIdInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        final var secretInput = new DialogComponentPasswordField(m_provider.getSecretModel(), "", 26);
-        secretInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        final var panel = new JPanel(new GridBagLayout());
-        final var gbc = new GridBagConstraints();
-        gbc.anchor = GridBagConstraints.WEST;
-
-        panel.add(new JLabel("Tenant ID/Domain:"), gbc);
-        gbc.gridy = 1;
-        panel.add(new JLabel("Client/Application ID: "), gbc);
-        gbc.gridy = 2;
-        panel.add(new JLabel("Secret: "), gbc);
-
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-
-        gbc.insets = new Insets(0, 12, 0, 0);
-        panel.add(m_tenantIdInput, gbc);
-        gbc.insets = new Insets(0, 0, 0, 0);
-        gbc.gridy = 1;
-        panel.add(clientIdInput.getComponentPanel(), gbc);
-        gbc.gridy = 2;
-        panel.add(secretInput.getComponentPanel(), gbc);
-
-        gbc.weightx = 1;
-        gbc.gridx = 2;
-        gbc.gridy = 0;
-        panel.add(Box.createHorizontalGlue(), gbc);
-        gbc.gridy = 1;
-        panel.add(Box.createHorizontalGlue(), gbc);
-        gbc.gridy = 2;
-        panel.add(Box.createHorizontalGlue(), gbc);
-
-        panel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
-        return panel;
+    @Override
+    public void onShown() {
+        updateEnabledness();
     }
 
     @Override
@@ -183,22 +228,16 @@ public class ApplicationPermissionsOAuth2ProviderEditor
         m_tenantIdInput.commitSelectedToHistory();
         m_tenantIdInput.updateHistory();
 
-        m_flowVarSelector.loadSettingsFrom(settings, specs);
+        m_clientIdInput.loadSettingsFrom(settings, specs);
+        m_secretInput.loadSettingsFrom(settings, specs);
+        m_useCredentials.loadSettingsFrom(settings, specs);
+        m_credentialsFlowVarChooser.loadSettingsFrom(settings, specs);
     }
 
     @Override
     public void beforeSaveSettings(final NodeSettingsWO settings) throws InvalidSettingsException {
         m_provider.getTenantIdModel().setStringValue(m_tenantIdInput.getSelectedString());
         m_tenantIdInput.commitSelectedToHistory();
-    }
-
-    @Override
-    public void onShown() {
-        if (!m_provider.getUseCredentialsModel().getBooleanValue()) {
-            m_rbEnterCreds.setSelected(true);
-        } else {
-            m_rbUseFw.setSelected(true);
-        }
     }
 
     @Override
