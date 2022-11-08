@@ -5,7 +5,7 @@ Bundle-SymbolicName: org.knime.ext.sharepoint.filehandling; singleton:=true
 Bundle-Version: 4.7.0.qualifier
 Bundle-Vendor: 
 Require-Bundle: org.knime.workbench.repository;bundle-version="[4.2.0,5.0.0)",
- org.knime.core;bundle-version="[4.2.0,5.0.0]",
+ org.knime.core;bundle-version="[4.7.0,5.0.0)",
  org.knime.filehandling.core;bundle-version="[4.5.0,5.0.0)",
  com.microsoft.aad.msal4j;bundle-version="[1.8.1,2.0.0)",
  com.microsoft.graph.microsoft-graph;bundle-version="[2.7.1,3.0.0)",
