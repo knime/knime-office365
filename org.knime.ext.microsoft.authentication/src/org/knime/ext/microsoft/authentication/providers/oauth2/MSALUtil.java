@@ -51,6 +51,8 @@ package org.knime.ext.microsoft.authentication.providers.oauth2;
 import java.io.IOException;
 import java.net.MalformedURLException;
 
+import org.knime.ext.microsoft.authentication.util.OkHttpClientAdapter;
+
 import com.microsoft.aad.msal4j.MsalClientException;
 import com.microsoft.aad.msal4j.PublicClientApplication;
 
@@ -100,7 +102,10 @@ public final class MSALUtil {
      */
     public static PublicClientApplication createClientApp(final String appId, final String endpoint) {
         try {
-            return PublicClientApplication.builder(appId).authority(endpoint).build();
+            return PublicClientApplication.builder(appId) //
+                    .authority(endpoint) //
+                    .httpClient(new OkHttpClientAdapter()) //
+                    .build();
         } catch (MalformedURLException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
         }

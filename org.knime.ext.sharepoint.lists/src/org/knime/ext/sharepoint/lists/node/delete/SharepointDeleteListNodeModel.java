@@ -103,9 +103,9 @@ final class SharepointDeleteListNodeModel extends NodeModel {
 
         CheckUtils.checkSetting(listSettingsEmpty(), "No list selected. Please select a list.");
 
-        final IGraphServiceClient client = GraphApiUtil.createClient(credential);
-
-        GraphApiUtil.updateClientTimeoutSettings(client, m_config.getSharepointListSettings().getTimeoutSettings());
+        final var timeouts = m_config.getSharepointListSettings().getTimeoutSettings();
+        final IGraphServiceClient client = GraphApiUtil.createClient(credential, timeouts.getConnectionTimeout(),
+                timeouts.getReadTimeout());
 
         deleteList(client);
 

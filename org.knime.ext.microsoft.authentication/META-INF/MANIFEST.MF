@@ -16,13 +16,15 @@ Require-Bundle: org.knime.workbench.repository;bundle-version="[4.2.0,5.0.0)",
  org.json;bundle-version="20140107.0.0",
  com.fasterxml.jackson.core.jackson-databind;bundle-version="2.11.0",
  org.knime.filehandling.core;bundle-version="[4.4.0,5.0.0)",
- org.apache.commons.lang3;bundle-version="[3.9.0,4.0.0)"
+ org.apache.commons.lang3;bundle-version="[3.9.0,4.0.0)",
+ com.squareup.okio;bundle-version="[1.17.5,2.0.0)"
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Bundle-Activator: org.knime.ext.microsoft.authentication.MicrosoftAuthenticationPlugin
 Export-Package: org.knime.ext.microsoft.authentication.port,
  org.knime.ext.microsoft.authentication.port.azure.storage,
  org.knime.ext.microsoft.authentication.port.oauth2,
- org.knime.ext.microsoft.authentication.port.oauth2.testing
+ org.knime.ext.microsoft.authentication.port.oauth2.testing,
+ org.knime.ext.microsoft.authentication.util
 Automatic-Module-Name: org.knime.ext.microsoft.authentication
 
