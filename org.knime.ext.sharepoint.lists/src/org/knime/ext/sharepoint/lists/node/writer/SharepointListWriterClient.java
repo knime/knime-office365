@@ -184,13 +184,9 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private Pair<IGraphServiceClient, RefreshableAuthenticationProvider> createGraphServiceClient(
             final MicrosoftCredentialPortObjectSpec authPortSpec) throws IOException {
-        final var result = GraphApiUtil
-                .createClientAndRefreshableAuthenticationProvider(authPortSpec.getMicrosoftCredential());
-        final var client = result.getFirst();
-
-        GraphApiUtil.updateClientTimeoutSettings(client, m_sharePointListSettings.getTimeoutSettings());
-
-        return result;
+        final var timeouts = m_sharePointListSettings.getTimeoutSettings();
+        return GraphApiUtil.createClientAndRefreshableAuthenticationProvider(authPortSpec.getMicrosoftCredential(),
+                timeouts.getConnectionTimeout(), timeouts.getReadTimeout());
     }
 
     /**
