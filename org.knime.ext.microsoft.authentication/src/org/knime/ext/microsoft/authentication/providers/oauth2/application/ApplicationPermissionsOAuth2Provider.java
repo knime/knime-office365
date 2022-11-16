@@ -69,12 +69,12 @@ import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.ApplicationPermissionsTokenSupplier;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
 import com.microsoft.aad.msal4j.ClientCredentialParameters;
-import com.microsoft.aad.msal4j.ConfidentialClientApplication;
 import com.microsoft.aad.msal4j.IClientCredential;
 
 /**
@@ -214,9 +214,8 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
 
         final var endpoint = "https://login.microsoftonline.com/" + m_tenantId.getStringValue();
 
-        IClientCredential credential = ClientCredentialFactory.createFromSecret(secret);
-        ConfidentialClientApplication app = ConfidentialClientApplication.builder(clientId, credential)
-                .authority(endpoint).build();
+        final IClientCredential credential = ClientCredentialFactory.createFromSecret(secret);
+        final var app = MSALUtil.createConfidentialApp(clientId, endpoint, credential);
 
         app.acquireToken(ClientCredentialParameters.builder(getScopesStringSet()).build())
                 .join();

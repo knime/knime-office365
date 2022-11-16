@@ -51,26 +51,33 @@ package org.knime.ext.sharepoint;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.concurrent.TimeUnit;
 
 import org.knime.core.util.Pair;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.sharepoint.settings.TimeoutSettings;
+import org.knime.ext.microsoft.authentication.util.OkHttpProxyAuthenticator;
 
 import com.google.gson.JsonObject;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.core.DefaultClientConfig;
 import com.microsoft.graph.core.DefaultConnectionConfig;
+import com.microsoft.graph.http.IHttpProvider;
 import com.microsoft.graph.http.IHttpRequest;
+import com.microsoft.graph.httpcore.HttpClients;
 import com.microsoft.graph.models.extensions.DirectoryObject;
 import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.requests.extensions.GraphServiceClient;
+
+import okhttp3.OkHttpClient;
 
 /**
  * Utility class for Graph API.
  *
  * @author Alexander Bondaletov
  */
+@SuppressWarnings("deprecation")
 public final class GraphApiUtil {
     /**
      * oDataType corresponds to a Group
@@ -155,12 +162,29 @@ public final class GraphApiUtil {
      * @return the {@link IGraphServiceClient}
      * @throws IOException
      */
-    @SuppressWarnings("deprecation")
-    public static IGraphServiceClient createClient(final MicrosoftCredential connection)
-            throws IOException {
+    public static IGraphServiceClient createClient(final MicrosoftCredential connection) throws IOException {
+        var def = new DefaultConnectionConfig();
+
+        return createClient(connection, def.getConnectTimeout(), def.getReadTimeout());
+    }
+
+    /**
+     * Creates a {@link IGraphServiceClient} with a {@link MicrosoftCredential}.
+     *
+     * @param connection
+     *            the {@link MicrosoftCredential}
+     * @param connectionTimeout
+     *            Connection timeout in milliseconds.
+     * @param readTimeout
+     *            Read timeout in milliseconds.
+     * @return the {@link IGraphServiceClient}
+     * @throws IOException
+     */
+    public static IGraphServiceClient createClient(final MicrosoftCredential connection, final int connectionTimeout,
+            final int readTimeout) throws IOException {
         final IAuthenticationProvider authProvider = createAuthenticationProvider(connection);
 
-        return GraphServiceClient.builder().authenticationProvider(authProvider).buildClient();
+        return createClient(authProvider, connectionTimeout, readTimeout);
     }
 
     /**
@@ -169,32 +193,60 @@ public final class GraphApiUtil {
      *
      * @param connection
      *            the {@link MicrosoftCredential}
+     * @param connectionTimeout
+     *            Connection timeout in milliseconds.
+     * @param readTimeout
+     *            Read timeout in milliseconds.
      * @return the {@link IGraphServiceClient} and
      *         {@link RefreshableAuthenticationProvider}
      * @throws IOException
      *             if the (new) token could not be accessed.
      */
     public static Pair<IGraphServiceClient, RefreshableAuthenticationProvider> createClientAndRefreshableAuthenticationProvider(
-            final MicrosoftCredential connection) throws IOException {
+            final MicrosoftCredential connection, final int connectionTimeout, final int readTimeout)
+            throws IOException {
         final var authProvider = createAuthenticationProvider(connection);
-        final var client = GraphServiceClient.builder().authenticationProvider(authProvider).buildClient();
+        final var client = createClient(authProvider, connectionTimeout, readTimeout);
 
         return Pair.create(client, authProvider);
     }
 
     /**
-     * Update the timeout settings of the {@link IGraphServiceClient}.
+     * Creates a {@link IGraphServiceClient} with a {@link IAuthenticationProvider}.
      *
-     * @param client
-     *            the {@link IGraphServiceClient}
-     * @param settings
-     *            the {@link TimeoutSettings}
+     * @param authProvider
+     *            The {@link IAuthenticationProvider}
+     * @param connectionTimeout
+     *            Connection timeout in milliseconds.
+     * @param readTimeout
+     *            Read timeout in milliseconds.
+     * @return the {@link IGraphServiceClient}
      */
-    public static void updateClientTimeoutSettings(final IGraphServiceClient client, final TimeoutSettings settings) {
-        final var connectionConfig = new DefaultConnectionConfig();
-        connectionConfig.setConnectTimeout(settings.getConnectionTimeout());
-        connectionConfig.setReadTimeout(settings.getReadTimeout());
-        client.getHttpProvider().setConnectionConfig(connectionConfig);
+    public static IGraphServiceClient createClient(final IAuthenticationProvider authProvider,
+            final int connectionTimeout, final int readTimeout) {
+        DefaultClientConfig config = new DefaultClientConfig() {
+
+            @Override
+            public IAuthenticationProvider getAuthenticationProvider() {
+                return authProvider;
+            }
+
+            @Override
+            public IHttpProvider getHttpProvider() {
+                return getHttpProvider(createOkHttpClient(connectionTimeout, readTimeout));
+            }
+        };
+        return GraphServiceClient.fromConfig(config);
+    }
+
+    private static OkHttpClient createOkHttpClient(final int connectionTimeout, final int readTimeout) {
+        return HttpClients.createDefault(request -> request).newBuilder()//
+                .connectTimeout(connectionTimeout, TimeUnit.MILLISECONDS) //
+                .readTimeout(readTimeout, TimeUnit.MILLISECONDS) //
+                .retryOnConnectionFailure(true) // To address this bug
+                                                // (https://github.com/microsoftgraph/msgraph-sdk-java/issues/313).
+                .proxyAuthenticator(new OkHttpProxyAuthenticator()) // Proxy authentication
+                .build();
     }
 
     /**
@@ -216,7 +268,6 @@ public final class GraphApiUtil {
      *
      * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
      */
-    @SuppressWarnings("deprecation")
     public static final class RefreshableAuthenticationProvider implements IAuthenticationProvider {
 
         private final OAuth2Credential m_credential;

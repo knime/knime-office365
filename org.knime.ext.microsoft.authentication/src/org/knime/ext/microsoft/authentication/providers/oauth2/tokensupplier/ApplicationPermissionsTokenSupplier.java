@@ -58,11 +58,11 @@ import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2AccessToken;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
+import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
 import com.microsoft.aad.msal4j.ConfidentialClientApplication;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
-import com.microsoft.aad.msal4j.IClientCredential;
 import com.microsoft.aad.msal4j.SilentParameters;
 
 /**
@@ -132,9 +132,8 @@ public class ApplicationPermissionsTokenSupplier extends MemoryCacheAccessTokenS
             throw new IOException("No secret found. Please re-execute the Microsoft Authentication node.");
         }
 
-        IClientCredential credential = ClientCredentialFactory.createFromSecret(secret);
-        ConfidentialClientApplication app = ConfidentialClientApplication.builder(m_appId, credential)
-                .authority(m_endpoint).build();
+        final var credential = ClientCredentialFactory.createFromSecret(secret);
+        final var app = MSALUtil.createConfidentialApp(m_appId, m_endpoint, credential);
 
         app.tokenCache().deserialize(tokenCacheString);
         return app;
