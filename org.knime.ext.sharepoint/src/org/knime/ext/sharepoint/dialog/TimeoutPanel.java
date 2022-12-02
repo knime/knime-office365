@@ -51,6 +51,7 @@ package org.knime.ext.sharepoint.dialog;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Insets;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -99,6 +100,7 @@ public final class TimeoutPanel extends JPanel {
         c.weighty = 0;
         c.gridx = 0;
         c.gridy = 0;
+        c.insets = new Insets(0, 5, 0, 0);
         add(new JLabel("Connection timeout (seconds): "), c);
 
         c.gridy = 1;

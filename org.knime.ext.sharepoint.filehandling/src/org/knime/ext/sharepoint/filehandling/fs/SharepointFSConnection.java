@@ -72,6 +72,7 @@ public class SharepointFSConnection extends BaseFSConnection {
      *
      */
     public SharepointFSConnection(final SharepointFSConnectionConfig config) throws IOException {
+        super(config);
         m_filesystem = new SharepointFileSystem(config, CACHE_TTL);
     }
 

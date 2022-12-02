@@ -83,11 +83,14 @@ public class SharepointFSConnectionConfig extends BaseFSConnectionConfig {
     /**
      *
      * @param workingDirectory
+     * @param relativizationBehavior
+     *            The browser relativization behavior.
      * @param authenticationProvider
      */
     public SharepointFSConnectionConfig(final String workingDirectory,
+            final BrowserRelativizationBehavior relativizationBehavior,
             final IAuthenticationProvider authenticationProvider) {
-        super(workingDirectory, true);
+        super(workingDirectory, true, relativizationBehavior);
         m_authenticationProvider = authenticationProvider;
     }
 

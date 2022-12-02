@@ -53,11 +53,13 @@ import java.time.Duration;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
 import org.knime.filehandling.core.connections.meta.FSConnectionConfig;
+import org.knime.filehandling.core.connections.meta.base.BaseFSConnectionConfig.BrowserRelativizationBehavior;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 
@@ -70,17 +72,22 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
 class SharepointConnectionSettings extends AbstractSharePointSettings<SharepointConnectionSettings> {
 
     private static final String KEY_WORKING_DIRECTORY = "workingDirectory";
+    private static final String KEY_BROWSER_PATH_RELATIVE = "browserPathRelativize";
 
     private final SettingsModelString m_workingDirectory;
+    private final SettingsModelBoolean m_browserPathRelative;
 
     SharepointConnectionSettings() {
         super();
         m_workingDirectory = new SettingsModelString(KEY_WORKING_DIRECTORY, SharepointFileSystem.PATH_SEPARATOR);
+        m_browserPathRelative = new SettingsModelBoolean(KEY_BROWSER_PATH_RELATIVE, false);
     }
 
     private SharepointConnectionSettings(final SharepointConnectionSettings toCopy) {
         super(toCopy);
         m_workingDirectory = toCopy.getWorkingDirectoryModel();
+        m_browserPathRelative = new SettingsModelBoolean(KEY_BROWSER_PATH_RELATIVE,
+                toCopy.getBrowserPathRelativeModel().getBooleanValue());
     }
 
     /**
@@ -93,6 +100,7 @@ class SharepointConnectionSettings extends AbstractSharePointSettings<Sharepoint
     public void saveSettingsTo(final NodeSettingsWO settings) {
         super.saveSettingsTo(settings);
         m_workingDirectory.saveSettingsTo(settings);
+        m_browserPathRelative.saveSettingsTo(settings);
     }
 
     /**
@@ -106,6 +114,11 @@ class SharepointConnectionSettings extends AbstractSharePointSettings<Sharepoint
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.validateSettings(settings);
         m_workingDirectory.validateSettings(settings);
+
+        if (settings.containsKey(KEY_BROWSER_PATH_RELATIVE)) {
+            m_browserPathRelative.validateSettings(settings);
+        }
+
         validate();
     }
 
@@ -137,6 +150,12 @@ class SharepointConnectionSettings extends AbstractSharePointSettings<Sharepoint
     public void loadSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.loadSettingsFrom(settings);
         m_workingDirectory.loadSettingsFrom(settings);
+
+        if (settings.containsKey(KEY_BROWSER_PATH_RELATIVE)) {
+            m_browserPathRelative.loadSettingsFrom(settings);
+        } else {
+            m_browserPathRelative.setBooleanValue(false);
+        }
     }
 
     /**
@@ -162,6 +181,24 @@ class SharepointConnectionSettings extends AbstractSharePointSettings<Sharepoint
     }
 
     /**
+     * @return the browserPathRelative model
+     */
+    public SettingsModelBoolean getBrowserPathRelativeModel() {
+        return m_browserPathRelative;
+    }
+
+    /**
+     * @return the browser relativization behavior
+     */
+    public BrowserRelativizationBehavior getBrowserRelativizationBehavior() {
+        if (m_browserPathRelative.getBooleanValue()) {
+            return BrowserRelativizationBehavior.RELATIVE;
+        } else {
+            return BrowserRelativizationBehavior.ABSOLUTE;
+        }
+    }
+
+    /**
      *
      * @param authProvider
      *            The authentication provider.
@@ -169,7 +206,7 @@ class SharepointConnectionSettings extends AbstractSharePointSettings<Sharepoint
      */
     public SharepointFSConnectionConfig toFSConnectionConfig(final IAuthenticationProvider authProvider) {
         final var config = new SharepointFSConnectionConfig(getWorkingDirectory(SharepointFileSystem.PATH_SEPARATOR),
-                authProvider);
+                getBrowserRelativizationBehavior(), authProvider);
         config.setReadTimeOut(Duration.ofSeconds(getTimeoutSettings().getReadTimeout()));
         config.setConnectionTimeOut(Duration.ofSeconds(getTimeoutSettings().getConnectionTimeout()));
         config.setMode(getSiteSettings().getMode());

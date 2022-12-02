@@ -63,6 +63,7 @@ import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.filehandling.core.connections.FSLocationSpec;
 import org.knime.filehandling.core.connections.meta.FSType;
+import org.knime.filehandling.core.connections.meta.base.BaseFSConnectionConfig.BrowserRelativizationBehavior;
 import org.knime.filehandling.core.testing.DefaultFSTestInitializerProvider;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
@@ -86,7 +87,8 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         final String workingDir = generateRandomizedWorkingDir(configuration.get("workingDirPrefix"),
                 SharepointFileSystem.PATH_SEPARATOR);
 
-        final SharepointFSConnectionConfig fsConfig = new SharepointFSConnectionConfig(workingDir, authProvider);
+        final SharepointFSConnectionConfig fsConfig = new SharepointFSConnectionConfig(workingDir,
+                BrowserRelativizationBehavior.ABSOLUTE, authProvider);
         fsConfig.setMode(SiteMode.WEB_URL);
         fsConfig.setWebURL(getParameter(configuration, "siteWebURL"));
         fsConfig.setConnectionTimeOut(Duration.ofSeconds(SharepointFSConnectionConfig.DEFAULT_TIMEOUT));

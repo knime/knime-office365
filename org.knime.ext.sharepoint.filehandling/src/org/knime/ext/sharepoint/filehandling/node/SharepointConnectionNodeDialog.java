@@ -48,12 +48,15 @@
  */
 package org.knime.ext.sharepoint.filehandling.node;
 
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.io.IOException;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
+import javax.swing.JPanel;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
@@ -69,6 +72,7 @@ import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
+import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryRelativizationPanel;
 
 /**
  * Node dialog for the Sharepoint Connector node.
@@ -93,7 +97,7 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
      */
     SharepointConnectionNodeDialog() {
         addTab("Settings", createSettingsPanel());
-        addTab("Advanced", createTimeoutsPanel());
+        addTab("Advanced", createAdvancedPanel());
     }
 
     private Box createSettingsPanel() {
@@ -107,12 +111,33 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private FSConnection createFSConnection() throws IOException {
         final SharepointConnectionSettings clonedSettings = m_settings.copy(m_settings);
+        clonedSettings.getBrowserPathRelativeModel().setBooleanValue(false);
         return new SharepointFSConnection(clonedSettings
                 .toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(m_connection)));
     }
 
-    private JComponent createTimeoutsPanel() {
-        return m_timeoutPanel;
+    private JComponent createAdvancedPanel() {
+        var panel = new JPanel(new GridBagLayout());
+        var c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.WEST;
+        c.fill = GridBagConstraints.HORIZONTAL;
+        c.weightx = 1;
+        c.gridx = 0;
+        c.gridy = 0;
+        panel.add(m_timeoutPanel, c);
+
+        c.gridy += 1;
+        panel.add(new WorkingDirectoryRelativizationPanel(m_settings.getBrowserPathRelativeModel()), c);
+
+        c.fill = GridBagConstraints.BOTH;
+        c.gridx = 0;
+        c.gridy++;
+        c.gridwidth = 2;
+        c.weightx = 1;
+        c.weighty = 1;
+        panel.add(Box.createVerticalGlue(), c);
+
+        return panel;
     }
 
     private void validateSettingsBeforeSave() throws InvalidSettingsException {
