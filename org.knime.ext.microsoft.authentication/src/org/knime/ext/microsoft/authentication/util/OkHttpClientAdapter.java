@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.util;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.stream.Collectors;
 
 import com.microsoft.aad.msal4j.HttpRequest;
@@ -71,27 +72,44 @@ import okhttp3.Response;
  */
 public class OkHttpClientAdapter implements IHttpClient {
 
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
+
     private final OkHttpClient m_client;
 
     /**
      * Creates new instance.
      */
     public OkHttpClientAdapter() {
-        m_client = new OkHttpClient.Builder().proxyAuthenticator(new OkHttpProxyAuthenticator()).build();
+        m_client = new OkHttpClient.Builder() //
+                .proxyAuthenticator(new OkHttpProxyAuthenticator()) //
+                .connectTimeout(CONNECT_TIMEOUT) //
+                .readTimeout(READ_TIMEOUT) //
+                .build();
     }
 
     @SuppressWarnings("resource")
     @Override
     public IHttpResponse send(final HttpRequest httpRequest) throws Exception {
-        final var response = m_client.newCall(buildRequest(httpRequest)).execute();
-        return buildHttpResponse(response);
+        var okRequest = buildRequest(httpRequest);
+
+        if (okRequest != null) {
+            final var response = m_client.newCall(okRequest).execute();
+            return buildHttpResponse(response);
+        } else {
+            return null;
+        }
     }
 
     private static Request buildRequest(final HttpRequest httpRequest) throws IOException {
         final var builder = new Request.Builder().url(httpRequest.url());
 
-        for (var entry : httpRequest.headers().entrySet()) {
-            builder.addHeader(entry.getKey(), entry.getValue());
+        if (httpRequest.headers() != null) {
+            for (var entry : httpRequest.headers().entrySet()) {
+                if (entry.getValue() != null) {
+                    builder.addHeader(entry.getKey(), entry.getValue());
+                }
+            }
         }
 
         switch (httpRequest.httpMethod()) {
@@ -102,7 +120,7 @@ public class OkHttpClientAdapter implements IHttpClient {
             builder.post(createRequestBody(httpRequest));
             break;
         default:
-            throw new IllegalArgumentException("Unsupported HTTP method: " + httpRequest.httpMethod());
+            return null;
         }
 
         return builder.build();
@@ -123,9 +141,13 @@ public class OkHttpClientAdapter implements IHttpClient {
 
         if (response.body() != null) {
             httpResponse.body(response.body().string());
+        } else {
+            httpResponse.body("");
         }
 
-        final var headers = response.headers().names().stream()
+        final var headers = response.headers()//
+                .names()//
+                .stream()//
                 .collect(Collectors.toMap(n -> n, response::headers));
         httpResponse.addHeaders(headers);
         return httpResponse;
