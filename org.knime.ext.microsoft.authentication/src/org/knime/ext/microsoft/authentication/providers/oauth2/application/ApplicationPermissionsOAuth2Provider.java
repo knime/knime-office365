@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.providers.oauth2.application;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
@@ -232,8 +233,9 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
     }
 
     @Override
-    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
-        return new ApplicationPermissionsOAuth2ProviderEditor(this, parent);
+    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent,
+            final Supplier<CredentialsProvider> credentialsSupplier) {
+        return new ApplicationPermissionsOAuth2ProviderEditor(this, credentialsSupplier);
     }
 
     @Override

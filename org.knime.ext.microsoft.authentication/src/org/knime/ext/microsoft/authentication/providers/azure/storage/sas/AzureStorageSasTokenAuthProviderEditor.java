@@ -52,6 +52,7 @@ import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.util.function.Supplier;
 
 import javax.swing.Box;
 import javax.swing.ButtonGroup;
@@ -63,12 +64,11 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.defaultnodesettings.DialogComponentFlowVariableNameSelection2;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.workflow.VariableType.CredentialsType;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
+import org.knime.filehandling.core.connections.base.auth.DialogComponentCredentialSelection;
 
 /**
  * Editor component for the {@link AzureStorageSasTokenAuthProvider}.
@@ -78,29 +78,26 @@ import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEdi
 public class AzureStorageSasTokenAuthProviderEditor implements MicrosoftAuthProviderEditor {
 
     private final AzureStorageSasTokenAuthProvider m_provider;
-    private final MicrosoftAuthenticationNodeDialog m_parent;
 
     private JComponent m_component;
-    private DialogComponentFlowVariableNameSelection2 m_flowVarSelector;
+    private DialogComponentCredentialSelection m_credentialSelector;
 
     /**
      * Creates new instance.
      *
      * @param provider
      *            The auth provider.
-     * @param parent
-     *            The node dialog.
-     *
+     * @param credentialsSupplier
+     *            The supplier of {@link CredentialsProvider} (required by flow
+     *            variable dialog component to list all credentials flow variables).
      */
     public AzureStorageSasTokenAuthProviderEditor(final AzureStorageSasTokenAuthProvider provider,
-            final MicrosoftAuthenticationNodeDialog parent) {
+            final Supplier<CredentialsProvider> credentialsSupplier) {
         m_provider = provider;
-        m_parent = parent;
-
-        initUI();
+        initUI(credentialsSupplier);
     }
 
-    private void initUI() {
+    private void initUI(final Supplier<CredentialsProvider> credentialsSupplier) {
         var rbEnterCreds = new JRadioButton("Service SAS URL");
         rbEnterCreds.addActionListener(e -> m_provider.getUseCredentialsModel().setBooleanValue(false));
 
@@ -118,15 +115,16 @@ public class AzureStorageSasTokenAuthProviderEditor implements MicrosoftAuthProv
         });
         rbEnterCreds.setSelected(true);
 
-        m_flowVarSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(), "",
-                () -> m_parent.getAvailableFlowVariables(CredentialsType.INSTANCE));
+        m_credentialSelector = new DialogComponentCredentialSelection(//
+                m_provider.getCredentialsNameModel(), //
+                "", credentialsSupplier);
 
         var enterCredPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         enterCredPanel.add(rbEnterCreds);
 
         var flowVarPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         flowVarPanel.add(rbUseFw);
-        flowVarPanel.add(m_flowVarSelector.getComponentPanel());
+        flowVarPanel.add(m_credentialSelector.getComponentPanel());
 
         m_component = new JPanel(new GridBagLayout());
         var gbc = new GridBagConstraints();
@@ -148,7 +146,7 @@ public class AzureStorageSasTokenAuthProviderEditor implements MicrosoftAuthProv
         m_component.add(rbUseFw, gbc);
 
         gbc.gridx = 1;
-        m_component.add(m_flowVarSelector.getComponentPanel(), gbc);
+        m_component.add(m_credentialSelector.getComponentPanel(), gbc);
 
         gbc.fill = GridBagConstraints.BOTH;
         gbc.gridx = 0;
@@ -173,7 +171,7 @@ public class AzureStorageSasTokenAuthProviderEditor implements MicrosoftAuthProv
     @Override
     public void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
-        m_flowVarSelector.loadSettingsFrom(settings, specs);
+        m_credentialSelector.loadSettingsFrom(settings, specs);
     }
 
     @Override

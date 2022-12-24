@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.providers.azure.storage.sas;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.function.Supplier;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -159,8 +160,9 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
     }
 
     @Override
-    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
-        return new AzureStorageSasTokenAuthProviderEditor(this, parent);
+    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent,
+            final Supplier<CredentialsProvider> credentialsSupplier) {
+        return new AzureStorageSasTokenAuthProviderEditor(this, credentialsSupplier);
     }
 
     @Override

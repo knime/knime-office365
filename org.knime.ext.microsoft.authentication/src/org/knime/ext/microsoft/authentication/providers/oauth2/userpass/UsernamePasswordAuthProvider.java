@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.providers.oauth2.userpass;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -202,8 +203,9 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
     }
 
     @Override
-    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
-        return new UsernamePasswordProviderEditor(this, parent);
+    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent,
+            final Supplier<CredentialsProvider> credentialsSupplier) {
+        return new UsernamePasswordProviderEditor(this, credentialsSupplier);
     }
 
     @Override

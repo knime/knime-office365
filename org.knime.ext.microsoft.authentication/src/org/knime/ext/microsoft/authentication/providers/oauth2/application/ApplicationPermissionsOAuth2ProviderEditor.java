@@ -52,7 +52,6 @@ import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import javax.swing.Box;
@@ -65,15 +64,13 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
-import org.knime.core.node.defaultnodesettings.DialogComponentFlowVariableNameSelection2;
 import org.knime.core.node.defaultnodesettings.DialogComponentPasswordField;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.StringHistoryPanel;
-import org.knime.core.node.workflow.FlowVariable;
-import org.knime.core.node.workflow.VariableType.CredentialsType;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
+import org.knime.filehandling.core.connections.base.auth.DialogComponentCredentialSelection;
 
 /**
  * Editor component for {@link ApplicationPermissionsOAuth2Provider}.
@@ -91,16 +88,16 @@ public class ApplicationPermissionsOAuth2ProviderEditor
 
     private final DialogComponentBoolean m_useCredentials; // NOSONAR not using serialization
 
-    private final DialogComponentFlowVariableNameSelection2 m_credentialsFlowVarChooser;
+    private final DialogComponentCredentialSelection m_credentialSelector;
 
-    private final Supplier<Map<String, FlowVariable>> m_flowVariablesSupplier;
+    private final Supplier<CredentialsProvider> m_credentialsProvider;
 
     private final JLabel m_clientIdLabel = new JLabel("Client/Application ID: ");
 
     private final JLabel m_secretLabel = new JLabel("Secret: ");
 
     ApplicationPermissionsOAuth2ProviderEditor(final ApplicationPermissionsOAuth2Provider provider,
-            final MicrosoftAuthenticationNodeDialog parent) {
+            final Supplier<CredentialsProvider> credentialsSupplier) {
         super(provider);
 
         m_tenantIdInput = new StringHistoryPanel("msauth.tenant_id");
@@ -112,18 +109,18 @@ public class ApplicationPermissionsOAuth2ProviderEditor
         m_secretInput = new DialogComponentPasswordField(m_provider.getSecretModel(), "", 46);
         m_secretInput.getComponentPanel().setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        m_flowVariablesSupplier = () -> parent.getAvailableFlowVariables(CredentialsType.INSTANCE);
         m_useCredentials = new DialogComponentBoolean(m_provider.getUseCredentialsModel(), "Use credentials:");
-        m_credentialsFlowVarChooser = new DialogComponentFlowVariableNameSelection2(
+        m_credentialSelector = new DialogComponentCredentialSelection(
                 m_provider.getCredentialsNameModel(), "",
-                m_flowVariablesSupplier);
+                credentialsSupplier);
+        m_credentialsProvider = credentialsSupplier;
 
         m_provider.getUseCredentialsModel().addChangeListener(e -> updateEnabledness());
     }
 
     @SuppressWarnings("deprecation")
     private void updateEnabledness() {
-        if (m_flowVariablesSupplier.get().isEmpty()) {
+        if (m_credentialsProvider.get().listNames().isEmpty()) {
             m_provider.getUseCredentialsModel().setBooleanValue(false);
             m_useCredentials.setEnabled(false);
         } else {
@@ -194,7 +191,7 @@ public class ApplicationPermissionsOAuth2ProviderEditor
         panel.add(m_useCredentials.getComponentPanel(), gbc);
 
         gbc.gridx++;
-        panel.add(m_credentialsFlowVarChooser.getComponentPanel(), gbc);
+        panel.add(m_credentialSelector.getComponentPanel(), gbc);
 
         gbc.gridx++;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -231,7 +228,7 @@ public class ApplicationPermissionsOAuth2ProviderEditor
         m_clientIdInput.loadSettingsFrom(settings, specs);
         m_secretInput.loadSettingsFrom(settings, specs);
         m_useCredentials.loadSettingsFrom(settings, specs);
-        m_credentialsFlowVarChooser.loadSettingsFrom(settings, specs);
+        m_credentialSelector.loadSettingsFrom(settings, specs);
     }
 
     @Override

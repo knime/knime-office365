@@ -49,6 +49,7 @@
 package org.knime.ext.microsoft.authentication.providers;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
@@ -83,10 +84,13 @@ public interface MicrosoftAuthProvider {
      *
      * @param parent
      *            The node dialog.
-     *
+     * @param credentialsSupplier
+     *            The supplier of {@link CredentialsProvider} (required by flow
+     *            variable dialog component to list all credentials flow variables).
      * @return The editor component.
      */
-    public MicrosoftAuthProviderEditor createEditor(MicrosoftAuthenticationNodeDialog parent);
+    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent,
+            final Supplier<CredentialsProvider> credentialsSupplier);
 
     /**
      * Saves provider's settings into a given {@link NodeSettingsWO}.

@@ -159,7 +159,8 @@ public class MicrosoftAuthenticationNodeDialog extends NodeDialogPane {
         m_editors = new EnumMap<>(AuthProviderType.class);
 
         for (AuthProviderType type : AuthProviderType.values()) {
-            MicrosoftAuthProviderEditor editor = m_settings.getProvider(type).createEditor(this);
+            MicrosoftAuthProviderEditor editor = m_settings.getProvider(type)
+                    .createEditor(this, this::getCredentialsProvider);
             m_editors.put(type, editor);
             cards.add(editor.getComponent(), type.name());
         }
