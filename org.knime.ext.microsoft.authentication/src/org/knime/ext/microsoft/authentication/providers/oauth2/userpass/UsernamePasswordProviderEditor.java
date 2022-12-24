@@ -52,6 +52,7 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.util.function.Supplier;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -64,14 +65,13 @@ import javax.swing.JRadioButton;
 
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NotConfigurableException;
-import org.knime.core.node.defaultnodesettings.DialogComponentFlowVariableNameSelection2;
 import org.knime.core.node.defaultnodesettings.DialogComponentPasswordField;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.workflow.VariableType.CredentialsType;
-import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsScopesEditComponent;
 import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderEditor;
+import org.knime.filehandling.core.connections.base.auth.DialogComponentCredentialSelection;
 
 
 /**
@@ -81,29 +81,26 @@ import org.knime.ext.microsoft.authentication.providers.oauth2.MSALAuthProviderE
  */
 public class UsernamePasswordProviderEditor extends MSALAuthProviderEditor<UsernamePasswordAuthProvider> {
 
-    private MicrosoftAuthenticationNodeDialog m_parent;
-
     private JRadioButton m_rbEnterCreds;
     private JRadioButton m_rbUseFw;
-    private DialogComponentFlowVariableNameSelection2 m_flowVarSelector;
+    private DialogComponentCredentialSelection m_flowVarSelector;
 
     /**
      * Creates new instance.
      *
      * @param provider
      *            The auth provider.
-     * @param parent
-     *            The node dialog.
-     *
+     * @param credentialsSupplier
+     *            The supplier of {@link CredentialsProvider} (required by flow
+     *            variable dialog component to list all credentials flow variables).
      */
     public UsernamePasswordProviderEditor(final UsernamePasswordAuthProvider provider,
-            final MicrosoftAuthenticationNodeDialog parent) {
+            final Supplier<CredentialsProvider> credentialsSupplier) {
         super(provider);
 
-        m_parent = parent;
-        m_flowVarSelector = new DialogComponentFlowVariableNameSelection2(m_provider.getCredentialsNameModel(),
-                "",
-                () -> m_parent.getAvailableFlowVariables(CredentialsType.INSTANCE));
+        m_flowVarSelector = new DialogComponentCredentialSelection(//
+                m_provider.getCredentialsNameModel(), "",
+                credentialsSupplier);
     }
 
     @Override

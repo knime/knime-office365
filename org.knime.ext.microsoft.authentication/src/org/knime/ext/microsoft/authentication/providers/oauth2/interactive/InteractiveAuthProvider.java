@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
@@ -190,7 +191,8 @@ public class InteractiveAuthProvider extends DelegatedPermissionsOAuth2Provider 
     }
 
     @Override
-    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent) {
+    public MicrosoftAuthProviderEditor createEditor(final MicrosoftAuthenticationNodeDialog parent,
+            final Supplier<CredentialsProvider> credentialsSupplier) {
         return new InteractiveAuthProviderEditor(this, parent);
     }
 
