@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: Microsoft authentication extension for KNIME Workbench
 Bundle-SymbolicName: org.knime.ext.microsoft.authentication; singleton:=true
 Bundle-Version: 4.7.0.qualifier
-Bundle-Vendor: 
+Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Require-Bundle: org.knime.workbench.repository;bundle-version="[4.2.0,5.0.0)",
  org.knime.core;bundle-version="[4.7.0,5.0.0)",
  com.microsoft.aad.msal4j;bundle-version="[1.8.1,2.0.0)",
