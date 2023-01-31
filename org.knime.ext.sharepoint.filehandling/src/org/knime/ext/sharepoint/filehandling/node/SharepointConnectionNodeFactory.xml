@@ -74,5 +74,8 @@
    		<outPort index="0" name="SharePoint File System Connection">
    			SharePoint Online File System Connection.
    		</outPort>
-    </ports>    
+    </ports>
+    <keywords>
+    	<keyword>Microsoft</keyword>
+    </keywords>
 </knimeNode>
