@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <feature
-      id="org.knime.features.ext.office365.filehandling"
-      label="KNIME Office 365 Connectors"
+      id="org.knime.features.ext.office365.sharepointlist"
+      label="KNIME SharePoint List"
       version="5.0.0.qualifier"
       provider-name="KNIME AG, Zurich, Switzerland">
 
    <description>
-      Provides nodes to connect to cloud-based Office 365 services, such as SharePoint Online.
+      Provides nodes to read/delete/write Microsoft SharePoint Lists.
    </description>
 
    <copyright>
@@ -728,20 +728,7 @@ propagated with or for interoperation with KNIME.
    </license>
 
    <plugin
-         id="org.knime.ext.sharepoint.filehandling"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"/>
-
-   <plugin
-         id="org.knime.ext.microsoft.authentication"
-         download-size="0"
-         install-size="0"
-         version="0.0.0"
-         unpack="false"/>
-
-   <plugin
-         id="org.knime.ext.sharepoint"
+         id="org.knime.ext.sharepoint.lists"
          download-size="0"
          install-size="0"
          version="0.0.0"

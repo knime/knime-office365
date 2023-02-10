@@ -8,6 +8,14 @@
        <category name="knime-office365" />
    </feature>
 
+   <feature id="org.knime.features.ext.office365.sharepointlist" version="0.0.0">
+       <category name="knime-office365" />
+   </feature>
+   
+   <feature id="org.knime.features.ext.office365.sharepointlist.source" version="0.0.0">
+       <category name="knime-office365" />
+   </feature>
+
    <category-def name="knime-office365" label="Build artifacts from knime-office365">
        <description>Build artifacts from knime-office365</description>
    </category-def>
