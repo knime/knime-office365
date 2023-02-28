@@ -106,7 +106,6 @@ class SharepointConnectionSettings extends AbstractSharePointSettings<Sharepoint
     public void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
         super.validateSettings(settings);
         m_workingDirectory.validateSettings(settings);
-        validate();
     }
 
     /**
