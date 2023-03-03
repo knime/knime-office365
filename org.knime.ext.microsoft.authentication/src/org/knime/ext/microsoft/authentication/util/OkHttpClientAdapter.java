@@ -72,6 +72,8 @@ import okhttp3.Response;
  */
 public class OkHttpClientAdapter implements IHttpClient {
 
+    private static final String USER_AGENT = String.format("KNIME (%s)", System.getProperty("os.name"));
+
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
 
@@ -102,7 +104,9 @@ public class OkHttpClientAdapter implements IHttpClient {
     }
 
     private static Request buildRequest(final HttpRequest httpRequest) throws IOException {
-        final var builder = new Request.Builder().url(httpRequest.url());
+        final var builder = new Request.Builder() //
+                .header("User-Agent", USER_AGENT) //
+                .url(httpRequest.url());
 
         if (httpRequest.headers() != null) {
             for (var entry : httpRequest.headers().entrySet()) {
