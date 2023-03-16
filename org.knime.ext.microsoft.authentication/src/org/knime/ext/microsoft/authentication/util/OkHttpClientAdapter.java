@@ -54,6 +54,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.stream.Collectors;
 
+import org.knime.okhttp3.OkHttpProxyAuthenticator;
+
 import com.microsoft.aad.msal4j.HttpRequest;
 import com.microsoft.aad.msal4j.HttpResponse;
 import com.microsoft.aad.msal4j.IHttpClient;
@@ -130,6 +132,7 @@ public class OkHttpClientAdapter implements IHttpClient {
         return builder.build();
     }
 
+    @SuppressWarnings("deprecation")
     private static RequestBody createRequestBody(final HttpRequest request) throws IOException {
         var baOut = new ByteArrayOutputStream();
         try (var wr = new DataOutputStream(baOut)) {
