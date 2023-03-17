@@ -56,7 +56,7 @@ import java.util.concurrent.TimeUnit;
 import org.knime.core.util.Pair;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.microsoft.authentication.util.OkHttpProxyAuthenticator;
+import org.knime.okhttp3.OkHttpProxyAuthenticator;
 
 import com.google.gson.JsonObject;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
