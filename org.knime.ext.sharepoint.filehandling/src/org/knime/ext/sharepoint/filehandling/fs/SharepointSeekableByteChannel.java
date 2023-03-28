@@ -59,13 +59,15 @@ import java.util.Set;
 import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 import org.knime.filehandling.core.connections.base.TempFileSeekableByteChannel;
 
-import com.microsoft.graph.concurrency.ChunkedUploadProvider;
-import com.microsoft.graph.concurrency.IProgressCallback;
 import com.microsoft.graph.core.ClientException;
-import com.microsoft.graph.models.extensions.DriveItem;
-import com.microsoft.graph.models.extensions.DriveItemUploadableProperties;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.models.extensions.UploadSession;
+import com.microsoft.graph.models.DriveItem;
+import com.microsoft.graph.models.DriveItemCreateUploadSessionParameterSet;
+import com.microsoft.graph.models.DriveItemUploadableProperties;
+import com.microsoft.graph.models.UploadSession;
+import com.microsoft.graph.requests.GraphServiceClient;
+import com.microsoft.graph.tasks.LargeFileUploadTask;
+
+import okhttp3.Request;
 
 /**
  * Sharepoint implementation of {@link TempFileSeekableByteChannel}.
@@ -75,9 +77,6 @@ import com.microsoft.graph.models.extensions.UploadSession;
 class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<SharepointPath> {
 
     private static final int SIMPLE_UPLOAD_LIMIT = 4 * 1024 * 1024;
-
-    private ClientException m_lastException;
-    private DriveItem m_lastDriveItem;
 
     /**
      * Creates new instance.
@@ -109,9 +108,9 @@ class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<Sharepoi
 
     @SuppressWarnings("resource")
     private static void uploadSimple(final SharepointPath remoteFile, final Path tempFile) throws IOException {
-        IGraphServiceClient client = remoteFile.getFileSystem().getClient();
-        String parentId = remoteFile.getParent().getDriveItem().id;
-        String filename = SharepointPath.toUrlString(remoteFile.getFileName().toString());
+        GraphServiceClient<Request> client = remoteFile.getFileSystem().getClient();
+        final var parentId = remoteFile.getParent().getDriveItem().id;
+        final var filename = SharepointPath.toUrlString(remoteFile.getFileName().toString());
         byte[] bytes = Files.readAllBytes(tempFile);
 
         try {
@@ -132,59 +131,27 @@ class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<Sharepoi
     }
 
     @SuppressWarnings("resource")
-    private void uploadLarge(final SharepointPath remoteFile, final Path tempFile) throws IOException {
-        IGraphServiceClient client = remoteFile.getFileSystem().getClient();
-        String parentId = remoteFile.getParent().getDriveItem().id;
-        String filename = SharepointPath.toUrlString(remoteFile.getFileName().toString());
+    private static void uploadLarge(final SharepointPath remoteFile, final Path tempFile) throws IOException {
+        GraphServiceClient<Request> client = remoteFile.getFileSystem().getClient();
+        final var parentId = remoteFile.getParent().getDriveItem().id;
+        final var filename = SharepointPath.toUrlString(remoteFile.getFileName().toString());
 
         try (InputStream inputStream = new BufferedInputStream(Files.newInputStream(tempFile))) {
             UploadSession session = client//
                     .drives(remoteFile.getDriveId())//
                     .items(parentId)//
                     .itemWithPath(filename)//
-                    .createUploadSession(
-                            new DriveItemUploadableProperties())//
+                    .createUploadSession(DriveItemCreateUploadSessionParameterSet.newBuilder()//
+                                    .withItem(new DriveItemUploadableProperties()).build())//
                     .buildRequest()//
                     .post();
 
-            ChunkedUploadProvider<DriveItem> uploadProvider = new ChunkedUploadProvider<>(session, client, inputStream,
+            LargeFileUploadTask<DriveItem> uploadProvider = new LargeFileUploadTask<>(session, client, inputStream,
                     Files.size(tempFile), DriveItem.class);
 
-            m_lastException = null;
-            m_lastDriveItem = null;
-
-            uploadProvider.upload(createProgressCallback());
-
-            if (m_lastException != null) {
-                throw m_lastException;
-            }
-
-            if (m_lastDriveItem != null) {
-                remoteFile.getFileSystem().addToAttributeCache(remoteFile,
-                        new SharepointFileAttributes(remoteFile, m_lastDriveItem));
-            }
+            uploadProvider.upload();
         } catch (ClientException ex) {
             throw FSGraphApiUtil.unwrapClientEx(ex);
         }
-    }
-
-    private IProgressCallback<DriveItem> createProgressCallback() {
-        return new IProgressCallback<DriveItem>() {
-
-            @Override
-            public void success(final DriveItem item) {
-                m_lastDriveItem = item;
-            }
-
-            @Override
-            public void failure(final ClientException e) {
-                m_lastException = e;
-            }
-
-            @Override
-            public void progress(final long current, final long max) {
-                // ignore
-            }
-        };
     }
 }

@@ -53,7 +53,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.knime.core.data.DataRow;
@@ -64,24 +63,24 @@ import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
-import org.knime.core.util.Pair;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphApiUtil;
-import org.knime.ext.sharepoint.GraphApiUtil.RefreshableAuthenticationProvider;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
 
 import com.google.gson.JsonPrimitive;
 import com.microsoft.graph.http.GraphServiceException;
-import com.microsoft.graph.models.extensions.ColumnDefinition;
-import com.microsoft.graph.models.extensions.FieldValueSet;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.models.extensions.ListItem;
-import com.microsoft.graph.requests.extensions.ColumnDefinitionCollectionPage;
-import com.microsoft.graph.requests.extensions.ColumnDefinitionCollectionResponse;
-import com.microsoft.graph.requests.extensions.IListItemCollectionPage;
-import com.microsoft.graph.requests.extensions.IListRequestBuilder;
+import com.microsoft.graph.models.ColumnDefinition;
+import com.microsoft.graph.models.FieldValueSet;
+import com.microsoft.graph.models.ListItem;
+import com.microsoft.graph.requests.ColumnDefinitionCollectionPage;
+import com.microsoft.graph.requests.ColumnDefinitionCollectionResponse;
+import com.microsoft.graph.requests.GraphServiceClient;
+import com.microsoft.graph.requests.ListItemCollectionPage;
+import com.microsoft.graph.requests.ListRequestBuilder;
+
+import okhttp3.Request;
 
 /**
  * Handles the actual writing process of the SharePoint List Writer node.
@@ -93,10 +92,8 @@ class SharepointListWriterClient implements AutoCloseable {
 
     // Attribute it to the node in the logs
     private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListWriterNodeModel.class); // NOSONAR
-    private static final long TOKEN_MAX_AGE = TimeUnit.MINUTES.toMillis(10);
 
-    private final IGraphServiceClient m_client;
-    private final RefreshableAuthenticationProvider m_authProvider;
+    private final GraphServiceClient<Request> m_client;
 
     private static final Object LOCK = new Object();
 
@@ -133,18 +130,10 @@ class SharepointListWriterClient implements AutoCloseable {
         m_table = table;
         m_tableSpec = m_table.getDataTableSpec();
         m_exec = exec;
-        final var clientAndAuth = createGraphServiceClient(authPortSpec);
-        m_client = clientAndAuth.getFirst();
-        m_authProvider = clientAndAuth.getSecond();
+        m_client = createGraphServiceClient(authPortSpec);
         m_pushListId = pushListId;
         m_siteId = getSiteId();
         m_listId = getListId();
-    }
-
-    private void checkToken() throws IOException {
-        if (m_authProvider.refreshTokenIfOlder(TOKEN_MAX_AGE)) {
-            LOGGER.debug("Requested new token");
-        }
     }
 
     /**
@@ -156,7 +145,7 @@ class SharepointListWriterClient implements AutoCloseable {
     void writeList() throws IOException, CanceledExecutionException {
         m_exec.setMessage("Writing rows");
         final String[] colNames = m_tableSpec.getColumnNames();
-        try (final var batch = new ListBatchRequest(m_client, m_authProvider, m_exec)) {
+        try (final var batch = new ListBatchRequest(m_client, m_exec)) {
             if (m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
                     && !m_listCreated) {
                 prepareOverwrite(batch);
@@ -182,10 +171,10 @@ class SharepointListWriterClient implements AutoCloseable {
 
     }
 
-    private Pair<IGraphServiceClient, RefreshableAuthenticationProvider> createGraphServiceClient(
+    private GraphServiceClient<Request> createGraphServiceClient(
             final MicrosoftCredentialPortObjectSpec authPortSpec) throws IOException {
         final var timeouts = m_sharePointListSettings.getTimeoutSettings();
-        return GraphApiUtil.createClientAndRefreshableAuthenticationProvider(authPortSpec.getMicrosoftCredential(),
+        return GraphApiUtil.createClient(authPortSpec.getMicrosoftCredential(),
                 timeouts.getConnectionTimeout(), timeouts.getReadTimeout());
     }
 
@@ -239,7 +228,7 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws IOException
      */
     private String createSharepointList() throws IOException {
-        final var list = new com.microsoft.graph.models.extensions.List();
+        final var list = new com.microsoft.graph.models.List();
         list.displayName = m_sharePointListSettings.getListSettings().getListNameModel().getStringValue();
 
         final var columnDefinitionCollectionResponse = new ColumnDefinitionCollectionResponse();
@@ -284,15 +273,17 @@ class SharepointListWriterClient implements AutoCloseable {
      */
     private Map<String, String> mapColNames() throws IOException {
         try {
-            checkToken();
             final var columns = createListRequestBuilder().columns().buildRequest().get();
             final Map<String, String> colMap = new HashMap<>();
 
-            columns.getRawObject().get("value").getAsJsonArray().iterator().forEachRemaining(j -> {
-                final var jsonObject = j.getAsJsonObject();
-                colMap.put(jsonObject.get("displayName").getAsString(), jsonObject.get("name").getAsString());
-            });
+            columns.getCurrentPage().forEach(c -> colMap.put(c.displayName, c.name));
 
+            var nextRequest = columns.getNextPage();
+            while (nextRequest != null) {
+                final var nextColumns = nextRequest.buildRequest().get();
+                nextColumns.getCurrentPage().forEach(c -> colMap.put(c.displayName, c.name));
+                nextRequest = nextColumns.getNextPage();
+            }
             return colMap;
         } catch (GraphServiceException ex) {
             throw new IOException("Error while mapping of column names: " + ex.getServiceError().message, ex);
@@ -426,13 +417,11 @@ class SharepointListWriterClient implements AutoCloseable {
         m_exec.setMessage("Deleting columns");
         try {
             m_columnsCleared = 0;
-            checkToken();
             final var columns = createListRequestBuilder().columns().buildRequest().get();
             var colDefList = columns.getCurrentPage();
             deleteColumns(colDefList, batch);
             var nextRequest = columns.getNextPage();
             while (nextRequest != null) {
-                checkToken();
                 colDefList = nextRequest.buildRequest().get().getCurrentPage();
                 deleteColumns(colDefList, batch);
                 nextRequest = columns.getNextPage();
@@ -475,14 +464,12 @@ class SharepointListWriterClient implements AutoCloseable {
         m_exec.setMessage("Deleting items");
         try {
             m_itemsCleared = 0;
-            checkToken();
             final var listItems = createListRequestBuilder().items().buildRequest().get();
 
             deleteListItems(listItems, batch);
 
             var req = listItems.getNextPage();
             while (req != null) {
-                checkToken();
                 final var items = req.buildRequest().get();
                 deleteListItems(items, batch);
                 req = items.getNextPage();
@@ -492,25 +479,23 @@ class SharepointListWriterClient implements AutoCloseable {
         }
     }
 
-    private void deleteListItems(final IListItemCollectionPage listItems, final ListBatchRequest batch)
+    private void deleteListItems(final ListItemCollectionPage listItems, final ListBatchRequest batch)
             throws IOException, CanceledExecutionException {
-        final var listItemsJson = listItems.getRawObject().getAsJsonObject().get("value").getAsJsonArray();
-        for (final var item : listItemsJson) {
+
+        for (var item : listItems.getCurrentPage()) {
             m_itemsCleared++;
             m_exec.setMessage(m_itemsCleared + " items cleared");
             m_exec.checkCanceled();
-            final var id = item.getAsJsonObject().get("id").getAsString();
-            batch.delete(createListRequestBuilder().items(id).buildRequest(), false);
+            batch.delete(createListRequestBuilder().items(item.id).buildRequest(), false);
         }
     }
 
-    private IListRequestBuilder createListRequestBuilder() {
+    private ListRequestBuilder createListRequestBuilder() {
         return m_client.sites(m_siteId).lists(m_listId);
     }
 
     @Override
     public void close() throws Exception {
-        m_client.shutdown();
+        // Nothing to do
     }
-
 }

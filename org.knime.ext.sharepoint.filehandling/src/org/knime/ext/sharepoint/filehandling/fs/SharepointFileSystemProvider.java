@@ -76,10 +76,13 @@ import org.knime.filehandling.core.connections.base.attributes.BaseFileAttribute
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
-import com.microsoft.graph.models.extensions.DriveItem;
-import com.microsoft.graph.models.extensions.Folder;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.models.extensions.ItemReference;
+import com.microsoft.graph.models.DriveItem;
+import com.microsoft.graph.models.DriveItemCopyParameterSet;
+import com.microsoft.graph.models.Folder;
+import com.microsoft.graph.models.ItemReference;
+import com.microsoft.graph.requests.GraphServiceClient;
+
+import okhttp3.Request;
 
 /**
  * File system provider for {@link SharepointFileSystem}.
@@ -101,7 +104,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
 
         verifyInsideDocumentLibrary(target, "move files/folders to");
 
-        IGraphServiceClient client = source.getFileSystem().getClient();
+        GraphServiceClient<Request> client = source.getFileSystem().getClient();
         DriveItem targetItem = target.getDriveItem(true);
 
         if (targetItem != null) {
@@ -145,7 +148,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     @Override
     protected void copyInternal(final SharepointPath source, final SharepointPath target, final CopyOption... options)
             throws IOException {
-        IGraphServiceClient client = source.getFileSystem().getClient();
+        GraphServiceClient<Request> client = source.getFileSystem().getClient();
         DriveItem targetItem = target.getDriveItem(true);
 
         if (targetItem != null) {
@@ -166,7 +169,10 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
         String name = target.getFileName().toString();
 
         try {
-            client.drives(source.getDriveId()).items(sourceItem.id).copy(name, parentRef).buildRequest().post();
+            final var params = new DriveItemCopyParameterSet();
+            params.name = name;
+            params.parentReference = parentRef;
+            client.drives(source.getDriveId()).items(sourceItem.id).copy(params).buildRequest().post();
         } catch (ClientException ex) {
             throw FSGraphApiUtil.unwrapClientEx(ex);
         }
@@ -176,7 +182,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     @Override
     protected InputStream newInputStreamInternal(final SharepointPath path, final OpenOption... options)
             throws IOException {
-        IGraphServiceClient client = path.getFileSystem().getClient();
+        GraphServiceClient<Request> client = path.getFileSystem().getClient();
         DriveItem item = path.getDriveItem();
 
         if (item == null) {
@@ -214,7 +220,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     protected void createDirectoryInternal(final SharepointPath dir, final FileAttribute<?>... attrs)
             throws IOException {
         verifyInsideDocumentLibrary(dir, "create folder");
-        IGraphServiceClient client = dir.getFileSystem().getClient();
+        GraphServiceClient<Request> client = dir.getFileSystem().getClient();
         if (dir.getItemPath() != null) {
             String parentId = dir.getParent().getDriveItem().id;
 
@@ -270,7 +276,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
     @Override
     protected void deleteInternal(final SharepointPath path) throws IOException {
         verifyInsideDocumentLibrary(path, "delete files or folders");
-        IGraphServiceClient client = path.getFileSystem().getClient();
+        GraphServiceClient<Request> client = path.getFileSystem().getClient();
         DriveItem item = path.getDriveItem(true);
 
         if (item.folder != null && item.folder.childCount > 0) {

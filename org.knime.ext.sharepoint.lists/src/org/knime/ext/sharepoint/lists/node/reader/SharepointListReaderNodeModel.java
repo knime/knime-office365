@@ -175,9 +175,11 @@ final class SharepointListReaderNodeModel extends NodeModel {
         if (credential == null) {
             throw new InvalidSettingsException("Not authenticated!");
         }
+        final var timeouts = settings.getTimeoutSettings();
 
         return new DefaultSourceGroup<>("igraph_service_client_source_group",
-                Collections.singleton(new SharepointListClient(GraphApiUtil.createClient(credential), settings)));
+                Collections.singleton(new SharepointListClient(GraphApiUtil.createClient(credential,
+                        timeouts.getConnectionTimeout(), timeouts.getReadTimeout()), settings)));
     }
 
     @Override

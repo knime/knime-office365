@@ -51,40 +51,36 @@ package org.knime.ext.sharepoint;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.ZoneOffset;
 import java.util.concurrent.TimeUnit;
 
-import org.knime.core.util.Pair;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 import org.knime.okhttp3.OkHttpProxyAuthenticator;
 
-import com.google.gson.JsonObject;
+import com.azure.core.credential.AccessToken;
+import com.azure.core.credential.TokenCredential;
+import com.azure.core.credential.TokenRequestContext;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
+import com.microsoft.graph.authentication.TokenCredentialAuthProvider;
 import com.microsoft.graph.core.ClientException;
-import com.microsoft.graph.core.DefaultClientConfig;
-import com.microsoft.graph.core.DefaultConnectionConfig;
-import com.microsoft.graph.http.IHttpProvider;
-import com.microsoft.graph.http.IHttpRequest;
 import com.microsoft.graph.httpcore.HttpClients;
-import com.microsoft.graph.models.extensions.DirectoryObject;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.requests.extensions.GraphServiceClient;
+import com.microsoft.graph.requests.GraphServiceClient;
 
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import reactor.core.publisher.Mono;
 
 /**
  * Utility class for Graph API.
  *
  * @author Alexander Bondaletov
  */
-@SuppressWarnings("deprecation")
 public final class GraphApiUtil {
     /**
      * oDataType corresponds to a Group
      */
     public static final String GROUP_DATA_TYPE = "#microsoft.graph.group";
-
-    private static final String PROP_DISPLAY_NAME = "displayName";
 
     private GraphApiUtil() {
         // hide constructor for Utils class
@@ -122,21 +118,6 @@ public final class GraphApiUtil {
     }
 
     /**
-     * Gets the displayName from the raw JSON of the {@link DirectoryObject}.
-     *
-     * @param obj
-     *            Directory object.
-     * @return Display name or empty string if the property is missing.
-     */
-    public static String getDisplayName(final DirectoryObject obj) {
-        JsonObject json = obj.getRawObject();
-        if (json.has(PROP_DISPLAY_NAME) && !json.get(PROP_DISPLAY_NAME).isJsonNull()) {
-            return json.get(PROP_DISPLAY_NAME).getAsString();
-        }
-        return obj.id;
-    }
-
-    /**
      *
      * @param urlString
      *            Web URL that a user entered, which points to a Sharepoint site.
@@ -155,21 +136,7 @@ public final class GraphApiUtil {
     }
 
     /**
-     * Creates a {@link IGraphServiceClient} with a {@link MicrosoftCredential}.
-     *
-     * @param connection
-     *            the {@link MicrosoftCredential}
-     * @return the {@link IGraphServiceClient}
-     * @throws IOException
-     */
-    public static IGraphServiceClient createClient(final MicrosoftCredential connection) throws IOException {
-        var def = new DefaultConnectionConfig();
-
-        return createClient(connection, def.getConnectTimeout(), def.getReadTimeout());
-    }
-
-    /**
-     * Creates a {@link IGraphServiceClient} with a {@link MicrosoftCredential}.
+     * Creates a {@link GraphServiceClient} with a {@link MicrosoftCredential}.
      *
      * @param connection
      *            the {@link MicrosoftCredential}
@@ -177,42 +144,19 @@ public final class GraphApiUtil {
      *            Connection timeout in milliseconds.
      * @param readTimeout
      *            Read timeout in milliseconds.
-     * @return the {@link IGraphServiceClient}
+     * @return the {@link GraphServiceClient}
      * @throws IOException
      */
-    public static IGraphServiceClient createClient(final MicrosoftCredential connection, final int connectionTimeout,
+    public static GraphServiceClient<Request> createClient(final MicrosoftCredential connection,
+            final int connectionTimeout,
             final int readTimeout) throws IOException {
-        final IAuthenticationProvider authProvider = createAuthenticationProvider(connection);
 
+        final IAuthenticationProvider authProvider = createAuthenticationProvider(connection);
         return createClient(authProvider, connectionTimeout, readTimeout);
     }
 
     /**
-     * Creates a {@link IGraphServiceClient} and a
-     * {@link RefreshableAuthenticationProvider} with a {@link MicrosoftCredential}.
-     *
-     * @param connection
-     *            the {@link MicrosoftCredential}
-     * @param connectionTimeout
-     *            Connection timeout in milliseconds.
-     * @param readTimeout
-     *            Read timeout in milliseconds.
-     * @return the {@link IGraphServiceClient} and
-     *         {@link RefreshableAuthenticationProvider}
-     * @throws IOException
-     *             if the (new) token could not be accessed.
-     */
-    public static Pair<IGraphServiceClient, RefreshableAuthenticationProvider> createClientAndRefreshableAuthenticationProvider(
-            final MicrosoftCredential connection, final int connectionTimeout, final int readTimeout)
-            throws IOException {
-        final var authProvider = createAuthenticationProvider(connection);
-        final var client = createClient(authProvider, connectionTimeout, readTimeout);
-
-        return Pair.create(client, authProvider);
-    }
-
-    /**
-     * Creates a {@link IGraphServiceClient} with a {@link IAuthenticationProvider}.
+     * Creates a {@link GraphServiceClient} with a {@link IAuthenticationProvider}.
      *
      * @param authProvider
      *            The {@link IAuthenticationProvider}
@@ -220,27 +164,19 @@ public final class GraphApiUtil {
      *            Connection timeout in milliseconds.
      * @param readTimeout
      *            Read timeout in milliseconds.
-     * @return the {@link IGraphServiceClient}
+     * @return the {@link GraphServiceClient}
      */
-    public static IGraphServiceClient createClient(final IAuthenticationProvider authProvider,
+    public static GraphServiceClient<Request> createClient(final IAuthenticationProvider authProvider,
             final int connectionTimeout, final int readTimeout) {
-        DefaultClientConfig config = new DefaultClientConfig() {
-
-            @Override
-            public IAuthenticationProvider getAuthenticationProvider() {
-                return authProvider;
-            }
-
-            @Override
-            public IHttpProvider getHttpProvider() {
-                return getHttpProvider(createOkHttpClient(connectionTimeout, readTimeout));
-            }
-        };
-        return GraphServiceClient.fromConfig(config);
+        return GraphServiceClient.builder()//
+                .httpClient(createOkHttpClient(authProvider, connectionTimeout, readTimeout))
+                .buildClient();
     }
 
-    private static OkHttpClient createOkHttpClient(final int connectionTimeout, final int readTimeout) {
-        return HttpClients.createDefault(request -> request).newBuilder()//
+    private static OkHttpClient createOkHttpClient(final IAuthenticationProvider authProvider,
+            final int connectionTimeout, final int readTimeout) {
+        return HttpClients.createDefault(authProvider)//
+                .newBuilder()//
                 .connectTimeout(connectionTimeout, TimeUnit.MILLISECONDS) //
                 .readTimeout(readTimeout, TimeUnit.MILLISECONDS) //
                 .retryOnConnectionFailure(true) // To address this bug
@@ -252,77 +188,55 @@ public final class GraphApiUtil {
     /**
      * Creates a {@link IAuthenticationProvider} with a {@link MicrosoftCredential}.
      *
-     * @param connection
+     * @param msCredential
      *            the {@link MicrosoftCredential}
      * @return the {@link IAuthenticationProvider}
      * @throws IOException
      *             if the (new) token could not be accessed.
      */
-    public static RefreshableAuthenticationProvider createAuthenticationProvider(final MicrosoftCredential connection)
+    public static IAuthenticationProvider createAuthenticationProvider(final MicrosoftCredential msCredential)
             throws IOException {
-        return new RefreshableAuthenticationProvider(connection);
+
+        if (!(msCredential instanceof OAuth2Credential)) {
+            throw new IOException("Unsupported credential type: " + msCredential.getType());
+        }
+
+        return new TokenCredentialAuthProvider(new RefreshingTokenCredential((OAuth2Credential) msCredential));
     }
 
-    /**
-     * An {@link IAuthenticationProvider} that can refresh the bearer token.
-     *
-     * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
-     */
-    public static final class RefreshableAuthenticationProvider implements IAuthenticationProvider {
+    private static class RefreshingTokenCredential implements TokenCredential {
 
         private final OAuth2Credential m_credential;
 
-        private String m_field;
-        private long m_lastUpdateTime;
-        private long m_expiresAt;
+        private AccessToken m_accessToken;
 
-        private RefreshableAuthenticationProvider(final MicrosoftCredential connection) throws IOException {
-            if (!(connection instanceof OAuth2Credential)) {
-                throw new UnsupportedOperationException("Unsupported credential type: " + connection.getType());
-            }
-            m_credential = (OAuth2Credential) connection;
-            refreshTokenIfOlder(0);
-        }
+        private long m_lastAccessTokenRefresh;
 
-        /**
-         * Refreshes the bearer token sent by this Authentication provider if it is
-         * older than the given amount of time.
-         *
-         * @param millis
-         *            the age of the bearer token in milliseconds used as a maximum age
-         * @return if the token was older than the specified time
-         * @throws IOException
-         *             if the (new) token could not be accessed.
-         */
-        public boolean refreshTokenIfOlder(final long millis) throws IOException {
-            if (System.currentTimeMillis() - m_lastUpdateTime > millis) {
-                m_lastUpdateTime = System.currentTimeMillis();
-                final var token = m_credential.getAccessToken();
-                m_field = "Bearer " + token.getToken();
-                m_expiresAt = token.getAccessTokenExpiresAt().toEpochMilli();
-                return true;
-            }
-            return false;
+        RefreshingTokenCredential(final OAuth2Credential credential) {
+            m_credential = credential;
         }
 
         @Override
-        public void authenticateRequest(final IHttpRequest request) {
-            request.addHeader("Authorization", m_field);
+        public Mono<AccessToken> getToken(final TokenRequestContext request) {
+            return Mono.fromCallable(this::getTokenAndRefreshIfNecessary);
         }
 
-        /**
-         * @return the amount of epoch milliseconds since the token was updated
-         */
-        public long getLastUpdateTime() {
-            return m_lastUpdateTime;
+        private synchronized AccessToken getTokenAndRefreshIfNecessary() throws IOException {
+            if (m_accessToken == null || tokenMightNeedRefresh()) {
+                // we don't want to call m_credential.getAccessToken() for EVERY request
+                // (because it might be a little heavyweight) but we still do it frequently
+                // (max every 5s)
+                m_lastAccessTokenRefresh = System.currentTimeMillis();
+                var oauthToken = m_credential.getAccessToken();
+                m_accessToken = new AccessToken(oauthToken.getToken(), //
+                        oauthToken.getAccessTokenExpiresAt().atOffset(ZoneOffset.of("Z")));
+            }
+
+            return m_accessToken;
         }
 
-        /**
-         * @return the amount of epoch milliseconds when the token will expire
-         */
-        public long getExpiresAt() {
-            return m_expiresAt;
+        private boolean tokenMightNeedRefresh() {
+            return (System.currentTimeMillis() - m_lastAccessTokenRefresh) >= 5000;
         }
-
     }
 }

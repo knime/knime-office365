@@ -54,7 +54,9 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 import com.microsoft.graph.http.GraphServiceException;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.requests.GraphServiceClient;
+
+import okhttp3.Request;
 
 /**
  * Sharepoint List utility method class.
@@ -133,7 +135,7 @@ public final class SharePointListUtils {
      * @return an {@link Optional} of {@link String} with the list id
      * @throws IOException
      */
-    public static Optional<String> getListIdByName(final IGraphServiceClient client, final String siteId,
+    public static Optional<String> getListIdByName(final GraphServiceClient<Request> client, final String siteId,
             final String listName) throws IOException {
         try {
             var resp = client.sites(siteId).lists().buildRequest().get();

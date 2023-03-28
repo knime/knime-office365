@@ -58,10 +58,10 @@ import java.util.NoSuchElementException;
 import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 
 import com.microsoft.graph.core.ClientException;
-import com.microsoft.graph.models.extensions.Drive;
-import com.microsoft.graph.models.extensions.DriveItem;
-import com.microsoft.graph.requests.extensions.IDriveItemCollectionPage;
-import com.microsoft.graph.requests.extensions.IDriveItemRequestBuilder;
+import com.microsoft.graph.models.Drive;
+import com.microsoft.graph.models.DriveItem;
+import com.microsoft.graph.requests.DriveItemCollectionPage;
+import com.microsoft.graph.requests.DriveItemRequestBuilder;
 
 /**
  * Class to iterate through the files and folders in the path
@@ -196,7 +196,7 @@ abstract class SharepointPathIterator implements Iterator<SharepointPath> {
     private static class DriveItemIterator extends SharepointPathIterator {
 
         private final SharepointPath m_path;
-        private IDriveItemCollectionPage m_currentPage;
+        private DriveItemCollectionPage m_currentPage;
         private Iterator<DriveItem> m_iterator;
 
         /**
@@ -210,7 +210,7 @@ abstract class SharepointPathIterator implements Iterator<SharepointPath> {
             super(path, filter);
             m_path = path;
 
-            IDriveItemRequestBuilder req = m_fs.getClient().drives(m_path.getDriveId()).root();
+            DriveItemRequestBuilder req = m_fs.getClient().drives(m_path.getDriveId()).root();
             if (path.getItemPath() != null) {
                 req = req.itemWithPath(SharepointPath.toUrlString(path.getItemPath()));
             }

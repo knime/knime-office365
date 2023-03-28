@@ -55,6 +55,7 @@ import java.awt.FlowLayout;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -65,7 +66,6 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeLogger;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
@@ -81,11 +81,14 @@ import org.knime.filehandling.core.defaultnodesettings.status.DefaultStatusMessa
 import org.knime.filehandling.core.defaultnodesettings.status.StatusView;
 
 import com.microsoft.graph.http.GraphServiceException;
-import com.microsoft.graph.models.extensions.DirectoryObject;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.models.extensions.Site;
-import com.microsoft.graph.requests.extensions.IDirectoryObjectCollectionWithReferencesPage;
-import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
+import com.microsoft.graph.models.DirectoryObject;
+import com.microsoft.graph.models.Group;
+import com.microsoft.graph.models.Site;
+import com.microsoft.graph.requests.DirectoryObjectCollectionWithReferencesPage;
+import com.microsoft.graph.requests.GraphServiceClient;
+import com.microsoft.graph.requests.SiteCollectionPage;
+
+import okhttp3.Request;
 
 /**
  * Editor component for the {@link SiteSettings} class.
@@ -95,7 +98,7 @@ import com.microsoft.graph.requests.extensions.ISiteCollectionPage;
 @SuppressWarnings({ "java:S1948" })
 public class SiteSettingsPanel extends JPanel {
 
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(SiteSettingsPanel.class);
+    private static final int DIALOG_CLIENT_TIMEOUT_MILLIS = 30000;
 
     private static final long serialVersionUID = 1L;
 
@@ -268,46 +271,49 @@ public class SiteSettingsPanel extends JPanel {
     }
 
     private List<IdComboboxItem> fetchGroups() throws IOException {
-        final IGraphServiceClient client = createClient();
+        final GraphServiceClient<Request> client = createClient();
 
-        try {
-            List<DirectoryObject> objects = new ArrayList<>();
-            IDirectoryObjectCollectionWithReferencesPage resp = client.me().transitiveMemberOf().buildRequest().get();
+        List<DirectoryObject> objects = new ArrayList<>();
+        DirectoryObjectCollectionWithReferencesPage resp = client.me().transitiveMemberOf().buildRequest().get();
+        objects.addAll(resp.getCurrentPage());
+        while (resp.getNextPage() != null) {
+            resp = resp.getNextPage().buildRequest().get();
             objects.addAll(resp.getCurrentPage());
-            while (resp.getNextPage() != null) {
-                resp = resp.getNextPage().buildRequest().get();
-                objects.addAll(resp.getCurrentPage());
-            }
-
-            return objects.stream().filter(o -> GraphApiUtil.GROUP_DATA_TYPE.equals(o.oDataType))
-                    .map(g -> new IdComboboxItem(g.id, GraphApiUtil.getDisplayName(g))).collect(toList());
-        } finally {
-            client.shutdown();
         }
 
+        return objects.stream().filter(o -> GraphApiUtil.GROUP_DATA_TYPE.equals(o.oDataType))
+                .map(Group.class::cast)
+                .map(g -> new IdComboboxItem(g.id, Optional.ofNullable(g.displayName).orElse(g.id)))
+                .collect(toList());
     }
 
-    protected IGraphServiceClient createClient() throws IOException {
+    /**
+     * Creates a {@link GraphServiceClient} with a {@link MicrosoftCredential}.
+     *
+     * @return the {@link GraphServiceClient}
+     * @throws IOException
+     */
+    protected GraphServiceClient<Request> createClient() throws IOException {
         if (m_credential == null) {
             throw new IOException("Settings aren't loaded");
         }
-        return GraphApiUtil.createClient(m_credential);
+        return GraphApiUtil.createClient(m_credential, DIALOG_CLIENT_TIMEOUT_MILLIS, DIALOG_CLIENT_TIMEOUT_MILLIS);
     }
 
     private List<IdComboboxItem> fetchSubsites() throws InvalidSettingsException, IOException {
         m_settings.validateParentSiteSettings();
-        final IGraphServiceClient client = createClient();
+        final GraphServiceClient<Request> client = createClient();
         final var siteResolver = new SharepointSiteResolver(client, m_settings.getMode(),
                 m_settings.getSubsiteModel().getStringValue(), m_settings.getWebURLModel().getStringValue(),
                 m_settings.getGroupModel().getStringValue());
         return listSubsites(siteResolver.getParentSiteId(), client, "");
     }
 
-    private List<IdComboboxItem> listSubsites(final String siteId, final IGraphServiceClient client,
+    private List<IdComboboxItem> listSubsites(final String siteId, final GraphServiceClient<?> client,
             final String prefix) {
         final List<IdComboboxItem> result = new ArrayList<>();
 
-        ISiteCollectionPage resp = client.sites(siteId).sites().buildRequest().get();
+        SiteCollectionPage resp = client.sites(siteId).sites().buildRequest().get();
         for (Site site : resp.getCurrentPage()) {
             result.addAll(processSite(site, client, prefix));
         }
@@ -322,7 +328,7 @@ public class SiteSettingsPanel extends JPanel {
         return result;
     }
 
-    private List<IdComboboxItem> processSite(final Site site, final IGraphServiceClient client, final String prefix) {
+    private List<IdComboboxItem> processSite(final Site site, final GraphServiceClient<?> client, final String prefix) {
         final List<IdComboboxItem> result = new ArrayList<>();
         final String name = prefix + site.name;
 

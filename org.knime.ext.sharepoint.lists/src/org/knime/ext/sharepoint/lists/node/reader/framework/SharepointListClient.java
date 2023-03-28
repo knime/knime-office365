@@ -69,18 +69,18 @@ import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel.ListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListRead.RandomAccessibleDataRow;
 import org.knime.ext.sharepoint.settings.SiteSettings;
-import org.knime.ext.sharepoint.settings.TimeoutSettings;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 
-import com.google.gson.JsonElement;
-import com.microsoft.graph.core.DefaultConnectionConfig;
-import com.microsoft.graph.core.IConnectionConfig;
 import com.microsoft.graph.http.GraphServiceException;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.models.ColumnDefinition;
+import com.microsoft.graph.models.ListItem;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
-import com.microsoft.graph.requests.extensions.IColumnDefinitionCollectionPage;
-import com.microsoft.graph.requests.extensions.IListItemCollectionPage;
+import com.microsoft.graph.requests.ColumnDefinitionCollectionPage;
+import com.microsoft.graph.requests.GraphServiceClient;
+import com.microsoft.graph.requests.ListItemCollectionPage;
+
+import okhttp3.Request;
 
 /**
  * A class used to setup and get information from the Microsoft Graph API.
@@ -99,15 +99,13 @@ public final class SharepointListClient {
 
     private List<SharepointListColumn<?>> m_columns;
 
-    private final IGraphServiceClient m_client;
+    private final GraphServiceClient<Request> m_client;
 
     private String m_siteId;
 
     private String m_listId;
 
     private int m_settingsHash;
-
-    private IConnectionConfig m_connectionConfig;
 
     private SiteSettings m_siteSettings;
 
@@ -118,33 +116,25 @@ public final class SharepointListClient {
      * API.
      *
      * @param client
-     *            the {@link IGraphServiceClient} used to make the API calls
+     *            the {@link GraphServiceClient} used to make the API calls
      * @param settings
      *            the {@link SharepointListSettings} used to setup the client
      */
-    public SharepointListClient(final IGraphServiceClient client, final SharepointListSettings settings) {
+    public SharepointListClient(final GraphServiceClient<Request> client, final SharepointListSettings settings) {
         m_client = client;
-        m_connectionConfig = new DefaultConnectionConfig();
         updateSiteAndListSettings(settings);
-        updateHttpConfig(settings.getTimeoutSettings());
     }
 
     /**
      * Closes this client and releases its resources.
      */
     public void close() {
-        m_client.shutdown();
+        // Nothing to do
     }
 
     private void updateSiteAndListSettings(final SharepointListSettings settings) {
         m_siteSettings = settings.getSiteSettings();
         m_listSettings = settings.getListSettings();
-    }
-
-    private void updateHttpConfig(final TimeoutSettings settings) {
-        m_connectionConfig.setConnectTimeout(settings.getConnectionTimeout());
-        m_connectionConfig.setReadTimeout(settings.getReadTimeout());
-        m_client.getHttpProvider().setConnectionConfig(m_connectionConfig);
     }
 
     /**
@@ -157,7 +147,6 @@ public final class SharepointListClient {
      */
     public List<SharepointListColumn<?>> getColumns(final SharepointListSettings listSettings) throws IOException {
         setSiteAndListId(listSettings);
-        updateHttpConfig(listSettings.getTimeoutSettings());
 
         // have the columns be read or the settings changed?
         if (m_columns == null || m_listSettings.hashCode() != m_settingsHash) {
@@ -166,7 +155,6 @@ public final class SharepointListClient {
                 m_columns = StreamSupport
                         .stream(Spliterators.spliteratorUnknownSize(new ColumnIterator(),
                                 Spliterator.ORDERED | Spliterator.IMMUTABLE | Spliterator.NONNULL), false)//
-                        .map(JsonElement::getAsJsonObject)//
                         .map(SharepointListColumn::of)//
                         .filter(ALLOWED)//
                         .collect(Collectors.toUnmodifiableList());
@@ -200,7 +188,6 @@ public final class SharepointListClient {
      */
     public Iterator<RandomAccessibleDataRow> getItems(final SharepointListSettings settings) throws IOException {
         setSiteAndListId(settings);
-        updateHttpConfig(settings.getTimeoutSettings());
         return new ItemIterator();
     }
 
@@ -224,11 +211,11 @@ public final class SharepointListClient {
         }
     }
 
-    private class ColumnIterator implements Iterator<JsonElement> {
+    private class ColumnIterator implements Iterator<ColumnDefinition> {
 
-        private Iterator<JsonElement> m_current = Collections.emptyIterator();
+        private Iterator<ColumnDefinition> m_current = Collections.emptyIterator();
 
-        private IColumnDefinitionCollectionPage m_page = null;
+        private ColumnDefinitionCollectionPage m_page = null;
 
         private boolean m_finishedRead = false;
 
@@ -241,16 +228,13 @@ public final class SharepointListClient {
                 if (m_finishedRead) {
                     return false;
                 }
-                m_current = m_page//
-                        .getRawObject()//
-                        .getAsJsonArray("value")//
-                        .iterator();
+                m_current = m_page.getCurrentPage().iterator();
             }
             return m_current.hasNext();
         }
 
         @Override
-        public JsonElement next() {
+        public ColumnDefinition next() {
             return m_current.next();
         }
 
@@ -278,9 +262,9 @@ public final class SharepointListClient {
 
         private final Map<String, Pair<Integer, SharepointListColumn<?>>> m_idIndexMapping;
 
-        private Iterator<JsonElement> m_itemSetIterator = Collections.emptyIterator();
+        private Iterator<ListItem> m_itemSetIterator = Collections.emptyIterator();
 
-        private IListItemCollectionPage m_page = null;
+        private ListItemCollectionPage m_page = null;
 
         private boolean m_finishedRead = false;
 
@@ -297,7 +281,7 @@ public final class SharepointListClient {
                 if (m_finishedRead) {
                     return false;
                 }
-                m_itemSetIterator = m_page.getRawObject().getAsJsonArray("value").iterator();
+                m_itemSetIterator = m_page.getCurrentPage().iterator();
             }
             return m_itemSetIterator.hasNext();
         }
@@ -305,11 +289,13 @@ public final class SharepointListClient {
         @Override
         public RandomAccessibleDataRow next() {
             final var res = new Object[m_idIndexMapping.size()];
-            final var properties = m_itemSetIterator.next()//
-                    .getAsJsonObject()//
-                    .get("fields")//
-                    .getAsJsonObject()//
-                    .entrySet();
+            final var fieldValueSet = m_itemSetIterator.next().fields;
+
+            final var idLookup = m_idIndexMapping.getOrDefault("id", MISSING);
+            if (idLookup != MISSING) {
+                res[idLookup.getFirst()] = fieldValueSet.id;
+            }
+            final var properties = fieldValueSet.additionalDataManager().entrySet();
 
             for (final var p : properties) {
                 final var lookup = m_idIndexMapping.getOrDefault(p.getKey().toLowerCase(), MISSING);
@@ -318,7 +304,6 @@ public final class SharepointListClient {
                             .getCanonicalRepresentation(p.getValue());
                 }
             }
-
             return new RandomAccessibleDataRow(res);
         }
 

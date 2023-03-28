@@ -56,7 +56,7 @@ import org.knime.filehandling.core.connections.base.attributes.BaseFileAttribute
 import org.knime.filehandling.core.connections.base.attributes.PosixAttributes;
 import org.knime.filehandling.core.util.CheckedExceptionFunction;
 
-import com.microsoft.graph.models.extensions.DriveItem;
+import com.microsoft.graph.models.DriveItem;
 
 /**
  * Sharepoint implementation of the {@link BaseFileAttributes}.

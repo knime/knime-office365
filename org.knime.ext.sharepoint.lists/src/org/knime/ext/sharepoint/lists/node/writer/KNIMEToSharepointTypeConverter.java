@@ -82,11 +82,11 @@ import org.knime.core.util.Pair;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonPrimitive;
-import com.microsoft.graph.models.extensions.BooleanColumn;
-import com.microsoft.graph.models.extensions.ColumnDefinition;
-import com.microsoft.graph.models.extensions.DateTimeColumn;
-import com.microsoft.graph.models.extensions.NumberColumn;
-import com.microsoft.graph.models.extensions.TextColumn;
+import com.microsoft.graph.models.BooleanColumn;
+import com.microsoft.graph.models.ColumnDefinition;
+import com.microsoft.graph.models.DateTimeColumn;
+import com.microsoft.graph.models.NumberColumn;
+import com.microsoft.graph.models.TextColumn;
 
 /**
  * Utility class which handles the conversion from {@link DataType} to

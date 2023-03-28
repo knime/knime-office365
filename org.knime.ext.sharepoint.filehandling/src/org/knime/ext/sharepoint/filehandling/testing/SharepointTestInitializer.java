@@ -60,9 +60,11 @@ import org.knime.filehandling.core.connections.FSFiles;
 import org.knime.filehandling.core.testing.DefaultFSTestInitializer;
 
 import com.microsoft.graph.core.ClientException;
-import com.microsoft.graph.models.extensions.DriveItem;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.requests.extensions.IDriveItemCollectionPage;
+import com.microsoft.graph.models.DriveItem;
+import com.microsoft.graph.requests.DriveItemCollectionPage;
+import com.microsoft.graph.requests.GraphServiceClient;
+
+import okhttp3.Request;
 
 /**
  * Sharepoint test initializer.
@@ -71,7 +73,7 @@ import com.microsoft.graph.requests.extensions.IDriveItemCollectionPage;
  */
 public class SharepointTestInitializer extends DefaultFSTestInitializer<SharepointPath, SharepointFileSystem> {
 
-    private final IGraphServiceClient m_client;
+    private final GraphServiceClient<Request> m_client;
 
     private boolean m_workingDirExists = false;
 
@@ -128,7 +130,7 @@ public class SharepointTestInitializer extends DefaultFSTestInitializer<Sharepoi
         final SharepointPath scratchDir = getTestCaseScratchDir();
 
         try {
-            IDriveItemCollectionPage children = m_client.drives(scratchDir.getDriveId()).root()
+            DriveItemCollectionPage children = m_client.drives(scratchDir.getDriveId()).root()
                     .itemWithPath(SharepointPath.toUrlString(scratchDir.getItemPath())).children().buildRequest().get();
 
             for (DriveItem item : children.getCurrentPage()) {

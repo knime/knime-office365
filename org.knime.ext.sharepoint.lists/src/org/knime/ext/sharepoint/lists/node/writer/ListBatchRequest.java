@@ -58,21 +58,20 @@ import java.util.stream.StreamSupport;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.NodeLogger;
-import org.knime.ext.sharepoint.GraphApiUtil.RefreshableAuthenticationProvider;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.microsoft.graph.content.MSBatchRequestContent;
-import com.microsoft.graph.core.Constants;
 import com.microsoft.graph.http.CustomRequest;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.http.HttpMethod;
 import com.microsoft.graph.http.IHttpRequest;
-import com.microsoft.graph.models.extensions.Entity;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.models.Entity;
+import com.microsoft.graph.requests.GraphServiceClient;
 import com.microsoft.graph.serializer.ISerializer;
+
+import okhttp3.Request;
 
 /**
  * Helper class to create Graph API batch requests
@@ -83,8 +82,8 @@ final class ListBatchRequest implements AutoCloseable {
     // Attribute it to the node in the logs
     private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListWriterNodeModel.class); // NOSONAR
 
-    private static final int MAX_REQUESTS = MSBatchRequestContent.MAX_NUMBER_OF_REQUESTS;
-
+    private static final int MAX_REQUESTS = 20; // https://learn.microsoft.com/en-us/graph/json-batching,
+                                                // limit is 20 requests.
     private static final JsonObject CONTENT_TYPE_CACHE;
     private static final String[] ID_CACHE;
     private static final JsonArray[] DEPENDS_ON_CACHE;
@@ -100,7 +99,7 @@ final class ListBatchRequest implements AutoCloseable {
 
     static {
         CONTENT_TYPE_CACHE = new JsonObject();
-        CONTENT_TYPE_CACHE.addProperty(Constants.CONTENT_TYPE_HEADER_NAME, Constants.JSON_CONTENT_TYPE);
+        CONTENT_TYPE_CACHE.addProperty("Content-Type", "application/json");
         DEPENDS_ON_CACHE = new JsonArray[MAX_REQUESTS];
         ID_CACHE = new String[MAX_REQUESTS];
         // IDs should be lexicographically sortable because they are saved as strings
@@ -114,8 +113,7 @@ final class ListBatchRequest implements AutoCloseable {
         }
     }
 
-    private final IGraphServiceClient m_client;
-    private final RefreshableAuthenticationProvider m_authProvider;
+    private final GraphServiceClient<Request> m_client;
     private final ExecutionContext m_exec;
     private final int m_absolutePrefixLength;
     private final ISerializer m_serializer;
@@ -140,10 +138,8 @@ final class ListBatchRequest implements AutoCloseable {
      * @param exec
      *            the {@link ExecutionContext} to set the messages
      */
-    public ListBatchRequest(final IGraphServiceClient client, final RefreshableAuthenticationProvider authProvider,
-            final ExecutionContext exec) {
+    public ListBatchRequest(final GraphServiceClient<Request> client, final ExecutionContext exec) {
         m_client = client;
-        m_authProvider = authProvider;
         m_exec = exec;
         m_serializer = client.getSerializer();
 
@@ -155,12 +151,7 @@ final class ListBatchRequest implements AutoCloseable {
         m_absolutePrefixLength = createRequest().getRequestUrl().toString().indexOf("/$batch");
     }
 
-    private void checkToken() throws IOException {
-        m_authProvider.refreshTokenIfOlder(0);
-        LOGGER.debug("Requested new token");
-    }
-
-    private CustomRequest<JsonObject> createRequest() {
+    private CustomRequest<JsonElement> createRequest() {
         return m_client.customRequest("/$batch").buildRequest();
     }
 
@@ -260,7 +251,7 @@ final class ListBatchRequest implements AutoCloseable {
         final var errors = new LinkedList<String>();
         m_currentWait = 0;
         try {
-            final var response = createRequest().post(m_body).get("responses");
+            final var response = createRequest().post(m_body).getAsJsonObject().get("responses");
             final var responses = StreamSupport.stream(response.getAsJsonArray().spliterator(), false)//
                     .map(JsonElement::getAsJsonObject)//
                     .sorted(Comparator.comparing(e -> e.get("id").getAsString()))// sort for correct removal
@@ -282,7 +273,6 @@ final class ListBatchRequest implements AutoCloseable {
                 errors.add(error);
                 break;
             case TOKEN_ERROR:
-                checkToken();
                 // fallthrough
             default:
                 retryableErrors.add(error);
@@ -313,7 +303,6 @@ final class ListBatchRequest implements AutoCloseable {
             retryableErrors.add(formatError(response));
             break;
         case TOKEN_ERROR:
-            checkToken();
             // fallthrough
         case FAILED_DEPENDENCY:
             retryableErrors.add(formatError(response));

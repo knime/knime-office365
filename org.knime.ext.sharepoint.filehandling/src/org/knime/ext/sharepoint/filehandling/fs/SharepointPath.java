@@ -57,9 +57,11 @@ import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
 import org.knime.filehandling.core.connections.base.UnixStylePath;
 
 import com.microsoft.graph.http.GraphServiceException;
-import com.microsoft.graph.models.extensions.DriveItem;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.requests.extensions.IDriveItemRequestBuilder;
+import com.microsoft.graph.models.DriveItem;
+import com.microsoft.graph.requests.DriveItemRequestBuilder;
+import com.microsoft.graph.requests.GraphServiceClient;
+
+import okhttp3.Request;
 
 /**
  * {@link Path} implementation for the {@link SharepointFileSystem}.
@@ -140,14 +142,14 @@ public class SharepointPath extends UnixStylePath {
      */
     @SuppressWarnings("resource")
     public DriveItem fetchDriveItem() throws IOException {
-        IGraphServiceClient client = getFileSystem().getClient();
+        GraphServiceClient<Request> client = getFileSystem().getClient();
         String driveId = getDriveId();
 
         if (driveId == null) {
             return null;
         }
 
-        IDriveItemRequestBuilder req = client.drives(driveId).root();
+        DriveItemRequestBuilder req = client.drives(driveId).root();
 
         String itemPath = getItemPath();
         if (itemPath != null) {

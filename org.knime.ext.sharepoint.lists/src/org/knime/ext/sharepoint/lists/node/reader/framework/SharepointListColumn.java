@@ -66,7 +66,8 @@ import org.knime.core.data.time.localdate.LocalDateCellFactory;
 import org.knime.core.data.time.localdatetime.LocalDateTimeCellFactory;
 
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.microsoft.graph.models.ColumnDefinition;
+import com.microsoft.graph.models.TextColumn;
 
 /**
  * @param <T>
@@ -79,7 +80,7 @@ abstract class SharepointListColumn<T> {
 
     private static final DataType TYPE_LIST_STRING = DataType.getType(ListCell.class, StringCell.TYPE);
 
-    protected final JsonObject m_spec;
+    protected final ColumnDefinition m_spec;
 
     protected SharepointFieldType m_type; // not final because we could be unsure and edit later
 
@@ -95,29 +96,29 @@ abstract class SharepointListColumn<T> {
      * Constructs a column with a determined type.
      *
      * @param spec
-     *            the specification as JSON
+     *            the specification as {@link ColumnDefinition}
      * @param type
      *            the used type
      */
-    protected SharepointListColumn(final JsonObject spec, final SharepointFieldType type) {
+    protected SharepointListColumn(final ColumnDefinition spec, final SharepointFieldType type) {
         this(spec, type, true);
     }
 
     /**
      * @param spec
-     *            the specification as JSON
+     *            the specification as {@link ColumnDefinition}
      * @param type
      *            the used type
      * @param typeDetermined
      *            whether the type has been determined
      */
-    protected SharepointListColumn(final JsonObject spec, final SharepointFieldType type,
+    protected SharepointListColumn(final ColumnDefinition spec, final SharepointFieldType type,
             final boolean typeDetermined) {
         m_spec = spec;
         m_type = type;
-        m_displayName = spec.get("displayName").getAsString();
+        m_displayName = spec.displayName;
         m_columnName = m_displayName;
-        m_idName = spec.get("name").getAsString().toLowerCase();
+        m_idName = spec.name.toLowerCase();
         m_typeDetermined = typeDetermined;
     }
 
@@ -200,35 +201,35 @@ abstract class SharepointListColumn<T> {
      */
     public abstract DataType getCanonicalType();
 
-    public static SharepointListColumn<?> of(final JsonObject spec) { // NOSONAR
-        JsonObject elem;
+    public static SharepointListColumn<?> of(final ColumnDefinition spec) { // NOSONAR
+        TextColumn elem;
         SharepointListColumn<?> result;
-        final var name = spec.get("name").getAsString();
+        final var name = spec.name;
         if (name.equalsIgnoreCase("id")) {
             result = new IDTypedColumn(spec);
         } else if (name.equalsIgnoreCase("Title")) {
             result = new StringTypedColumn(spec, SharepointFieldType.SINGLE_LINE_TEXT);
-        } else if ((elem = spec.getAsJsonObject("text")) != null) {
-            if (elem.get("allowMultipleLines").getAsBoolean()) {
+        } else if ((elem = spec.text) != null) {
+            if (elem.allowMultipleLines.booleanValue()) {
                 result = new StringTypedColumn(spec, SharepointFieldType.MULTI_LINE_TEXT);
             } else {
                 result = new StringTypedColumn(spec, SharepointFieldType.SINGLE_LINE_TEXT);
             }
-        } else if (spec.has("choice")) {
+        } else if (spec.choice != null) {
             result = new ChoiceTypedColumn(spec);
-        } else if (spec.has("number")) {
+        } else if (spec.number != null) {
             result = new NumberTypedColumn(spec);
-        } else if (spec.has("boolean")) {
+        } else if (spec.msgraphBoolean != null) {
             result = new BooleanTypedColumn(spec);
-        } else if (spec.has("personOrGroup")) {
+        } else if (spec.personOrGroup != null) {
             result = new PersonTypedColumn(spec);
-        } else if (spec.has("lookup")) {
+        } else if (spec.lookup != null) {
             result = new LookupTypedColumn(spec);
-        } else if (spec.has("dateTime")) {
+        } else if (spec.dateTime != null) {
             result = new DateTimeColumn(spec);
-        } else if (spec.has("currency")) {
+        } else if (spec.currency != null) {
             result = new CurrencyTypedColunm(spec);
-        } else if (spec.has("calculated")) { // TODO _maybe_ introduce type recognition later
+        } else if (spec.calculated != null) { // TODO _maybe_ introduce type recognition later
             result = new StringTypedColumn(spec, SharepointFieldType.CALCULATION);
         } else {
             result = new UnsureTypedColumn(spec);
@@ -239,7 +240,7 @@ abstract class SharepointListColumn<T> {
 
     static final class IDTypedColumn extends SharepointListColumn<String> {
 
-        protected IDTypedColumn(final JsonObject spec) {
+        protected IDTypedColumn(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.ID);
         }
 
@@ -257,7 +258,7 @@ abstract class SharepointListColumn<T> {
 
     static final class StringTypedColumn extends SharepointListColumn<String> {
 
-        protected StringTypedColumn(final JsonObject spec, final SharepointFieldType type) {
+        protected StringTypedColumn(final ColumnDefinition spec, final SharepointFieldType type) {
             super(spec, type);
         }
 
@@ -277,11 +278,11 @@ abstract class SharepointListColumn<T> {
         private final String m_decimalPlaces;
         private final String m_displayAs;
 
-        protected NumberTypedColumn(final JsonObject spec) {
+        protected NumberTypedColumn(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.NUMBER);
-            final var settings = spec.getAsJsonObject("number");
-            m_decimalPlaces = settings.get("decimalPlaces").getAsString();
-            m_displayAs = settings.get("displayAs").getAsString();
+            final var settings = spec.number;
+            m_decimalPlaces = settings.decimalPlaces;
+            m_displayAs = settings.displayAs;
         }
 
         @Override
@@ -313,11 +314,11 @@ abstract class SharepointListColumn<T> {
         final boolean m_multiple;
         final String m_idNameLookup;
 
-        protected PersonTypedColumn(final JsonObject spec) {
+        protected PersonTypedColumn(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.PERSON);
-            final var settings = spec.getAsJsonObject("personOrGroup");
-            m_displayAs = settings.get("displayAs").getAsString();
-            m_multiple = settings.get("allowMultipleSelection").getAsBoolean();
+            final var settings = spec.personOrGroup;
+            m_displayAs = settings.displayAs;
+            m_multiple = settings.allowMultipleSelection;
             m_idNameLookup = m_idName + "lookupid";
         }
 
@@ -362,13 +363,13 @@ abstract class SharepointListColumn<T> {
         final String m_columnName;
         final Optional<String> m_primaryColumn;
 
-        protected LookupTypedColumn(final JsonObject spec) {
+        protected LookupTypedColumn(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.LOOKUP);
-            final var settings = spec.getAsJsonObject("lookup");
-            m_multiple = settings.get("allowMultipleValues").getAsBoolean();
-            m_listID = settings.get("listId").getAsString();
-            m_columnName = settings.get("columnName").getAsString();
-            m_primaryColumn = Optional.ofNullable(settings.get("primaryLookupColumnId")).map(JsonElement::getAsString);
+            final var settings = spec.lookup;
+            m_multiple = settings.allowMultipleValues;
+            m_listID = settings.listId;
+            m_columnName = settings.columnName;
+            m_primaryColumn = Optional.ofNullable(settings.primaryLookupColumnId);
             m_idNameLookup = m_idName + "lookupid";
         }
 
@@ -420,7 +421,7 @@ abstract class SharepointListColumn<T> {
 
     static final class BooleanTypedColumn extends SharepointListColumn<Boolean> {
 
-        protected BooleanTypedColumn(final JsonObject spec) {
+        protected BooleanTypedColumn(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.YES_NO);
         }
 
@@ -439,10 +440,9 @@ abstract class SharepointListColumn<T> {
 
         private final boolean m_multiple;
 
-        protected ChoiceTypedColumn(final JsonObject spec) {
+        protected ChoiceTypedColumn(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.CHOICE);
-            m_multiple = spec.getAsJsonObject("choice")//
-                    .getAsJsonPrimitive("displayAs").getAsString()//
+            m_multiple = spec.choice.displayAs
                     .equals("checkBoxes");
         }
 
@@ -472,9 +472,9 @@ abstract class SharepointListColumn<T> {
 
         private final boolean m_dateOnly;
 
-        protected DateTimeColumn(final JsonObject spec) {
+        protected DateTimeColumn(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.DATE_AND_TIME);
-            m_dateOnly = "dateOnly".equals(spec.getAsJsonObject("dateTime").get("format").getAsString());
+            m_dateOnly = "dateOnly".equals(spec.dateTime.format);
         }
 
         @Override
@@ -502,9 +502,9 @@ abstract class SharepointListColumn<T> {
 
         private final Currency m_currency;
 
-        protected CurrencyTypedColunm(final JsonObject spec) {
+        protected CurrencyTypedColunm(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.CURRENCY);
-            final var locale = Locale.forLanguageTag(spec.getAsJsonObject("currency").get("locale").getAsString());
+            final var locale = Locale.forLanguageTag(spec.currency.locale);
             m_currency = Currency.getInstance(locale);
         }
 
@@ -548,7 +548,7 @@ abstract class SharepointListColumn<T> {
 
     static final class UnsureTypedColumn extends SharepointListColumn<String> {
 
-        protected UnsureTypedColumn(final JsonObject spec) {
+        protected UnsureTypedColumn(final ColumnDefinition spec) {
             super(spec, SharepointFieldType.LOCATION_OR_IMAGE_OR_HYPERLINK, false);
         }
 

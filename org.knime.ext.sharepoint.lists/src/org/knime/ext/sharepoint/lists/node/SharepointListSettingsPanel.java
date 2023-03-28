@@ -86,9 +86,11 @@ import org.knime.filehandling.core.connections.base.ui.LoadedItemsSelector.IdCom
 import org.knime.filehandling.core.util.GBCBuilder;
 
 import com.microsoft.graph.http.GraphServiceException;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
 import com.microsoft.graph.options.Option;
 import com.microsoft.graph.options.QueryOption;
+import com.microsoft.graph.requests.GraphServiceClient;
+
+import okhttp3.Request;
 
 /**
  * Editor component for the {@link ListSettings} class.
@@ -339,7 +341,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
     private List<IdComboboxItem> fetchLists() throws IOException, InvalidSettingsException {
         m_siteSettings.validateParentSiteSettings();
 
-        final IGraphServiceClient client = super.createClient();
+        final GraphServiceClient<Request> client = super.createClient();
         final var siteResolver = new SharepointSiteResolver(client, m_siteSettings.getMode(),
                 m_siteSettings.getSubsiteModel().getStringValue(), m_siteSettings.getWebURLModel().getStringValue(),
                 m_siteSettings.getGroupModel().getStringValue());
@@ -347,7 +349,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
                 m_listSettings.getShowSystemListsModel().getBooleanValue());
     }
 
-    private static List<IdComboboxItem> listLists(final String siteId, final IGraphServiceClient client,
+    private static List<IdComboboxItem> listLists(final String siteId, final GraphServiceClient<Request> client,
             final boolean showSystemLists) {
 
         final var result = new ArrayList<IdComboboxItem>();

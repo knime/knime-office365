@@ -71,7 +71,9 @@ import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
+import com.microsoft.graph.requests.GraphServiceClient;
+
+import okhttp3.Request;
 
 /**
  * Delete SharePoint Online List node implementation of a {@link NodeModel}.
@@ -107,7 +109,8 @@ final class SharepointDeleteListNodeModel extends NodeModel {
         CheckUtils.checkSetting(listSettingsEmpty(), "No list selected. Please select a list.");
 
         final var timeouts = m_config.getSharepointListSettings().getTimeoutSettings();
-        final IGraphServiceClient client = GraphApiUtil.createClient(credential, timeouts.getConnectionTimeout(),
+        final GraphServiceClient<Request> client = GraphApiUtil.createClient(credential,
+                timeouts.getConnectionTimeout(),
                 timeouts.getReadTimeout());
 
         deleteList(client);
@@ -128,7 +131,7 @@ final class SharepointDeleteListNodeModel extends NodeModel {
      * @throws IOException
      * @throws InvalidSettingsException
      */
-    private void deleteList(final IGraphServiceClient client)
+    private void deleteList(final GraphServiceClient<Request> client)
             throws ClientException, IOException, InvalidSettingsException {
         final var siteId = getSiteId(client);
         final var listId = getListId(client, siteId);
@@ -140,7 +143,7 @@ final class SharepointDeleteListNodeModel extends NodeModel {
         }
     }
 
-    private String getListId(final IGraphServiceClient client, final String siteId)
+    private String getListId(final GraphServiceClient<Request> client, final String siteId)
             throws IOException, InvalidSettingsException {
 
         var listId = m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue();
@@ -162,7 +165,7 @@ final class SharepointDeleteListNodeModel extends NodeModel {
      * @return returns the site id
      * @throws IOException
      */
-    private String getSiteId(final IGraphServiceClient client) throws IOException {
+    private String getSiteId(final GraphServiceClient<Request> client) throws IOException {
         final var settings = m_config.getSharepointListSettings().getSiteSettings();
         final var siteResolver = new SharepointSiteResolver(client, settings.getMode(),
                 settings.getSubsiteModel().getStringValue(), settings.getWebURLModel().getStringValue(),

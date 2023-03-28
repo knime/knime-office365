@@ -65,9 +65,11 @@ import org.knime.filehandling.core.connections.base.BaseFileSystem;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.logger.DefaultLogger;
 import com.microsoft.graph.logger.LoggerLevel;
-import com.microsoft.graph.models.extensions.Drive;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.requests.extensions.IDriveCollectionPage;
+import com.microsoft.graph.models.Drive;
+import com.microsoft.graph.requests.DriveCollectionPage;
+import com.microsoft.graph.requests.GraphServiceClient;
+
+import okhttp3.Request;
 
 /**
  * Sharepoint implementation of the {@link FileSystem}.
@@ -81,7 +83,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
      */
     public static final String PATH_SEPARATOR = "/";
 
-    private final IGraphServiceClient m_client;
+    private final GraphServiceClient<Request> m_client;
     private final String m_siteId;
     private final Map<String, Drive> m_drives;
     private final SharepointFSConnectionConfig m_config;
@@ -119,7 +121,7 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
 
     private void fetchDrives() throws IOException {
         try {
-            IDriveCollectionPage result = m_client.sites(m_siteId).drives().buildRequest().get();
+            DriveCollectionPage result = m_client.sites(m_siteId).drives().buildRequest().get();
             storeDrives(result.getCurrentPage());
 
             while (result.getNextPage() != null) {
@@ -160,13 +162,13 @@ public class SharepointFileSystem extends BaseFileSystem<SharepointPath> {
     /**
      * @return the client
      */
-    public IGraphServiceClient getClient() {
+    public GraphServiceClient<Request> getClient() {
         return m_client;
     }
 
     @Override
     protected void prepareClose() {
-        m_client.shutdown();
+        // Nothing to do
     }
 
     @Override

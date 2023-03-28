@@ -53,8 +53,10 @@ import java.io.IOException;
 import org.knime.ext.sharepoint.settings.SiteMode;
 
 import com.microsoft.graph.core.ClientException;
-import com.microsoft.graph.models.extensions.IGraphServiceClient;
-import com.microsoft.graph.requests.extensions.ISiteRequestBuilder;
+import com.microsoft.graph.requests.GraphServiceClient;
+import com.microsoft.graph.requests.SiteRequestBuilder;
+
+import okhttp3.Request;
 
 /**
  * Class which resolves the settings of nodes i.e. SharePoint Online connector
@@ -66,7 +68,7 @@ public final class SharepointSiteResolver {
 
     private static final String ROOT_SITE = "root";
 
-    private final IGraphServiceClient m_client;
+    private final GraphServiceClient<Request> m_client;
 
     private final SiteMode m_siteMode;
 
@@ -80,7 +82,7 @@ public final class SharepointSiteResolver {
      * Constructor.
      *
      * @param client
-     *            the {@link IGraphServiceClient}
+     *            the {@link GraphServiceClient}
      * @param siteMode
      *            the selected {@link SiteMode}
      * @param subSite
@@ -90,8 +92,8 @@ public final class SharepointSiteResolver {
      * @param group
      *            the selected group
      */
-    public SharepointSiteResolver(final IGraphServiceClient client, final SiteMode siteMode, final String subSite,
-            final String webUrl, final String group) {
+    public SharepointSiteResolver(final GraphServiceClient<Request> client, final SiteMode siteMode,
+            final String subSite, final String webUrl, final String group) {
         m_client = client;
         m_siteMode = siteMode;
         m_subSite = subSite;
@@ -117,7 +119,7 @@ public final class SharepointSiteResolver {
      */
     @SuppressWarnings("null")
     public String getParentSiteId() throws IOException {
-        ISiteRequestBuilder req = null;
+        SiteRequestBuilder req = null;
 
         switch (m_siteMode) {
         case ROOT:

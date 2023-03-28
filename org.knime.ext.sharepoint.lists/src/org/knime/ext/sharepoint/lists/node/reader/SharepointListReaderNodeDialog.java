@@ -548,7 +548,9 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
                 throws IOException, InvalidSettingsException {
 
             if (m_client == null) {
-                m_client = new SharepointListClient(GraphApiUtil.createClient(m_credential), m_listSettings);
+                final var timeouts = m_listSettings.getTimeoutSettings();
+                m_client = new SharepointListClient(GraphApiUtil.createClient(m_credential,
+                        timeouts.getConnectionTimeout(), timeouts.getReadTimeout()), m_listSettings);
             }
             return m_client;
         }
