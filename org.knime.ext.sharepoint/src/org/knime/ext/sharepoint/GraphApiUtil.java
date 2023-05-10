@@ -54,9 +54,11 @@ import java.net.URL;
 import java.time.ZoneOffset;
 import java.util.concurrent.TimeUnit;
 
+import org.knime.core.node.Node;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 import org.knime.okhttp3.OkHttpProxyAuthenticator;
+import org.osgi.framework.FrameworkUtil;
 
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenCredential;
@@ -67,8 +69,10 @@ import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.httpcore.HttpClients;
 import com.microsoft.graph.requests.GraphServiceClient;
 
+import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.Response;
 import reactor.core.publisher.Mono;
 
 /**
@@ -182,6 +186,7 @@ public final class GraphApiUtil {
                 .retryOnConnectionFailure(true) // To address this bug
                                                 // (https://github.com/microsoftgraph/msgraph-sdk-java/issues/313).
                 .proxyAuthenticator(new OkHttpProxyAuthenticator()) // Proxy authentication
+                .addInterceptor(new UserAgentInterceptor()) // Adds user-agent header
                 .build();
     }
 
@@ -238,5 +243,30 @@ public final class GraphApiUtil {
         private boolean tokenMightNeedRefresh() {
             return (System.currentTimeMillis() - m_lastAccessTokenRefresh) >= 5000;
         }
+    }
+
+    private static class UserAgentInterceptor implements Interceptor {
+
+        private static final String USER_AGENT = "ISV|KNIME|Analytics Platform/" + getVersion();
+
+        private static String getVersion() {
+            var bundle = FrameworkUtil.getBundle(Node.class);
+            if (bundle != null) {
+                return bundle.getVersion().getMajor() + "." + bundle.getVersion().getMinor();
+            } else {
+                return "Unknown";
+            }
+        }
+
+        @Override
+        public Response intercept(final Chain chain) throws IOException {
+            var request = chain.request() //
+                    .newBuilder() //
+                    .header("User-Agent", USER_AGENT) //
+                    .build();
+
+            return chain.proceed(request);
+        }
+
     }
 }
