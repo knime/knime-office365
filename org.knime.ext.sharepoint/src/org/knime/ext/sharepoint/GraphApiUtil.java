@@ -57,6 +57,7 @@ import java.util.concurrent.TimeUnit;
 import org.knime.core.node.Node;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 import org.knime.okhttp3.OkHttpProxyAuthenticator;
 import org.osgi.framework.FrameworkUtil;
 
@@ -96,7 +97,7 @@ public final class GraphApiUtil {
      * Attempts to unwrap provided {@link ClientException}.
      * </p>
      * <p>
-     * It iterates through the whole 'cause-chain' in attempt to find
+     * It iterates through the whole 'cause-chain' in attempt to find the deepest
      * {@link IOException} and throws it if one is found.<br>
      * </p>
      * <p>
@@ -110,15 +111,12 @@ public final class GraphApiUtil {
      * @throws IOException
      */
     public static RuntimeException unwrapIOE(final ClientException ex) throws IOException {
-        Throwable cause = ex.getCause();
-        while (cause != null) {
-            if (cause instanceof IOException) {
-                throw (IOException) cause;
-            }
-            cause = cause.getCause();
+        var optIoe = ExceptionUtil.getLastThrowable(ex, IOException.class::isInstance);
+        if (optIoe.isPresent()) {
+            throw (IOException) optIoe.get();
+        } else {
+            return ex;
         }
-
-        return ex;
     }
 
     /**
