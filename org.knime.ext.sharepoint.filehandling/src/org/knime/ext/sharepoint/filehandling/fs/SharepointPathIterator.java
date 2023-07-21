@@ -212,7 +212,7 @@ abstract class SharepointPathIterator implements Iterator<SharepointPath> {
 
             DriveItemRequestBuilder req = m_fs.getClient().drives(m_path.getDriveId()).root();
             if (path.getItemPath() != null) {
-                req = req.itemWithPath(SharepointPath.toUrlString(path.getItemPath()));
+                req = req.itemWithPath(path.getItemPath());
             }
 
             try {

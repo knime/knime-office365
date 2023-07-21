@@ -103,7 +103,7 @@ public class SharepointTestInitializer extends DefaultFSTestInitializer<Sharepoi
         String name = path.getFileName().toString();
 
         try {
-            m_client.drives(driveId).items(parentId).itemWithPath(SharepointPath.toUrlString(name)).content()
+            m_client.drives(driveId).items(parentId).itemWithPath(name).content()
                     .buildRequest().put(content.getBytes());
         } catch (ClientException ex) {
             throw FSGraphApiUtil.unwrapClientEx(ex);
@@ -131,7 +131,7 @@ public class SharepointTestInitializer extends DefaultFSTestInitializer<Sharepoi
 
         try {
             DriveItemCollectionPage children = m_client.drives(scratchDir.getDriveId()).root()
-                    .itemWithPath(SharepointPath.toUrlString(scratchDir.getItemPath())).children().buildRequest().get();
+                    .itemWithPath(scratchDir.getItemPath()).children().buildRequest().get();
 
             for (DriveItem item : children.getCurrentPage()) {
                 m_client.drives(scratchDir.getDriveId()).items(item.id).buildRequest().delete();
