@@ -49,8 +49,6 @@
 package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 
 import org.knime.ext.sharepoint.filehandling.FSGraphApiUtil;
@@ -153,7 +151,7 @@ public class SharepointPath extends UnixStylePath {
 
         String itemPath = getItemPath();
         if (itemPath != null) {
-            req = req.itemWithPath(toUrlString(itemPath));
+            req = req.itemWithPath(itemPath);
         }
 
         try {
@@ -207,20 +205,5 @@ public class SharepointPath extends UnixStylePath {
         }
 
         return item;
-    }
-
-    /**
-     * Converts provided string into url-encoded format expected by msgraph API
-     *
-     * @param str
-     *            String to convert.
-     * @return Converted string.
-     */
-    public static String toUrlString(final String str) {
-        try {
-            return new URI(null, str, null).toASCIIString();
-        } catch (URISyntaxException ex) {
-            throw new RuntimeException(ex);// Should not happen
-        }
     }
 }

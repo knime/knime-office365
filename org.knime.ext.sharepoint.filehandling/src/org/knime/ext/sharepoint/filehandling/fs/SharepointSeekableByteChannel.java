@@ -110,7 +110,7 @@ class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<Sharepoi
     private static void uploadSimple(final SharepointPath remoteFile, final Path tempFile) throws IOException {
         GraphServiceClient<Request> client = remoteFile.getFileSystem().getClient();
         final var parentId = remoteFile.getParent().getDriveItem().id;
-        final var filename = SharepointPath.toUrlString(remoteFile.getFileName().toString());
+        final var filename = remoteFile.getFileName().toString();
         byte[] bytes = Files.readAllBytes(tempFile);
 
         try {
@@ -134,7 +134,7 @@ class SharepointSeekableByteChannel extends TempFileSeekableByteChannel<Sharepoi
     private static void uploadLarge(final SharepointPath remoteFile, final Path tempFile) throws IOException {
         GraphServiceClient<Request> client = remoteFile.getFileSystem().getClient();
         final var parentId = remoteFile.getParent().getDriveItem().id;
-        final var filename = SharepointPath.toUrlString(remoteFile.getFileName().toString());
+        final var filename = remoteFile.getFileName().toString();
 
         try (InputStream inputStream = new BufferedInputStream(Files.newInputStream(tempFile))) {
             UploadSession session = client//
