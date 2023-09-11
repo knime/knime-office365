@@ -46,7 +46,7 @@
  * History
  *   2022-03-02 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.writer;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -94,7 +94,7 @@ import com.microsoft.graph.models.TextColumn;
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-final class KNIMEToSharepointTypeConverter {
+public final class KNIMEToSharepointTypeConverter {
 
     // Upper threshold for double values
     private static final double DOUBLE_MAX_VALUE = 1.79E308;
@@ -117,7 +117,7 @@ final class KNIMEToSharepointTypeConverter {
      * {@link JsonPrimitive} and creates named {@link ColumnDefinition} based on a
      * DataType
      */
-    static final Map<DataType, Pair<Function<DataCell, JsonElement>, Function<String, ColumnDefinition>>> TYPE_CONVERTER = new HashMap<>();
+    public static final Map<DataType, Pair<Function<DataCell, JsonElement>, Function<String, ColumnDefinition>>> TYPE_CONVERTER = new HashMap<>();
 
     /** If no suitable converter is available */
     static final Pair<Function<DataCell, JsonElement>, Function<String, ColumnDefinition>> DEFAULT_CONVERTER = Pair

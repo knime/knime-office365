@@ -46,7 +46,7 @@
  * History
  *   2022-04-04 (jannik.loescher): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.writer;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -80,7 +80,7 @@ import okhttp3.Request;
  */
 final class ListBatchRequest implements AutoCloseable {
     // Attribute it to the node in the logs
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListWriterNodeModel.class); // NOSONAR
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(ListBatchRequest.class); // NOSONAR
 
     private static final int MAX_REQUESTS = 20; // https://learn.microsoft.com/en-us/graph/json-batching,
                                                 // limit is 20 requests.

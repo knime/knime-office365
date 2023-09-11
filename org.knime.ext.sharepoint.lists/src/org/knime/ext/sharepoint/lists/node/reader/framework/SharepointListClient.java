@@ -65,8 +65,8 @@ import java.util.stream.StreamSupport;
 
 import org.knime.core.util.Pair;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel.ListSettings;
+import org.knime.ext.sharepoint.lists.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel.ListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListRead.RandomAccessibleDataRow;
 import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;

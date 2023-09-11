@@ -51,7 +51,7 @@ package org.knime.ext.sharepoint.lists.node.delete;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.SharepointListSettings;
 
 /**
  * Delete SharePoint Online List node config.

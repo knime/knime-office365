@@ -44,47 +44,85 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2021-10-05 (lars.schweikardt): created
+ *   2023-09-10 (Zkriya Rakhimberdiyev, Redfield SE): created
  */
-package org.knime.ext.sharepoint.settings;
+package org.knime.ext.sharepoint.lists.writer;
 
-import org.knime.core.webui.node.dialog.defaultdialog.widget.Label;
-import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
+import org.knime.ext.sharepoint.SharepointSiteResolver;
+
+import com.microsoft.graph.requests.GraphServiceClient;
+
+import okhttp3.Request;
 
 /**
- * {@link Enum} for the Site mode for Sharepoint nodes which make use of the
- * {@link SiteSettingsPanel}.
+ * SharePoint List Writer client parameters.
  *
- * @author Alexander Bondaletov
+ * @author Zkriya Rakhimberdiyev, Redfield SE
  */
-@SuppressWarnings("restriction")
-public enum SiteMode { //
-    /**
-     * Root site
-     */
-    @Label("Root site")
-    ROOT("Root site"), //
-    /**
-     * Web URL
-     */
-    @Label("Web URL")
-    WEB_URL("Web URL"), //
-    /**
-     * Group site
-     */
-    @Label("Group site")
-    GROUP("Group site");
+public class SharepointListWriterClientParameters {
 
-    private String m_selectorLabel;
+    private final ListOverwritePolicy m_overwritePolicy;
+    private final SharepointSiteResolver m_siteResolver;
+    private final String m_listId;
+    private final String m_listName;
+    private final GraphServiceClient<Request> m_client;
 
-    private SiteMode(final String selectorLable) {
-        m_selectorLabel = selectorLable;
+    /**
+     * Constructor.
+     *
+     * @param overwritePolicy
+     *            {@link ListOverwritePolicy}
+     * @param siteResolver
+     *            {@link SharepointSiteResolver}
+     * @param listId
+     *            id of list
+     * @param listName
+     *            name of list
+     * @param client
+     *            {@link GraphServiceClient}
+     */
+    public SharepointListWriterClientParameters(final ListOverwritePolicy overwritePolicy,
+            final SharepointSiteResolver siteResolver, final String listId, final String listName,
+            final GraphServiceClient<Request> client) {
+        m_overwritePolicy = overwritePolicy;
+        m_siteResolver = siteResolver;
+        m_listId = listId;
+        m_listName = listName;
+        m_client = client;
     }
 
     /**
-     * @return the selectorLabel
+     * @return the overwritePolicy
      */
-    public String getSelectorLabel() {
-        return m_selectorLabel;
+    public ListOverwritePolicy getOverwritePolicy() {
+        return m_overwritePolicy;
+    }
+
+    /**
+     * @return the siteResolver
+     */
+    public SharepointSiteResolver getSiteResolver() {
+        return m_siteResolver;
+    }
+
+    /**
+     * @return the listId
+     */
+    public String getListId() {
+        return m_listId;
+    }
+
+    /**
+     * @return the listName
+     */
+    public String getListName() {
+        return m_listName;
+    }
+
+    /**
+     * @return the client
+     */
+    public GraphServiceClient<Request> getClient() {
+        return m_client;
     }
 }

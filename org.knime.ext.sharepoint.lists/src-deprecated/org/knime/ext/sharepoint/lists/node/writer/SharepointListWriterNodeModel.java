@@ -70,6 +70,13 @@ import org.knime.core.node.workflow.VariableType;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.SharepointSiteResolver;
+import org.knime.ext.sharepoint.lists.SharePointListUtils;
+import org.knime.ext.sharepoint.lists.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.writer.KNIMEToSharepointTypeConverter;
+import org.knime.ext.sharepoint.lists.writer.SharepointListWriterClient;
+import org.knime.ext.sharepoint.lists.writer.SharepointListWriterClientParameters;
 
 /**
  * “SharePoint List Writer” implementation of a {@link NodeModel}.
@@ -77,8 +84,6 @@ import org.knime.credentials.base.oauth.api.JWTCredential;
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
 final class SharepointListWriterNodeModel extends NodeModel {
-
-    private static final String LIST_ID_VAR_NAME = "sharepoint_list_id";
 
     private final SharepointListWriterConfig m_config;
 
@@ -111,8 +116,10 @@ final class SharepointListWriterNodeModel extends NodeModel {
         }
 
         final var listID = m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue();
-        if (getAvailableFlowVariables(VariableType.StringType.INSTANCE).containsKey(LIST_ID_VAR_NAME)) {
-            m_raiseVariableOverwriteWarning = !Objects.equals(peekFlowVariableString(LIST_ID_VAR_NAME), listID);
+        if (getAvailableFlowVariables(VariableType.StringType.INSTANCE)
+                .containsKey(SharePointListUtils.LIST_ID_VAR_NAME)) {
+            m_raiseVariableOverwriteWarning = !Objects
+                    .equals(peekFlowVariableString(SharePointListUtils.LIST_ID_VAR_NAME), listID);
         } else {
             m_raiseVariableOverwriteWarning = false;
         }
@@ -137,11 +144,30 @@ final class SharepointListWriterNodeModel extends NodeModel {
         CheckUtils.checkSetting(listSettingsEmpty(),
                 "No list selected or entered. Please select a list or enter a list name.");
 
-        try (final var client = new SharepointListWriterClient(m_config, this::pushListId, table, credential, exec)) {
+        final var params = getClientParameters(m_config.getSharepointListSettings(), //
+                credential);
+        try (final var client = new SharepointListWriterClient(params, this::pushListId, table, exec)) {
             client.writeList();
         }
 
         return new PortObject[] {};
+    }
+
+    private static SharepointListWriterClientParameters getClientParameters(final SharepointListSettings settings,
+            final JWTCredential credential) {
+        final var timeouts = settings.getTimeoutSettings();
+        final var client = GraphApiUtil.createClient(credential, timeouts.getConnectionTimeout(),
+                timeouts.getReadTimeout());
+
+        final var siteSettings = settings.getSiteSettings();
+        final var siteResolver = new SharepointSiteResolver(client, siteSettings.getMode(),
+                siteSettings.getSubsiteModel().getStringValue(), siteSettings.getWebURLModel().getStringValue(),
+                siteSettings.getGroupModel().getStringValue());
+        final var listId = settings.getListSettings().getListModel().getStringValue();
+        final var listName = settings.getListSettings().getListNameModel().getStringValue();
+
+        return new SharepointListWriterClientParameters(settings.getOverwritePolicy(), siteResolver, listId, listName,
+                client);
     }
 
     private boolean listSettingsEmpty() {
@@ -152,10 +178,11 @@ final class SharepointListWriterNodeModel extends NodeModel {
     private void pushListId(final String listID) {
 
         if (m_raiseVariableOverwriteWarning) {
-            setWarningMessage(String.format("Value of existing flow variable '%s' was overwritten!", LIST_ID_VAR_NAME));
+            setWarningMessage(String.format("Value of existing flow variable '%s' was overwritten!",
+                    SharePointListUtils.LIST_ID_VAR_NAME));
         }
 
-        pushFlowVariableString(LIST_ID_VAR_NAME, listID);
+        pushFlowVariableString(SharePointListUtils.LIST_ID_VAR_NAME, listID);
     }
 
     @Override

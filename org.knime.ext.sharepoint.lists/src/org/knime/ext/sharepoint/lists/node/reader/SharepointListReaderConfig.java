@@ -48,7 +48,7 @@
  */
 package org.knime.ext.sharepoint.lists.node.reader;
 
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.SharepointListSettings;
 import org.knime.filehandling.core.node.table.reader.config.ReaderSpecificConfig;
 
 /**

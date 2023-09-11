@@ -58,7 +58,7 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.SettingsModel;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.SharepointListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.mapping.SharepointListReadAdapterFactory;
 import org.knime.filehandling.core.node.table.ConfigSerializer;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.ConfigID;

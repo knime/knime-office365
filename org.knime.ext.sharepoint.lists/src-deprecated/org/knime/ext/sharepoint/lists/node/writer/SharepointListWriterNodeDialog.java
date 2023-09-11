@@ -64,7 +64,7 @@ import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel;
+import org.knime.ext.sharepoint.lists.SharepointListSettingsPanel;
 import org.knime.filehandling.core.util.GBCBuilder;
 
 /**

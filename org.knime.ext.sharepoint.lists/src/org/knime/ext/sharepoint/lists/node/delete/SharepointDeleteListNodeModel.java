@@ -68,7 +68,7 @@ import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
-import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
+import org.knime.ext.sharepoint.lists.SharePointListUtils;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;

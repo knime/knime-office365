@@ -46,7 +46,7 @@
  * History
  *   2022-03-02 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.writer;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -62,11 +62,7 @@ import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.credentials.base.oauth.api.JWTCredential;
-import org.knime.ext.sharepoint.GraphApiUtil;
-import org.knime.ext.sharepoint.SharepointSiteResolver;
-import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.SharePointListUtils;
 
 import com.google.gson.JsonPrimitive;
 import com.microsoft.graph.http.GraphServiceException;
@@ -75,11 +71,8 @@ import com.microsoft.graph.models.FieldValueSet;
 import com.microsoft.graph.models.ListItem;
 import com.microsoft.graph.requests.ColumnDefinitionCollectionPage;
 import com.microsoft.graph.requests.ColumnDefinitionCollectionResponse;
-import com.microsoft.graph.requests.GraphServiceClient;
 import com.microsoft.graph.requests.ListItemCollectionPage;
 import com.microsoft.graph.requests.ListRequestBuilder;
-
-import okhttp3.Request;
 
 /**
  * Handles the actual writing process of the SharePoint List Writer node.
@@ -87,17 +80,13 @@ import okhttp3.Request;
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-class SharepointListWriterClient implements AutoCloseable {
-
-    private final GraphServiceClient<Request> m_client;
+public class SharepointListWriterClient implements AutoCloseable {
 
     private static final Object LOCK = new Object();
 
-    private final SharepointListWriterConfig m_config;
-
     private final Consumer<String> m_pushListId;
 
-    private final SharepointListSettings m_sharePointListSettings;
+    private final SharepointListWriterClientParameters m_clientParams;
 
     private final BufferedDataTable m_table;
 
@@ -117,17 +106,29 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private boolean m_processItemsSequential = true; // change this with toggle later
 
-    SharepointListWriterClient(final SharepointListWriterConfig config, final Consumer<String> pushListId,
+    /**
+     * Constructor.
+     *
+     * @param params
+     *            client parameters {@link SharepointListWriterClientParameters}
+     * @param pushListId
+     *            listId consumer
+     * @param table
+     *            input table
+     * @param exec
+     *            {@link ExecutionContext}
+     * @throws IOException
+     * @throws InvalidSettingsException
+     */
+    public SharepointListWriterClient(final SharepointListWriterClientParameters params,
+            final Consumer<String> pushListId,
             final BufferedDataTable table,
-            final JWTCredential credential, final ExecutionContext exec)
+            final ExecutionContext exec)
             throws IOException, InvalidSettingsException {
-
-        m_config = config;
-        m_sharePointListSettings = config.getSharepointListSettings();
+        m_clientParams = params;
         m_table = table;
         m_tableSpec = m_table.getDataTableSpec();
         m_exec = exec;
-        m_client = createGraphServiceClient(credential);
         m_pushListId = pushListId;
         m_siteId = getSiteId();
         m_listId = getListId();
@@ -139,11 +140,11 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws IOException
      * @throws CanceledExecutionException
      */
-    void writeList() throws IOException, CanceledExecutionException {
+    public void writeList() throws IOException, CanceledExecutionException {
         m_exec.setMessage("Writing rows");
         final String[] colNames = m_tableSpec.getColumnNames();
-        try (final var batch = new ListBatchRequest(m_client, m_exec)) {
-            if (m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
+        try (final var batch = new ListBatchRequest(m_clientParams.getClient(), m_exec)) {
+            if (m_clientParams.getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
                     && !m_listCreated) {
                 prepareOverwrite(batch);
             }
@@ -168,15 +169,6 @@ class SharepointListWriterClient implements AutoCloseable {
 
     }
 
-    private GraphServiceClient<Request> createGraphServiceClient(
-            final JWTCredential credential) {
-
-        final var timeouts = m_sharePointListSettings.getTimeoutSettings();
-        return GraphApiUtil.createClient(credential, //
-                timeouts.getConnectionTimeout(), //
-                timeouts.getReadTimeout());
-    }
-
     /**
      * Returns the site id.
      *
@@ -184,12 +176,7 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws IOException
      */
     private String getSiteId() throws IOException {
-        final var settings = m_sharePointListSettings.getSiteSettings();
-        final var siteResolver = new SharepointSiteResolver(m_client, settings.getMode(),
-                settings.getSubsiteModel().getStringValue(), settings.getWebURLModel().getStringValue(),
-                settings.getGroupModel().getStringValue());
-
-        return siteResolver.getTargetSiteId();
+        return m_clientParams.getSiteResolver().getTargetSiteId();
     }
 
     /**
@@ -200,19 +187,19 @@ class SharepointListWriterClient implements AutoCloseable {
      * @throws InvalidSettingsException
      */
     private String getListId() throws IOException, InvalidSettingsException {
-        var listId = m_sharePointListSettings.getListSettings().getListModel().getStringValue();
-        var listExists = !listId.isEmpty();
+        var listId = m_clientParams.getListId();
+        var listExists = listId != null && !listId.isEmpty();
 
-        if (listId.isEmpty()) {
-            final var optionalListId = SharePointListUtils.getListIdByName(m_client, m_siteId,
-                    m_sharePointListSettings.getListSettings().getListNameModel().getStringValue());
+        if (!listExists) {
+            final var optionalListId = SharePointListUtils.getListIdByName(m_clientParams.getClient(), m_siteId,
+                    m_clientParams.getListName());
             listExists = optionalListId.isPresent();
 
             listId = listExists ? optionalListId.get() : createSharepointList();
         }
         m_pushListId.accept(listId);
 
-        if (listExists && m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.FAIL) {
+        if (listExists && m_clientParams.getOverwritePolicy() == ListOverwritePolicy.FAIL) {
             throw new InvalidSettingsException(
                     "The specified list already exists and the node fails due to overwrite settings");
         }
@@ -228,7 +215,7 @@ class SharepointListWriterClient implements AutoCloseable {
      */
     private String createSharepointList() throws IOException {
         final var list = new com.microsoft.graph.models.List();
-        list.displayName = m_sharePointListSettings.getListSettings().getListNameModel().getStringValue();
+        list.displayName = m_clientParams.getListName();
 
         final var columnDefinitionCollectionResponse = new ColumnDefinitionCollectionResponse();
         columnDefinitionCollectionResponse.value = createColumnDefinitions();
@@ -238,7 +225,7 @@ class SharepointListWriterClient implements AutoCloseable {
         list.columns = columnDefinitionCollectionPage;
 
         try {
-            var response = m_client.sites(m_siteId).lists().buildRequest().post(list);
+            var response = m_clientParams.getClient().sites(m_siteId).lists().buildRequest().post(list);
             m_listCreated = true;
             return response.id;
         } catch (GraphServiceException ex) {
@@ -490,7 +477,7 @@ class SharepointListWriterClient implements AutoCloseable {
     }
 
     private ListRequestBuilder createListRequestBuilder() {
-        return m_client.sites(m_siteId).lists(m_listId);
+        return m_clientParams.getClient().sites(m_siteId).lists(m_listId);
     }
 
     @Override

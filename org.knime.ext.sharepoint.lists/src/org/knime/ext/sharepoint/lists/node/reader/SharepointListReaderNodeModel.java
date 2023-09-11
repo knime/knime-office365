@@ -73,7 +73,7 @@ import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.SharepointListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListReader;
 import org.knime.ext.sharepoint.lists.node.reader.mapping.SharepointListReadAdapterFactory;

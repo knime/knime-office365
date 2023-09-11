@@ -9,9 +9,14 @@
             id="org.knime.ext.sharepoint.filehandling.node.listreader.SharepointListReaderNodeFactory"/>
       <node
             category-path="/labs/"
+            factory-class="org.knime.ext.sharepoint.lists.writer.node.SharepointListWriterNodeFactory"
+            id="org.knime.ext.sharepoint.lists.writer.node.SharepointListWriterNodeFactory"/>
+      <node
+            category-path="/labs/"
             factory-class="org.knime.ext.sharepoint.lists.node.writer.SharepointListWriterNodeFactory"
-            id="org.knime.ext.sharepoint.lists.node.writer.SharepointListWriterNodeFactory"/>
-       <node
+            id="org.knime.ext.sharepoint.lists.node.writer.SharepointListWriterNodeFactory"
+            deprecated="true"/>
+      <node
             category-path="/labs/"
             factory-class="org.knime.ext.sharepoint.lists.node.delete.SharepointDeleteListNodeFactory"
             id="org.knime.ext.sharepoint.lists.node.delete.SharepointDeleteListNodeFactory"/>

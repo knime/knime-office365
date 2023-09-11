@@ -46,12 +46,16 @@
  * History
  *   2022-03-01 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node;
+package org.knime.ext.sharepoint.lists;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.regex.Pattern;
+
+import org.knime.credentials.base.Credential;
+import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.ext.sharepoint.GraphApiUtil;
 
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.requests.GraphServiceClient;
@@ -70,6 +74,11 @@ public final class SharePointListUtils {
 
     // Matches everything until the last "("
     private static final Pattern SETTINGS_DISPLAY_LIST_NAME_PATTERN = Pattern.compile("(.*(?=\\())");
+
+    private static final int DIALOG_CLIENT_TIMEOUT_MILLIS = 30000;
+
+    /** Exports the ID of the written list to a flow variable **/
+    public static final String LIST_ID_VAR_NAME = "sharepoint_list_id";
 
     private SharePointListUtils() {
         // hide constructor for Utils class
@@ -157,4 +166,15 @@ public final class SharePointListUtils {
         }
     }
 
+    /**
+     * Creates {@link GraphServiceClient} client.
+     *
+     * @param credential
+     *            {@link Credential}
+     * @return created client
+     * @throws IOException
+     */
+    public static GraphServiceClient<Request> createClient(final JWTCredential credential) throws IOException {
+        return GraphApiUtil.createClient(credential, DIALOG_CLIENT_TIMEOUT_MILLIS, DIALOG_CLIENT_TIMEOUT_MILLIS);
+    }
 }

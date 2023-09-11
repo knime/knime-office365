@@ -44,41 +44,58 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   14 Feb 2022 (Lars Schweikardt, KNIME GmbH, Konstanz, Germany): created
+ *   2022-03-04 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.writer;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.core.node.util.ButtonGroupEnumInterface;
 
 /**
- * “SharePoint List Writer” config.
+ * Policy how to proceed when Sharepoint List exists (overwrite, fail).
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public final class SharepointListWriterConfig {
+public enum ListOverwritePolicy implements ButtonGroupEnumInterface {
 
-    private final SharepointListSettings m_sharepointListSettings;
+    /** Overwrite existing list. */
+    OVERWRITE("overwrite"),
 
-    SharepointListWriterConfig() {
-        m_sharepointListSettings = new SharepointListSettings(false, true);
+    /**
+     * Fail during execution if list with id or name already exists. Neither
+     * overwrite nor append.
+     */
+    FAIL("fail");
+
+    private final String m_description;
+
+    private ListOverwritePolicy(final String description) {
+        m_description = description;
     }
 
-    SharepointListSettings getSharepointListSettings() {
-        return m_sharepointListSettings;
+    @Override
+    public String getText() {
+        return m_description;
     }
 
-    void saveSettings(final NodeSettingsWO settings) {
-        m_sharepointListSettings.saveSettingsTo(settings);
+    @Override
+    public String getActionCommand() {
+        return name();
     }
 
-    void loadSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_sharepointListSettings.loadSettingsFrom(settings);
+    @Override
+    public String getToolTip() {
+        return m_description;
     }
 
-    void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_sharepointListSettings.validateSettings(settings);
+    @Override
+    public boolean isDefault() {
+        return this == FAIL;
+    }
+
+    /**
+     * @return {@link ListOverwritePolicy#FAIL} as default
+     */
+    public static ListOverwritePolicy getDefault() {
+        return FAIL;
     }
 }
