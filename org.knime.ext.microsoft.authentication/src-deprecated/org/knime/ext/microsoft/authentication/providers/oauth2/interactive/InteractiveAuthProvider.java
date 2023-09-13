@@ -68,8 +68,8 @@ import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
 import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsOAuth2Provider;
-import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.StorageSettings;
+import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;

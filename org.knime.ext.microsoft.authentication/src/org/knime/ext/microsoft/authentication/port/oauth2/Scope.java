@@ -88,12 +88,12 @@ public enum Scope {
     /**
      * Directory.Read.All scope.
      */
-    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i><html>",
+    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i></html>",
             "Directory.Read.All", ScopeType.DELEGATED),
     /**
      * User.Read scope.
      */
-    USER_READ("<html>User Groups (Read) <i>(Limited)</i><html", "User.Read", ScopeType.DELEGATED),
+    USER_READ("<html>User Groups (Read) <i>(Limited)</i></html>", "User.Read", ScopeType.DELEGATED),
     /**
      * Azure Blob storage scope
      */

@@ -70,9 +70,9 @@ import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
-import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.ApplicationPermissionsTokenSupplier;
+import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
 import com.microsoft.aad.msal4j.ClientCredentialParameters;

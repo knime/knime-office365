@@ -46,16 +46,18 @@
  * History
  *   2020-07-03 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.providers.oauth2;
+package org.knime.ext.microsoft.authentication.util;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.regex.Pattern;
 
-import org.knime.ext.microsoft.authentication.util.OkHttpClientAdapter;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
 import com.microsoft.aad.msal4j.ConfidentialClientApplication;
 import com.microsoft.aad.msal4j.IClientCredential;
 import com.microsoft.aad.msal4j.MsalClientException;
+import com.microsoft.aad.msal4j.MsalException;
 import com.microsoft.aad.msal4j.PublicClientApplication;
 
 /**
@@ -164,6 +166,62 @@ public final class MSALUtil {
         } catch (MalformedURLException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
         }
+    }
 
+    /**
+     * Attempts to produce a good error message for the given error, with special
+     * handling for {@link MsalException}s.
+     *
+     * @param error
+     *            An error that occured during login with MSAL4J.
+     * @return A (hopefully) useful error message.
+     */
+    public static String formatException(final Throwable error) {
+        String message = null;
+
+        var msalEx = extractMsalException(error);
+        if (msalEx != null) {
+            message = removeLeadingExceptionType(msalEx.getMessage());
+        }
+
+        if (message == null) {
+            message = ExceptionUtil.getDeepestNIOErrorMessage(error);
+        }
+
+        if (message == null) {
+            message = ExceptionUtil.getDeepestErrorMessage(error, true);
+        }
+
+        if (message == null) {
+            message = String.format("An error occured (%s)", error.getClass().getSimpleName());
+        }
+
+        return removeLeadingExceptionType(message);
+    }
+
+    private static final Pattern LEADING_EXCEPTION_PATTERN = Pattern
+            .compile("^([\\w.]+\\.[\\w]+Exception: )(.+)$"); // NOSONAR
+
+    private static String removeLeadingExceptionType(String message) {
+        message = message.trim();
+
+        var matcher = LEADING_EXCEPTION_PATTERN.matcher(message);
+        while (matcher.matches()) {
+            message = matcher.group(2);
+            matcher = LEADING_EXCEPTION_PATTERN.matcher(message);
+        }
+
+        return message;
+    }
+
+    private static MsalException extractMsalException(final Throwable ex) {
+        var current = ex;
+        while (current != null) {
+            if (current instanceof MsalException msalEx) {
+                return msalEx;
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 }

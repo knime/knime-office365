@@ -52,32 +52,40 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.lang3.StringUtils;
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.config.ConfigRO;
+import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2AccessToken;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
-import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
+import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
-import com.microsoft.aad.msal4j.IAccount;
+import com.microsoft.aad.msal4j.ClientCredentialFactory;
+import com.microsoft.aad.msal4j.ConfidentialClientApplication;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
-import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.aad.msal4j.SilentParameters;
 
 /**
- * Token supplier for delegated permissions.
+ * Token supplier for application permissions.
  *
  * @author Zkriya Rakhimberdiyev
  */
-public class DelegatedPermissionsTokenSupplier extends MemoryCacheAccessTokenSupplier {
+public class ApplicationPermissionsTokenSupplier extends MemoryCacheAccessTokenSupplier {
+
+    private static final String KEY_SECRET_CACHE_KEY = "secretCacheKey";
+
+    private String m_secretCacheKey;
 
     /**
      * Constructor (used for deserialization only).
      *
      * @param endpoint
      *            The endpoint to use during token refresh.
-     * @param appId
+     * @param clientId
      *            The Application (client) ID
      */
-    public DelegatedPermissionsTokenSupplier(final String endpoint, final String appId) {
-        super(endpoint, appId);
+    public ApplicationPermissionsTokenSupplier(final String endpoint, final String clientId) {
+        super(endpoint, clientId);
     }
 
     /**
@@ -87,31 +95,23 @@ public class DelegatedPermissionsTokenSupplier extends MemoryCacheAccessTokenSup
      *            The endpoint to use during token refresh.
      * @param cacheKey
      *            The cache key to use against the in-memory token cache.
-     * @param appId
+     * @param clientId
      *            The Application (client) ID
+     * @param secretCacheKey
+     *            The secrect cache key to use against the in-memory cache.
      */
-    public DelegatedPermissionsTokenSupplier(final String endpoint, final String cacheKey, final String appId) {
-        super(endpoint, cacheKey, appId);
+    public ApplicationPermissionsTokenSupplier(final String endpoint, final String cacheKey, final String clientId,
+            final String secretCacheKey) {
+        super(endpoint, cacheKey, clientId);
+        m_secretCacheKey = secretCacheKey;
     }
 
-    /**
-     * Retrieves a cached access token from the in-memory cache and refreshes it if
-     * necessary.
-     *
-     * @param scopes
-     *            The OAuth2 scopes to use.
-     * @return The (possibly refreshed) access token.
-     * @throws IOException
-     *             usually if something went wrong while refreshing the access
-     *             token.
-     */
     @Override
-    public final OAuth2AccessToken getAuthenticationResult(final Set<String> scopes) throws IOException {
-        final var app = createPublicClientApplication();
+    public OAuth2AccessToken getAuthenticationResult(final Set<String> scopes) throws IOException {
+        final var app = createConfidentialClientApplication();
 
         try {
-            IAccount account = app.getAccounts().get().iterator().next();
-            IAuthenticationResult result = app.acquireTokenSilently(SilentParameters.builder(scopes, account).build())
+            IAuthenticationResult result = app.acquireTokenSilently(SilentParameters.builder(scopes).build())
                     .get();
 
             return new OAuth2AccessToken(result.accessToken(), result.expiresOnDate().toInstant());
@@ -122,11 +122,34 @@ public class DelegatedPermissionsTokenSupplier extends MemoryCacheAccessTokenSup
         }
     }
 
-    private PublicClientApplication createPublicClientApplication() throws IOException {
+    private ConfidentialClientApplication createConfidentialClientApplication() throws IOException {
         final var tokenCacheString = MemoryCredentialCache.get(m_cacheKey);
-        if (tokenCacheString == null) {
+        if (StringUtils.isBlank(tokenCacheString)) {
             throw new IOException("No access token found. Please re-execute the Microsoft Authentication node.");
         }
-        return MSALUtil.createClientAppWithToken(m_appId, m_endpoint, tokenCacheString);
+        final var secret = MemoryCredentialCache.get(m_secretCacheKey);
+        if (StringUtils.isBlank(secret)) {
+            throw new IOException("No secret found. Please re-execute the Microsoft Authentication node.");
+        }
+
+        final var credential = ClientCredentialFactory.createFromSecret(secret);
+        final var app = MSALUtil.createConfidentialApp(m_appId, m_endpoint, credential);
+
+        app.tokenCache().deserialize(tokenCacheString);
+        return app;
+    }
+
+    @Override
+    public void saveSettings(final ConfigWO config) {
+        super.saveSettings(config);
+        config.addString(KEY_SECRET_CACHE_KEY, m_secretCacheKey);
+    }
+
+    @Override
+    public void loadSettings(final ConfigRO config) throws InvalidSettingsException {
+        super.loadSettings(config);
+        if (config.containsKey(KEY_SECRET_CACHE_KEY)) {
+            m_secretCacheKey = config.getString(KEY_SECRET_CACHE_KEY);
+        }
     }
 }

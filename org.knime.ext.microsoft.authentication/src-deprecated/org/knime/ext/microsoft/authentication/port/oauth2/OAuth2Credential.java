@@ -64,10 +64,10 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.config.ConfigRO;
 import org.knime.core.node.config.ConfigWO;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.providers.oauth2.MSALUtil;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.ApplicationPermissionsTokenSupplier;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.DelegatedPermissionsTokenSupplier;
 import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
+import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 /**
  * Subclass of {@link MicrosoftCredential} that provides access to an OAuth2
