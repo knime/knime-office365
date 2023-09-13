@@ -68,11 +68,13 @@ public class SharepointListWriterNodeFactory extends WebUINodeFactory<Sharepoint
                     <i>Notes:</i>
                     <ul>
                         <li>
-                            Writing tables with more than a few hundred rows can take long time. Overwriting an existing table
+                            Writing tables with more than a few hundred rows can take long time.
+                            Overwriting an existing table
                             can be also very slow in case a lot of rows need to be deleted.
                         </li>
                         <li>
-                            This node exports the ID of the written list to a flow variable called <tt>sharepoint_list_id</tt>. The ID can be
+                            This node exports the ID of the written list to a flow
+                            variable called <tt>sharepoint_list_id</tt>. The ID can be
                             be used in subsequent nodes to control the <tt>list</tt> setting via flow variable.
                         </li>
                     </ul>
@@ -84,13 +86,25 @@ public class SharepointListWriterNodeFactory extends WebUINodeFactory<Sharepoint
                     <u>Fully supported KNIME column types:</u>
                     <ul>
                         <li>
-                            <i>String and string-compatible columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Multiple lines of text</i></a>
+                            <i>String and string-compatible columns</i> map to
+                            <a href="https://support.microsoft.com/en-us/office/
+                            list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                                <i>Multiple lines of text</i>
+                            </a>
                         </li>
                         <li>
-                            <i>Integer columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>
+                            <i>Integer columns</i> map to
+                            <a href="https://support.microsoft.com/en-us/office/
+                            list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                                <i>Number</i>
+                            </a>
                         </li>
                         <li>
-                            <i>Boolean columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Yes/no</i></a>
+                            <i>Boolean columns</i> map to
+                            <a href="https://support.microsoft.com/en-us/office/
+                            list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                                <i>Yes/no</i>
+                            </a>
                         </li>
                     </ul>
                 </p>
@@ -98,7 +112,11 @@ public class SharepointListWriterNodeFactory extends WebUINodeFactory<Sharepoint
                     <u>Partially supported KNIME columns types:</u>
                     <ul>
                         <li>
-                            <i>Long columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>.
+                            <i>Long columns</i> map to
+                            <a href="https://support.microsoft.com/en-us/office/
+                            list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                                <i>Number</i>
+                            </a>.
                             The node will fail for more than 15 significant digits
                             (digits which remain after leading and trailing zeros are
                             removed, i.e. in "401220500000" the digits "4012205" are
@@ -106,28 +124,43 @@ public class SharepointListWriterNodeFactory extends WebUINodeFactory<Sharepoint
                             significant).
                         </li>
                         <li>
-                            <i>Double columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>.
+                            <i>Double columns</i> map to
+                            <a href="https://support.microsoft.com/en-us/office/
+                            list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                                <i>Number</i>
+                            </a>.
                             The node will fail for infinity, NaN and values outside of
                             [1.79E308,-1.79E308], as well as for numbers with more than
                             15 significant digits.
                         </li>
                         <li>
-                            <i>Local Date and Local Date Time columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>
-                            Date and Time</i></a>, which stores a UTC timestamp with second-precision. Hence, values from KNIME are mapped to an instant in UTC
-                            and truncated to second-precision. For example, 2022-02-02 08:00:00 is stored as 2022-02-02 08:00:00 UTC. The node will fail for values before 1900-01-01 00:00:00 UTC and
+                            <i>Local Date and Local Date Time columns</i> map to
+                            <a href="https://support.microsoft.com/en-us/office/
+                            list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                            <i>Date and Time</i></a>, which stores a UTC timestamp with second-precision.
+                            Hence, values from KNIME are mapped to an instant in UTC
+                            and truncated to second-precision.
+                            For example, 2022-02-02 08:00:00 is stored as 2022-02-02 08:00:00 UTC.
+                            The node will fail for values before 1900-01-01 00:00:00 UTC and
                             after 8900-12-31 23:59:59 UTC.
                         </li>
                         <li>
-                            <i>Zoned Date Time columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
-                            <i>Date and Time</i></a>, which stores a UTC timestamp with second-precision. Hence, Zoned Date Time values are converted to the UTC timezone and truncated to second-precision.
-                            For example, 2022-02-02 08:00:00 CET is stored as
-                            2022-02-02 07:00:00 UTC. The node will fail for values before 1900-01-01 00:00:00 UTC and after 8900-12-31 23:59:59 UTC.
+                            <i>Zoned Date Time columns</i> map to
+                            <a href="https://support.microsoft.com/en-us/office/
+                            list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                            <i>Date and Time</i></a>, which stores a UTC timestamp with second-precision.
+                            Hence, Zoned Date Time values are converted to the UTC timezone
+                            and truncated to second-precision.
+                            For example, 2022-02-02 08:00:00 CET is stored as 2022-02-02 07:00:00 UTC.
+                            The node will fail for values before 1900-01-01 00:00:00 UTC
+                            and after 8900-12-31 23:59:59 UTC.
                         </li>
                     </ul>
                 </p>
                 <p>
                     <u>Unsupported KNIME column types:</u><br/>
-                    All column types that do not belong to the above categories are unsupported and the node cannot be executed, since there is no corresponding type in SharePoint Online.
+                    All column types that do not belong to the above categories are unsupported
+                    and the node cannot be executed, since there is no corresponding type in SharePoint Online.
                 </p>
             """;
 

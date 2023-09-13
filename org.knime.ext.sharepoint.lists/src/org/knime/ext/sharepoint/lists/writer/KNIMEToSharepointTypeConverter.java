@@ -117,7 +117,9 @@ public final class KNIMEToSharepointTypeConverter {
      * {@link JsonPrimitive} and creates named {@link ColumnDefinition} based on a
      * DataType
      */
-    public static final Map<DataType, Pair<Function<DataCell, JsonElement>, Function<String, ColumnDefinition>>> TYPE_CONVERTER = new HashMap<>();
+    public static final Map<DataType, //
+            Pair<Function<DataCell, JsonElement>, //
+                    Function<String, ColumnDefinition>>> TYPE_CONVERTER = new HashMap<>();
 
     /** If no suitable converter is available */
     static final Pair<Function<DataCell, JsonElement>, Function<String, ColumnDefinition>> DEFAULT_CONVERTER = Pair

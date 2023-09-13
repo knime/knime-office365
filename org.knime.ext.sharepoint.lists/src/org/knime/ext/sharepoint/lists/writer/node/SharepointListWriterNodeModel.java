@@ -93,7 +93,8 @@ public class SharepointListWriterNodeModel extends WebUINodeModel<SharepointList
             final String colName = colSpec.getName();
             if (colName.length() > 255) {
                 throw new InvalidSettingsException(
-                        "One or more column names do have a length over 255 characters, which is not allowed. Please reduce the length.");
+                        "One or more column names do have a length over 255 characters, "
+                                + "which is not allowed. Please reduce the length.");
             }
         }
         // TODO: retrieve list id from modelSettings and push it as a flow variable
