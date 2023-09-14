@@ -71,7 +71,7 @@ import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesProvider;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.PossibleValue;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.IdAndText;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.CustomScope.CustomScopesPersistor;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.StandardScopesPersistor;
 import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
@@ -144,11 +144,11 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
 
         static class StandardScopesChoicesProvider implements ChoicesProvider {
             @Override
-            public PossibleValue[] choicesWithIdAndText(final DefaultNodeSettingsContext context) {
+            public IdAndText[] choicesWithIdAndText(final DefaultNodeSettingsContext context) {
                 return Scope.listByScopeType(ScopeType.DELEGATED).stream() //
                         .filter(s -> s != Scope.OTHER && s != Scope.OTHERS) //
-                        .map(s -> new PossibleValue(s.name(), stripHtml(s.getTitle()))) //
-                        .toArray(PossibleValue[]::new);
+                        .map(s -> new IdAndText(s.name(), stripHtml(s.getTitle()))) //
+                        .toArray(IdAndText[]::new);
             }
 
             private static String stripHtml(final String str) {
