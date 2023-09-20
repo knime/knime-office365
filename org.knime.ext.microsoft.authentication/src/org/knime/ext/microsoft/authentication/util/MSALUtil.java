@@ -50,11 +50,16 @@ package org.knime.ext.microsoft.authentication.util;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
 import com.microsoft.aad.msal4j.ConfidentialClientApplication;
+import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.IClientCredential;
 import com.microsoft.aad.msal4j.MsalClientException;
 import com.microsoft.aad.msal4j.MsalException;
@@ -169,6 +174,65 @@ public final class MSALUtil {
     }
 
     /**
+     * Functional interface to capture the acquireToken() call when doing an OAUth2
+     * login. Instances of this interface are meant to be passed to
+     * {@link MSALUtil#doLogin(LoginFunction)}.
+     *
+     * <p>
+     * The reason for this scheme is that producing readable error messages is
+     * somewhat complicated, as several different exceptions can get thrown and need
+     * to be handled correctly, in particular the exceptions result from invoking
+     * {@link Future#get()}.
+     * </p>
+     *
+     */
+    @FunctionalInterface
+    public interface LoginFunction {
+        /**
+         * Implement this method to capture the acquireToken() call when doing an OAUth2
+         * login
+         *
+         * @return the {@link CompletableFuture} from invoking acquireToken().
+         *
+         * @throws IOException
+         * @throws MsalException
+         * @throws InterruptedException
+         * @throws CancellationException
+         * @throws ExecutionException
+         */
+        CompletableFuture<IAuthenticationResult> login()
+                throws IOException, MsalException, InterruptedException, CancellationException, ExecutionException;
+    }
+
+    /**
+     * Invoke this method to perform an OAuth2 login. The purpose of this method is
+     * to produce readable error messages when something goes wrong. All errors are
+     * reported as {@link IOException}. Invokers of this method are responsible for
+     * logging the error.
+     *
+     * @param loginFunction
+     * @return the authentication result.
+     * @throws IOException
+     */
+    @SuppressWarnings("null")
+    public static IAuthenticationResult doLogin(final LoginFunction loginFunction) throws IOException {
+        CompletableFuture<IAuthenticationResult> authFuture = null;
+        try {
+            authFuture = loginFunction.login();
+            return authFuture.get();
+        } catch (MsalException e) {
+            throw new IOException(formatException(e), e);
+        } catch (InterruptedException | CancellationException ex) { // NOSONAR
+            // need to cancel the future if current thread is interrupted
+            authFuture.cancel(true); // NOSONAR it's not null
+            throw new IOException("Login cancelled/interrupted");
+        } catch (ExecutionException ex) { // NOSONAR rethrowing the cause
+            var cause = ex.getCause();
+            throw new IOException(formatException(cause), cause);
+        }
+    }
+
+    /**
      * Attempts to produce a good error message for the given error, with special
      * handling for {@link MsalException}s.
      *
@@ -199,8 +263,7 @@ public final class MSALUtil {
         return removeLeadingExceptionType(message);
     }
 
-    private static final Pattern LEADING_EXCEPTION_PATTERN = Pattern
-            .compile("^([\\w.]+\\.[\\w]+Exception: )(.+)$"); // NOSONAR
+    private static final Pattern LEADING_EXCEPTION_PATTERN = Pattern.compile("^([\\w.]+\\.[\\w]+Exception: )(.+)$"); // NOSONAR
 
     private static String removeLeadingExceptionType(String message) {
         message = message.trim();

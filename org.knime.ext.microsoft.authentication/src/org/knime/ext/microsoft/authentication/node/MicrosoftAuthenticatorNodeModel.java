@@ -53,11 +53,11 @@ import java.io.UncheckedIOException;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.NodeLogger;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.util.Pair;
@@ -70,10 +70,11 @@ import org.knime.credentials.base.node.AuthenticatorNodeModel;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
-import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
+import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.SilentParameters;
+import com.microsoft.aad.msal4j.UserNamePasswordParameters;
 
 /**
  * The Microsoft Authenticator node. Performs authentication and produces
@@ -83,6 +84,8 @@ import com.microsoft.aad.msal4j.SilentParameters;
  */
 @SuppressWarnings("restriction")
 public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<MicrosoftAuthenticatorSettings> {
+
+    private static final NodeLogger LOG = NodeLogger.getLogger(MicrosoftAuthenticatorNodeModel.class);
 
     private static final String LOGIN_FIRST_ERROR = "Please use the configuration dialog to log in first.";
 
@@ -99,7 +102,7 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     @Override
     protected void validateOnConfigure(final PortObjectSpec[] inSpecs, final MicrosoftAuthenticatorSettings settings)
             throws InvalidSettingsException {
-        settings.validate();
+        settings.validateOnConfigure(getCredentialsProvider());
 
         if (settings.m_authenticationType == AuthenticationType.INTERACTIVE) {
             // in this case we must have already fetched the token in the node dialog
@@ -120,6 +123,12 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     }
 
     @Override
+    protected void validateOnExecute(final PortObject[] inObjects, final MicrosoftAuthenticatorSettings settings)
+            throws InvalidSettingsException {
+        settings.validateOnExecute(getCredentialsProvider());
+    }
+
+    @Override
     protected final CredentialPortObjectSpec createSpecInConfigure(final PortObjectSpec[] inSpecs,
             final MicrosoftAuthenticatorSettings modelSettings) {
         return new CredentialPortObjectSpec(JWTCredential.TYPE, null);
@@ -128,7 +137,25 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     @Override
     protected Credential createCredential(final PortObject[] inObjects, final ExecutionContext exec,
             final MicrosoftAuthenticatorSettings settings) throws Exception {
-        return fromAuthResult(settings, m_tokenHolder.getToken().getFirst(), m_tokenHolder.getToken().getSecond());
+        return switch (settings.m_authenticationType) {
+            case INTERACTIVE -> fromAuthResult(settings, m_tokenHolder.getToken().getFirst(),
+                    m_tokenHolder.getToken().getSecond());
+            case USERNAME_PASSWORD -> fetchCredentialFromUsernamePassword(settings);
+            default -> throw new InvalidSettingsException(
+                    "Unknown authentication mode: " + settings.m_authenticationType);
+        };
+    }
+
+    private Credential fetchCredentialFromUsernamePassword(final MicrosoftAuthenticatorSettings settings)
+            throws IOException {
+
+        var app = MSALUtil.createClientApp(settings.getClientId(), settings.getAuthorizationEndpointURL());
+        var params = UserNamePasswordParameters.builder(settings.m_scopesSettings.getScopesStringSet(),
+                settings.m_usernamePassword.login(getCredentialsProvider()),
+                settings.m_usernamePassword.secret(getCredentialsProvider()).toCharArray()).build();
+
+        var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
+        return fromAuthResult(settings, authResult, app.tokenCache().serialize());
     }
 
     private JWTCredential fromAuthResult(final MicrosoftAuthenticatorSettings settings,
@@ -143,7 +170,7 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
 
         try {
             return new JWTCredential(accessToken, tokenType, expiresAfter, idToken,
-                    createTokenRefresher(settings, authResult, tokenCache));
+                    createTokenRefresher(settings, authResult.account(), tokenCache));
         } catch (ParseException ex) {
             // should not happen
             throw new UncheckedIOException(new IOException("Failed to parse token: " + ex.getMessage(), ex));
@@ -151,25 +178,24 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     }
 
     private Supplier<JWTCredential> createTokenRefresher(final MicrosoftAuthenticatorSettings settings,
-            final IAuthenticationResult authResult,
-            final String tokenCache) {
+            final IAccount account, final String tokenCache) {
 
         return () -> {// NOSONAR
             try {
-                var params = SilentParameters
-                        .builder(settings.m_scopesSettings.getScopesStringSet(), authResult.account()).build();
-                var app = MSALUtil.createClientAppWithToken(settings.getClientId(),
-                        settings.getAuthorizationEndpointURL(), tokenCache);
-                var result = app.acquireTokenSilently(params).get();
-                return fromAuthResult(settings, result, app.tokenCache().serialize());
+                var app = MSALUtil.createClientAppWithToken(//
+                        settings.getClientId(),
+                        settings.getAuthorizationEndpointURL(), //
+                        tokenCache);
+                var params = SilentParameters.builder(//
+                        settings.m_scopesSettings.getScopesStringSet(), //
+                        account).build();
+
+                var authResult = MSALUtil.doLogin(() -> app.acquireTokenSilently(params));
+                return fromAuthResult(settings, authResult, app.tokenCache().serialize());
             } catch (IOException ex) {
+                LOG.error(ex.getMessage(), ex);
                 throw new UncheckedIOException(ex);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException ex) {
-                throw new UncheckedIOException(ExceptionUtil.wrapAsIOException(ExceptionUtil.getDeepestError(ex)));
             }
-            return null;
         };
     }
 

@@ -48,15 +48,16 @@
  */
 package org.knime.ext.microsoft.authentication.node;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
+import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.util.Pair;
 import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.After;
@@ -64,6 +65,7 @@ import org.knime.core.webui.node.dialog.defaultdialog.layout.Before;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Layout;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Section;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
+import org.knime.core.webui.node.dialog.defaultdialog.rule.And;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect.EffectType;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.OneOfEnumCondition;
@@ -75,14 +77,13 @@ import org.knime.core.webui.node.dialog.defaultdialog.widget.button.ButtonWidget
 import org.knime.core.webui.node.dialog.defaultdialog.widget.button.CancelableActionHandler;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.handler.WidgetHandlerException;
 import org.knime.credentials.base.GenericTokenHolder;
+import org.knime.credentials.base.node.UsernamePasswordSettings;
 import org.knime.credentials.base.oauth.api.nodesettings.TokenCacheKeyPersistor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.CustomOpenBrowserAction;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
-import com.microsoft.aad.msal4j.MsalException;
 import com.microsoft.aad.msal4j.SystemBrowserOptions;
 
 /**
@@ -99,6 +100,13 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Section(title = "Authentication type")
     @Before(ScopesSection.class)
     interface AuthenticationTypeSection {
+    }
+
+    @Section(title = "Username and Password")
+    @After(AuthenticationTypeSection.class)
+    @Before(ScopesSection.class)
+    @Effect(signals = AuthenticationType.IsUsernamePassword.class, type = EffectType.SHOW)
+    interface UsernamePasswordSection {
     }
 
     @Section(title = "Scopes of access")
@@ -118,6 +126,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
 
     @Section(title = "Authentication")
     @After(ClientApplicationSection.class)
+    @Effect(signals = AuthenticationType.IsInteractive.class, type = EffectType.SHOW)
     interface AuthenticationSection {
     }
 
@@ -171,16 +180,27 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             hideTitle = true)
     @Layout(AuthenticationTypeSection.class)
     @Signal(condition = AuthenticationType.IsInteractive.class)
+    @Signal(condition = AuthenticationType.IsUsernamePassword.class)
     AuthenticationType m_authenticationType = AuthenticationType.INTERACTIVE;
 
     enum AuthenticationType {
         @Label("Interactive (OAuth 2)")
-        INTERACTIVE;
+        INTERACTIVE,
+
+        @Label("Username/Password (OAuth 2)")
+        USERNAME_PASSWORD;
 
         static class IsInteractive extends OneOfEnumCondition<AuthenticationType> {
             @Override
             public AuthenticationType[] oneOf() {
                 return new AuthenticationType[] { INTERACTIVE };
+            }
+        }
+
+        static class IsUsernamePassword extends OneOfEnumCondition<AuthenticationType> {
+            @Override
+            public AuthenticationType[] oneOf() {
+                return new AuthenticationType[] { USERNAME_PASSWORD };
             }
         }
     }
@@ -247,7 +267,8 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     must be part of the configuration of your custom app.
                     """)
     @Layout(ClientApplicationSection.class)
-    @Effect(signals = ClientSelection.IsCustom.class, type = EffectType.SHOW)
+    @Effect(signals = { AuthenticationType.IsInteractive.class,
+            ClientSelection.IsCustom.class }, type = EffectType.SHOW, operation = And.class)
     String m_redirectUrl;
 
     @ButtonWidget(actionHandler = LoginActionHandler.class, //
@@ -275,32 +296,20 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             var app = MSALUtil.createClientApp(settings.getClientId(), settings.getAuthorizationEndpointURL());
 
             // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
-            final InteractiveRequestParameters params = InteractiveRequestParameters
-                    .builder(URI.create(settings.getRedirectURL()))
-                    .scopes(settings.m_scopesSettings.getScopesStringSet())
+            final var params = InteractiveRequestParameters.builder(URI.create(settings.getRedirectURL()))//
+                    .scopes(settings.m_scopesSettings.getScopesStringSet())//
                     .systemBrowserOptions(
                             SystemBrowserOptions.builder().openBrowserAction(new CustomOpenBrowserAction()).build())
                     .build();
 
-            CompletableFuture<IAuthenticationResult> authFuture = null;
             try {
-                authFuture = app.acquireToken(params);
-                var result = authFuture.get();
-
-                var pair = new Pair<>(result, app.tokenCache().serialize());
+                var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
+                var pair = new Pair<>(authResult, app.tokenCache().serialize());
                 var holder = GenericTokenHolder.store(pair);
                 return holder.getCacheKey();
-            } catch (MsalException e) {
+            } catch (IOException e) {
                 LOG.error(e.getMessage(), e);
-                throw new WidgetHandlerException(MSALUtil.formatException(e));
-            } catch (InterruptedException | CancellationException ex) { // NOSONAR intentionally ignoring
-                // need to cancel the future if current thread is interrupted, otherwise local
-                // webserver is not shut down
-                authFuture.cancel(true); // NOSONAR it's not null
-                throw new WidgetHandlerException("Login cancelled/interrupted");
-            } catch (ExecutionException ex) {
-                LOG.error(ex.getCause().getMessage(), ex);
-                throw new WidgetHandlerException(MSALUtil.formatException(ex.getCause()));
+                throw new WidgetHandlerException(e.getMessage());
             }
         }
 
@@ -319,12 +328,10 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             extends CancelableActionHandler.UpdateHandler<UUID, MicrosoftAuthenticatorSettings> {
     }
 
-    /**
-     * Validates the settings.
-     *
-     * @throws InvalidSettingsException
-     */
-    public void validate() throws InvalidSettingsException {
+    @Layout(UsernamePasswordSection.class)
+    UsernamePasswordSettings m_usernamePassword = new UsernamePasswordSettings();
+
+    private void validate() throws InvalidSettingsException {
         m_scopesSettings.validate();
 
         if (m_authorizationEndpointSelection == AuthorizationEndpointSelection.CUSTOM
@@ -336,13 +343,66 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             if (StringUtils.isBlank(m_clientId)) {
                 throw new InvalidSettingsException("Please specify the Client/Application ID");
             }
-            if (StringUtils.isBlank(m_redirectUrl)) {
-                throw new InvalidSettingsException("Please specify the redirect URL");
+
+            if (m_authenticationType == AuthenticationType.INTERACTIVE) {
+                validateRedirectURL();
             }
         }
     }
 
+    private void validateRedirectURL() throws InvalidSettingsException {
+        if (StringUtils.isBlank(m_redirectUrl)) {
+            throw new InvalidSettingsException("Please specify the redirect URL");
+        }
+
+        try {
+            var uri = new URI(m_redirectUrl);
+            if (!Objects.equals(uri.getScheme(), "http") && !Objects.equals(uri.getScheme(), "https")) {
+                throw new InvalidSettingsException("Redirect URL must start with http:// or https://.");
+            }
+
+            if (StringUtils.isBlank(uri.getHost())) {
+                throw new InvalidSettingsException("Redirect URL must specify a host.");
+            }
+        } catch (URISyntaxException ex) {
+            throw new InvalidSettingsException("Please specify a valid redirect URL: " + ex.getMessage());
+        }
+    }
+
     /**
+     * * Validates the settings. The method is intended to be called in the
+     * configure stage.
+     *
+     * @param credsProvider
+     *            The credential provider.
+     * @throws InvalidSettingsException
+     */
+    public void validateOnConfigure(final CredentialsProvider credsProvider) throws InvalidSettingsException {
+        if (m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
+            m_usernamePassword.validateOnConfigure(credsProvider);
+        }
+
+        validate();
+    }
+
+    /**
+     * Validates the settings. The method is intended to be called in the execute
+     * stage.
+     *
+     * @param credsProvider
+     *            The credential provider.
+     * @throws InvalidSettingsException
+     */
+    public void validateOnExecute(final CredentialsProvider credsProvider) throws InvalidSettingsException {
+        if (m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
+            m_usernamePassword.validateOnExecute(credsProvider);
+        }
+
+        validate();
+    }
+
+    /**
+     *
      * @return The client ID.
      */
     @JsonIgnore
@@ -375,9 +435,9 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
      */
     @JsonIgnore
     public String getRedirectURL() {
-        if(m_clientSelection == ClientSelection.CUSTOM) {
+        if (m_clientSelection == ClientSelection.CUSTOM) {
             return m_redirectUrl;
-        }else {
+        } else {
             return DEFAULT_REDIRECT_URL;
         }
     }
