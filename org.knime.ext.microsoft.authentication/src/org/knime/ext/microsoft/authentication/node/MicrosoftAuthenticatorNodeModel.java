@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.node;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.Optional;
@@ -68,6 +69,7 @@ import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.GenericTokenHolder;
 import org.knime.credentials.base.node.AuthenticatorNodeModel;
 import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSasUrlCredential;
 import org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
@@ -148,6 +150,7 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
                     m_tokenHolder.getToken().getSecond());
             case USERNAME_PASSWORD -> fetchCredentialFromUsernamePassword(settings);
             case AZURE_STORAGE_SHARED_KEY -> createAzureSharedKeyCredential(settings);
+            case AZURE_STORAGE_SAS_URL -> fetchCredentialFromSasUrl(settings);
             default -> throw new InvalidSettingsException(
                     "Unknown authentication mode: " + settings.m_authenticationType);
         };
@@ -156,6 +159,15 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     private Credential createAzureSharedKeyCredential(final MicrosoftAuthenticatorSettings settings) {
         return new AzureStorageSharedKeyCredential(settings.m_sharedKey.login(getCredentialsProvider()),
                 settings.m_sharedKey.secret(getCredentialsProvider()));
+    }
+
+    private Credential fetchCredentialFromSasUrl(final MicrosoftAuthenticatorSettings settings) throws Exception { // NOSONAR
+        try {
+            var sasUrl = URI.create(settings.m_sasUrl.secret(getCredentialsProvider()));
+            return new AzureStorageSasUrlCredential(sasUrl);
+        } catch (IllegalArgumentException e) {
+            throw new Exception("Invalid SAS URL. " + e.getMessage(), e); // NOSONAR
+        }
     }
 
     private Credential fetchCredentialFromUsernamePassword(final MicrosoftAuthenticatorSettings settings)

@@ -3,6 +3,12 @@
 <plugin>
    <extension 
    		 point="org.knime.credentials.base.CredentialType">
+	 <credentialType
+            credentialClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSasUrlCredential"
+            credentialSerializerClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSasUrlCredential$Serializer"
+            id="knime.AzureStorageSasUrlCredential"
+            name="Azure Storage SAS URL">
+      </credentialType>
    	  <credentialType
             credentialClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential"
             credentialSerializerClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential$Serializer"

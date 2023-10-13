@@ -116,6 +116,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     interface SharedKeySection {
     }
 
+    @Section(title = "Shared access signature (SAS)")
+    @After(AuthenticationTypeSection.class)
+    @Effect(signals = AuthenticationType.IsAzureStorageSasUrl.class, type = EffectType.SHOW)
+    interface SasUrlSection {
+    }
+
     @Section(title = "Scopes of access")
     @After(AuthenticationTypeSection.class)
     @Effect(signals = { AuthenticationType.IsInteractive.class,
@@ -195,6 +201,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Signal(condition = AuthenticationType.IsInteractive.class)
     @Signal(condition = AuthenticationType.IsUsernamePassword.class)
     @Signal(condition = AuthenticationType.IsAzureStorageSharedKey.class)
+    @Signal(condition = AuthenticationType.IsAzureStorageSasUrl.class)
     AuthenticationType m_authenticationType = AuthenticationType.INTERACTIVE;
 
     enum AuthenticationType {
@@ -205,7 +212,10 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         USERNAME_PASSWORD,
 
         @Label("Azure Storage shared key")
-        AZURE_STORAGE_SHARED_KEY;
+        AZURE_STORAGE_SHARED_KEY,
+
+        @Label("Azure Storage shared access signature (SAS)")
+        AZURE_STORAGE_SAS_URL;
 
         static class IsInteractive extends OneOfEnumCondition<AuthenticationType> {
             @Override
@@ -225,6 +235,13 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             @Override
             public AuthenticationType[] oneOf() {
                 return new AuthenticationType[] { AZURE_STORAGE_SHARED_KEY };
+            }
+        }
+
+        static class IsAzureStorageSasUrl extends OneOfEnumCondition<AuthenticationType> {
+            @Override
+            public AuthenticationType[] oneOf() {
+                return new AuthenticationType[] { AZURE_STORAGE_SAS_URL };
             }
         }
     }
@@ -358,6 +375,9 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(SharedKeySection.class)
     AzureStorageSharedKeySettings m_sharedKey = new AzureStorageSharedKeySettings();
 
+    @Layout(SasUrlSection.class)
+    AzureStorageSasUrlSettings m_sasUrl = new AzureStorageSasUrlSettings();
+
     private void validate() throws InvalidSettingsException {
         if (m_authenticationType == AuthenticationType.INTERACTIVE
                 || m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
@@ -412,6 +432,8 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             m_usernamePassword.validateOnConfigure(credsProvider);
         } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SHARED_KEY) {
             m_sharedKey.validateOnConfigure(credsProvider);
+        } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SAS_URL) {
+            m_sasUrl.validateOnConfigure(credsProvider);
         }
 
         validate();
@@ -430,6 +452,8 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             m_usernamePassword.validateOnExecute(credsProvider);
         } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SHARED_KEY) {
             m_sharedKey.validateOnExecute(credsProvider);
+        } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SAS_URL) {
+            m_sasUrl.validateOnExecute(credsProvider);
         }
 
         validate();
