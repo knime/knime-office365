@@ -68,6 +68,7 @@ import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.GenericTokenHolder;
 import org.knime.credentials.base.node.AuthenticatorNodeModel;
 import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
@@ -131,19 +132,30 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     @Override
     protected final CredentialPortObjectSpec createSpecInConfigure(final PortObjectSpec[] inSpecs,
             final MicrosoftAuthenticatorSettings modelSettings) {
-        return new CredentialPortObjectSpec(JWTCredential.TYPE, null);
+
+        return switch (modelSettings.m_authenticationType) {
+            case AZURE_STORAGE_SHARED_KEY -> new CredentialPortObjectSpec(AzureStorageSharedKeyCredential.TYPE, null);
+            default -> new CredentialPortObjectSpec(JWTCredential.TYPE, null);
+        };
     }
 
     @Override
     protected Credential createCredential(final PortObject[] inObjects, final ExecutionContext exec,
             final MicrosoftAuthenticatorSettings settings) throws Exception {
+
         return switch (settings.m_authenticationType) {
             case INTERACTIVE -> fromAuthResult(settings, m_tokenHolder.getToken().getFirst(),
                     m_tokenHolder.getToken().getSecond());
             case USERNAME_PASSWORD -> fetchCredentialFromUsernamePassword(settings);
+            case AZURE_STORAGE_SHARED_KEY -> createAzureSharedKeyCredential(settings);
             default -> throw new InvalidSettingsException(
                     "Unknown authentication mode: " + settings.m_authenticationType);
         };
+    }
+
+    private Credential createAzureSharedKeyCredential(final MicrosoftAuthenticatorSettings settings) {
+        return new AzureStorageSharedKeyCredential(settings.m_sharedKey.login(getCredentialsProvider()),
+                settings.m_sharedKey.secret(getCredentialsProvider()));
     }
 
     private Credential fetchCredentialFromUsernamePassword(final MicrosoftAuthenticatorSettings settings)

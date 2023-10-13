@@ -69,6 +69,7 @@ import org.knime.core.webui.node.dialog.defaultdialog.rule.And;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect.EffectType;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.OneOfEnumCondition;
+import org.knime.core.webui.node.dialog.defaultdialog.rule.Or;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Signal;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Label;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
@@ -109,18 +110,30 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     interface UsernamePasswordSection {
     }
 
+    @Section(title = "Shared Key")
+    @After(AuthenticationTypeSection.class)
+    @Effect(signals = AuthenticationType.IsAzureStorageSharedKey.class, type = EffectType.SHOW)
+    interface SharedKeySection {
+    }
+
     @Section(title = "Scopes of access")
     @After(AuthenticationTypeSection.class)
+    @Effect(signals = { AuthenticationType.IsInteractive.class,
+            AuthenticationType.IsUsernamePassword.class }, type = EffectType.SHOW, operation = Or.class)
     interface ScopesSection {
     }
 
     @Section(title = "Authorization endpoint", advanced = true)
     @After(ScopesSection.class)
+    @Effect(signals = { AuthenticationType.IsInteractive.class,
+            AuthenticationType.IsUsernamePassword.class }, type = EffectType.SHOW, operation = Or.class)
     interface AuthorizationEndpointSection {
     }
 
     @Section(title = "Client/App", advanced = true)
     @After(AuthorizationEndpointSection.class)
+    @Effect(signals = { AuthenticationType.IsInteractive.class,
+            AuthenticationType.IsUsernamePassword.class }, type = EffectType.SHOW, operation = Or.class)
     interface ClientApplicationSection {
     }
 
@@ -181,6 +194,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(AuthenticationTypeSection.class)
     @Signal(condition = AuthenticationType.IsInteractive.class)
     @Signal(condition = AuthenticationType.IsUsernamePassword.class)
+    @Signal(condition = AuthenticationType.IsAzureStorageSharedKey.class)
     AuthenticationType m_authenticationType = AuthenticationType.INTERACTIVE;
 
     enum AuthenticationType {
@@ -188,7 +202,10 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         INTERACTIVE,
 
         @Label("Username/Password (OAuth 2)")
-        USERNAME_PASSWORD;
+        USERNAME_PASSWORD,
+
+        @Label("Azure Storage shared key")
+        AZURE_STORAGE_SHARED_KEY;
 
         static class IsInteractive extends OneOfEnumCondition<AuthenticationType> {
             @Override
@@ -201,6 +218,13 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             @Override
             public AuthenticationType[] oneOf() {
                 return new AuthenticationType[] { USERNAME_PASSWORD };
+            }
+        }
+
+        static class IsAzureStorageSharedKey extends OneOfEnumCondition<AuthenticationType> {
+            @Override
+            public AuthenticationType[] oneOf() {
+                return new AuthenticationType[] { AZURE_STORAGE_SHARED_KEY };
             }
         }
     }
@@ -331,8 +355,14 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(UsernamePasswordSection.class)
     UsernamePasswordSettings m_usernamePassword = new UsernamePasswordSettings();
 
+    @Layout(SharedKeySection.class)
+    AzureStorageSharedKeySettings m_sharedKey = new AzureStorageSharedKeySettings();
+
     private void validate() throws InvalidSettingsException {
-        m_scopesSettings.validate();
+        if (m_authenticationType == AuthenticationType.INTERACTIVE
+                || m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
+            m_scopesSettings.validate();
+        }
 
         if (m_authorizationEndpointSelection == AuthorizationEndpointSelection.CUSTOM
                 && StringUtils.isBlank(m_authorizationEndpointUrl)) {
@@ -380,6 +410,8 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     public void validateOnConfigure(final CredentialsProvider credsProvider) throws InvalidSettingsException {
         if (m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
             m_usernamePassword.validateOnConfigure(credsProvider);
+        } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SHARED_KEY) {
+            m_sharedKey.validateOnConfigure(credsProvider);
         }
 
         validate();
@@ -396,6 +428,8 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     public void validateOnExecute(final CredentialsProvider credsProvider) throws InvalidSettingsException {
         if (m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
             m_usernamePassword.validateOnExecute(credsProvider);
+        } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SHARED_KEY) {
+            m_sharedKey.validateOnExecute(credsProvider);
         }
 
         validate();

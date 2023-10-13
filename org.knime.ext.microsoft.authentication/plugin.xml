@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.0"?>
 <plugin>
+   <extension 
+   		 point="org.knime.credentials.base.CredentialType">
+   	  <credentialType
+            credentialClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential"
+            credentialSerializerClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential$Serializer"
+            id="knime.AzureStorageSharedKeyCredential"
+            name="Azure Storage shared key">
+      </credentialType>
+   </extension>
    <extension
          point="org.knime.workbench.repository.nodes">
       <node
