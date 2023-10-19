@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
@@ -61,7 +62,6 @@ import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.util.Pair;
 import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.After;
-import org.knime.core.webui.node.dialog.defaultdialog.layout.Before;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Layout;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Section;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
@@ -99,33 +99,38 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     private static final String DEFAULT_REDIRECT_URL = "http://localhost:51355/";
 
     @Section(title = "Authentication type")
-    @Before(ScopesSection.class)
     interface AuthenticationTypeSection {
     }
 
     @Section(title = "Username and Password")
     @After(AuthenticationTypeSection.class)
-    @Before(ScopesSection.class)
     @Effect(signals = AuthenticationType.IsUsernamePassword.class, type = EffectType.SHOW)
     interface UsernamePasswordSection {
     }
 
+    @Section(title = "Client/App")
+    @After(UsernamePasswordSection.class)
+    @Effect(signals = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
+    interface ClientAppAndSecretSection {
+    }
+
     @Section(title = "Shared Key")
-    @After(AuthenticationTypeSection.class)
+    @After(ClientAppAndSecretSection.class)
     @Effect(signals = AuthenticationType.IsAzureStorageSharedKey.class, type = EffectType.SHOW)
     interface SharedKeySection {
     }
 
     @Section(title = "Shared access signature (SAS)")
-    @After(AuthenticationTypeSection.class)
+    @After(SharedKeySection.class)
     @Effect(signals = AuthenticationType.IsAzureStorageSasUrl.class, type = EffectType.SHOW)
     interface SasUrlSection {
     }
 
     @Section(title = "Scopes of access")
-    @After(AuthenticationTypeSection.class)
-    @Effect(signals = { AuthenticationType.IsInteractive.class,
-            AuthenticationType.IsUsernamePassword.class }, type = EffectType.SHOW, operation = Or.class)
+    @After(SasUrlSection.class)
+    @Effect(signals = { AuthenticationType.IsInteractive.class, //
+            AuthenticationType.IsUsernamePassword.class, //
+            AuthenticationType.IsClientSecret.class }, type = EffectType.SHOW, operation = Or.class)
     interface ScopesSection {
     }
 
@@ -200,6 +205,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(AuthenticationTypeSection.class)
     @Signal(condition = AuthenticationType.IsInteractive.class)
     @Signal(condition = AuthenticationType.IsUsernamePassword.class)
+    @Signal(condition = AuthenticationType.IsClientSecret.class)
     @Signal(condition = AuthenticationType.IsAzureStorageSharedKey.class)
     @Signal(condition = AuthenticationType.IsAzureStorageSasUrl.class)
     AuthenticationType m_authenticationType = AuthenticationType.INTERACTIVE;
@@ -210,6 +216,9 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
 
         @Label("Username/Password (OAuth 2)")
         USERNAME_PASSWORD,
+
+        @Label("Client/Application secret (OAuth 2)")
+        CLIENT_SECRET,
 
         @Label("Azure Storage shared key")
         AZURE_STORAGE_SHARED_KEY,
@@ -231,6 +240,13 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             }
         }
 
+        static class IsClientSecret extends OneOfEnumCondition<AuthenticationType> {
+            @Override
+            public AuthenticationType[] oneOf() {
+                return new AuthenticationType[] { CLIENT_SECRET };
+            }
+        }
+
         static class IsAzureStorageSharedKey extends OneOfEnumCondition<AuthenticationType> {
             @Override
             public AuthenticationType[] oneOf() {
@@ -245,6 +261,20 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             }
         }
     }
+
+    @Widget(title = "Azure tenant ID (or domain)", description = """
+            The directory tenant the application plans to operate against, in ID or domain-name format,
+            for example <i>cf47ff49-7da6-4603-b339-f4475176432b,</i> or <i>mycompany.onmicrosoft.com.</i>
+            """)
+    @Layout(AuthenticationTypeSection.class)
+    @Effect(signals = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
+    String m_tenantId;
+
+    @Layout(UsernamePasswordSection.class)
+    UsernamePasswordSettings m_usernamePassword = new UsernamePasswordSettings();
+
+    @Layout(ClientAppAndSecretSection.class)
+    ConfidentialAppSettings m_confidentialApp = new ConfidentialAppSettings();
 
     @Layout(ScopesSection.class)
     ScopesSettings m_scopesSettings = new ScopesSettings();
@@ -291,7 +321,6 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             public ClientSelection[] oneOf() {
                 return new ClientSelection[] { CUSTOM };
             }
-
         }
     }
 
@@ -299,6 +328,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(ClientApplicationSection.class)
     @Effect(signals = ClientSelection.IsCustom.class, type = EffectType.SHOW)
     String m_clientId;
+
+    @Layout(SharedKeySection.class)
+    AzureStorageSharedKeySettings m_sharedKey = new AzureStorageSharedKeySettings();
+
+    @Layout(SasUrlSection.class)
+    AzureStorageSasUrlSettings m_sasUrl = new AzureStorageSasUrlSettings();
 
     @Widget(title = "Redirect URL (should be http://localhost:XXXXX)", //
             description = """
@@ -329,16 +364,16 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         protected UUID invoke(final MicrosoftAuthenticatorSettings settings, final DefaultNodeSettingsContext context)
                 throws WidgetHandlerException {
             try {
-                settings.validate();
+                settings.validateOtherSettings();
             } catch (InvalidSettingsException e) { // NOSONAR
                 throw new WidgetHandlerException(e.getMessage());
             }
 
-            var app = MSALUtil.createClientApp(settings.getClientId(), settings.getAuthorizationEndpointURL());
+            var app = MSALUtil.createClientApp(settings.getClientId(null), settings.getAuthorizationEndpointURL());
 
             // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
             final var params = InteractiveRequestParameters.builder(URI.create(settings.getRedirectURL()))//
-                    .scopes(settings.m_scopesSettings.getScopesStringSet())//
+                    .scopes(settings.getScopes())//
                     .systemBrowserOptions(
                             SystemBrowserOptions.builder().openBrowserAction(new CustomOpenBrowserAction()).build())
                     .build();
@@ -369,27 +404,22 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             extends CancelableActionHandler.UpdateHandler<UUID, MicrosoftAuthenticatorSettings> {
     }
 
-    @Layout(UsernamePasswordSection.class)
-    UsernamePasswordSettings m_usernamePassword = new UsernamePasswordSettings();
 
-    @Layout(SharedKeySection.class)
-    AzureStorageSharedKeySettings m_sharedKey = new AzureStorageSharedKeySettings();
+    private void validateScopesSettings() throws InvalidSettingsException {
+        var requireApplicationScopes = m_authenticationType == AuthenticationType.CLIENT_SECRET;
+        m_scopesSettings.validate(requireApplicationScopes);
+    }
 
-    @Layout(SasUrlSection.class)
-    AzureStorageSasUrlSettings m_sasUrl = new AzureStorageSasUrlSettings();
-
-    private void validate() throws InvalidSettingsException {
-        if (m_authenticationType == AuthenticationType.INTERACTIVE
-                || m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
-            m_scopesSettings.validate();
-        }
-
+    private void validateAuthorizationEndpointSettings() throws InvalidSettingsException {
         if (m_authorizationEndpointSelection == AuthorizationEndpointSelection.CUSTOM
                 && StringUtils.isBlank(m_authorizationEndpointUrl)) {
             throw new InvalidSettingsException("Please specify the authorization endpoint URL");
         }
+    }
 
+    private void validateClientSettings() throws InvalidSettingsException {
         if (m_clientSelection == ClientSelection.CUSTOM) {
+
             if (StringUtils.isBlank(m_clientId)) {
                 throw new InvalidSettingsException("Please specify the Client/Application ID");
             }
@@ -414,8 +444,32 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             if (StringUtils.isBlank(uri.getHost())) {
                 throw new InvalidSettingsException("Redirect URL must specify a host.");
             }
-        } catch (URISyntaxException ex) {
+        } catch (URISyntaxException ex) {// NOSONAR
             throw new InvalidSettingsException("Please specify a valid redirect URL: " + ex.getMessage());
+        }
+    }
+
+    private void validateTenantId() throws InvalidSettingsException {
+        if (StringUtils.isBlank(m_tenantId)) {
+            throw new InvalidSettingsException(
+                    "Please specify the tenant id or domain, e.g. mycompany.onmicrosoft.com");
+        }
+    }
+
+    private void validateOtherSettings() throws InvalidSettingsException {
+        switch (m_authenticationType) {
+            case INTERACTIVE, USERNAME_PASSWORD:
+                validateScopesSettings();
+                validateAuthorizationEndpointSettings();
+                validateClientSettings();
+                break;
+            case CLIENT_SECRET:
+                validateTenantId();
+                validateScopesSettings();
+                validateAuthorizationEndpointSettings();
+                break;
+            default:
+                break;
         }
     }
 
@@ -428,15 +482,21 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
      * @throws InvalidSettingsException
      */
     public void validateOnConfigure(final CredentialsProvider credsProvider) throws InvalidSettingsException {
+
+        // during configure we only validate that a credentials flow
+        // variable has been set, not that it exists.
         if (m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
             m_usernamePassword.validateOnConfigure(credsProvider);
+        } else if (m_authenticationType == AuthenticationType.CLIENT_SECRET) {
+            m_confidentialApp.validateOnConfigure(credsProvider);
         } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SHARED_KEY) {
             m_sharedKey.validateOnConfigure(credsProvider);
         } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SAS_URL) {
             m_sasUrl.validateOnConfigure(credsProvider);
         }
 
-        validate();
+        // validates other settings that do not reference credentials flow variables
+        validateOtherSettings();
     }
 
     /**
@@ -448,23 +508,35 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
      * @throws InvalidSettingsException
      */
     public void validateOnExecute(final CredentialsProvider credsProvider) throws InvalidSettingsException {
+        // during execute we validate that the required credentials flow
+        // variables has been set and that it exists with valid contents
         if (m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
             m_usernamePassword.validateOnExecute(credsProvider);
+        } else if (m_authenticationType == AuthenticationType.CLIENT_SECRET) {
+            m_confidentialApp.validateOnExecute(credsProvider);
         } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SHARED_KEY) {
             m_sharedKey.validateOnExecute(credsProvider);
         } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SAS_URL) {
             m_sasUrl.validateOnExecute(credsProvider);
         }
 
-        validate();
+        // validates other settings that do not reference credentials flow variables
+        validateOtherSettings();
     }
 
     /**
      *
+     * @param credsProvider
+     *            The credential provider. Only used when the authentication type is
+     *            Client Secret.
      * @return The client ID.
      */
     @JsonIgnore
-    public String getClientId() {
+    public String getClientId(final CredentialsProvider credsProvider) {
+        if (m_authenticationType == AuthenticationType.CLIENT_SECRET) {
+            return m_confidentialApp.login(credsProvider);
+        }
+
         if (m_clientSelection == ClientSelection.CUSTOM) {
             return m_clientId;
         } else {
@@ -477,6 +549,14 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
      */
     @JsonIgnore
     public String getAuthorizationEndpointURL() {
+        if (m_authenticationType == AuthenticationType.CLIENT_SECRET) {
+            if (m_tenantId.startsWith("http")) {
+                return m_tenantId;
+            } else {
+                return "https://login.microsoftonline.com/" + m_tenantId;
+            }
+        }
+
         if (m_authorizationEndpointSelection == AuthorizationEndpointSelection.CUSTOM) {
             return m_authorizationEndpointUrl;
         }
@@ -499,4 +579,13 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             return DEFAULT_REDIRECT_URL;
         }
     }
+
+    /**
+     * @return The scopes strings.
+     */
+    @JsonIgnore
+    public Set<String> getScopes() {
+        return m_scopesSettings.getScopesStringSet(m_authenticationType == AuthenticationType.CLIENT_SECRET);
+    }
+
 }

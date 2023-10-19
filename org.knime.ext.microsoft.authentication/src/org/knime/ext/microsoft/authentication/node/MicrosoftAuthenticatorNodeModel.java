@@ -68,12 +68,15 @@ import org.knime.credentials.base.CredentialCache;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.GenericTokenHolder;
 import org.knime.credentials.base.node.AuthenticatorNodeModel;
+import org.knime.credentials.base.oauth.api.AccessTokenCredential;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSasUrlCredential;
 import org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
+import com.microsoft.aad.msal4j.ClientCredentialFactory;
+import com.microsoft.aad.msal4j.ClientCredentialParameters;
 import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.SilentParameters;
@@ -105,6 +108,7 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     @Override
     protected void validateOnConfigure(final PortObjectSpec[] inSpecs, final MicrosoftAuthenticatorSettings settings)
             throws InvalidSettingsException {
+
         settings.validateOnConfigure(getCredentialsProvider());
 
         if (settings.m_authenticationType == AuthenticationType.INTERACTIVE) {
@@ -148,6 +152,7 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
         return switch (settings.m_authenticationType) {
             case INTERACTIVE -> fromAuthResult(settings, m_tokenHolder.getToken().getFirst(),
                     m_tokenHolder.getToken().getSecond());
+            case CLIENT_SECRET -> fetchCredentialFromClientSecret(settings);
             case USERNAME_PASSWORD -> fetchCredentialFromUsernamePassword(settings);
             case AZURE_STORAGE_SHARED_KEY -> createAzureSharedKeyCredential(settings);
             case AZURE_STORAGE_SAS_URL -> fetchCredentialFromSasUrl(settings);
@@ -173,16 +178,30 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     private Credential fetchCredentialFromUsernamePassword(final MicrosoftAuthenticatorSettings settings)
             throws IOException {
 
-        var app = MSALUtil.createClientApp(settings.getClientId(), settings.getAuthorizationEndpointURL());
-        var params = UserNamePasswordParameters.builder(settings.m_scopesSettings.getScopesStringSet(),
-                settings.m_usernamePassword.login(getCredentialsProvider()),
-                settings.m_usernamePassword.secret(getCredentialsProvider()).toCharArray()).build();
+        var app = MSALUtil.createClientApp(settings.getClientId(null), settings.getAuthorizationEndpointURL());
+        var params = UserNamePasswordParameters
+                .builder(settings.getScopes(), settings.m_usernamePassword.login(getCredentialsProvider()),
+                        settings.m_usernamePassword.secret(getCredentialsProvider()).toCharArray())
+                .build();
 
         var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
         return fromAuthResult(settings, authResult, app.tokenCache().serialize());
     }
 
-    private JWTCredential fromAuthResult(final MicrosoftAuthenticatorSettings settings,
+    private Credential fetchCredentialFromClientSecret(final MicrosoftAuthenticatorSettings settings)
+            throws IOException {
+        var secret = ClientCredentialFactory
+                .createFromSecret(settings.m_confidentialApp.secret(getCredentialsProvider()));
+
+        var app = MSALUtil.createConfidentialApp(settings.getClientId(getCredentialsProvider()),
+                settings.getAuthorizationEndpointURL(), secret);
+        var params = ClientCredentialParameters.builder(settings.getScopes()).build();
+
+        var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
+        return fromAuthResult(settings, authResult, app.tokenCache().serialize());
+    }
+
+    private Credential fromAuthResult(final MicrosoftAuthenticatorSettings settings,
             final IAuthenticationResult authResult, final String tokenCache) {
 
         var accessToken = authResult.accessToken();
@@ -196,26 +215,57 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
             return new JWTCredential(accessToken, tokenType, expiresAfter, idToken,
                     createTokenRefresher(settings, authResult.account(), tokenCache));
         } catch (ParseException ex) {
-            // should not happen
-            throw new UncheckedIOException(new IOException("Failed to parse token: " + ex.getMessage(), ex));
+            return new AccessTokenCredential(accessToken, expiresAfter, tokenType,
+                    createTokenRefresher(settings, authResult.account(), tokenCache));
         }
     }
 
-    private Supplier<JWTCredential> createTokenRefresher(final MicrosoftAuthenticatorSettings settings,
+    private <T extends Credential> Supplier<T> createTokenRefresher(final MicrosoftAuthenticatorSettings settings,
             final IAccount account, final String tokenCache) {
+        if (settings.m_authenticationType == AuthenticationType.CLIENT_SECRET) {
+            return createConfidentialClientRefresher(settings, tokenCache);
+        } else {
+            return createPublicClientRefresher(settings, tokenCache, account);
+        }
+    }
 
+    @SuppressWarnings("unchecked")
+    private <T extends Credential> Supplier<T> createPublicClientRefresher(
+            final MicrosoftAuthenticatorSettings settings, final String tokenCache, final IAccount account) {
         return () -> {// NOSONAR
             try {
                 var app = MSALUtil.createClientAppWithToken(//
-                        settings.getClientId(),
-                        settings.getAuthorizationEndpointURL(), //
+                        settings.getClientId(null), settings.getAuthorizationEndpointURL(), //
                         tokenCache);
                 var params = SilentParameters.builder(//
-                        settings.m_scopesSettings.getScopesStringSet(), //
+                        settings.getScopes(), //
                         account).build();
 
                 var authResult = MSALUtil.doLogin(() -> app.acquireTokenSilently(params));
-                return fromAuthResult(settings, authResult, app.tokenCache().serialize());
+                return (T) fromAuthResult(settings, authResult, app.tokenCache().serialize());
+            } catch (IOException ex) {
+                LOG.error(ex.getMessage(), ex);
+                throw new UncheckedIOException(ex);
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Credential> Supplier<T> createConfidentialClientRefresher(
+            final MicrosoftAuthenticatorSettings settings, final String tokenCache) {
+        return () -> {// NOSONAR
+            try {
+                var secret = ClientCredentialFactory
+                        .createFromSecret(settings.m_confidentialApp.secret(getCredentialsProvider()));
+
+                var app = MSALUtil.createConfidentialApp(settings.getClientId(getCredentialsProvider()),
+                        settings.getAuthorizationEndpointURL(), secret);
+                app.tokenCache().deserialize(tokenCache);
+
+                var params = SilentParameters.builder(settings.getScopes()).build();
+
+                var authResult = MSALUtil.doLogin(() -> app.acquireTokenSilently(params));
+                return (T) fromAuthResult(settings, authResult, app.tokenCache().serialize());
             } catch (IOException ex) {
                 LOG.error(ex.getMessage(), ex);
                 throw new UncheckedIOException(ex);

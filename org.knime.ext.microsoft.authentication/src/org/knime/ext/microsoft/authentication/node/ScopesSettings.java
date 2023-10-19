@@ -62,9 +62,11 @@ import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.LayoutGroup;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.NodeSettingsPersistorWithConfigKey;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
+import org.knime.core.webui.node.dialog.defaultdialog.rule.And;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect.EffectType;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.OneOfEnumCondition;
+import org.knime.core.webui.node.dialog.defaultdialog.rule.Or;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Signal;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ArrayWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesProvider;
@@ -72,8 +74,12 @@ import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.IdAndText;
+import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.CustomScope.CustomScopesPersistor;
-import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.StandardScopesPersistor;
+import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.ApplicationScope;
+import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.ApplicationScopePersistor;
+import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.DelegatedScope;
+import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.DelegatedScopePersistor;
 import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 
@@ -94,6 +100,7 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
                     """, //
             hideTitle = true)
     @Signal(condition = ScopesSelectionType.IsCustom.class)
+    @Signal(condition = ScopesSelectionType.IsStandard.class)
     @ValueSwitchWidget
     ScopesSelectionType m_scopesSelectionType = ScopesSelectionType.STANDARD;
 
@@ -107,45 +114,51 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
             }
 
         }
-    }
 
-    @Widget(title = "Standard scopes", description = "Select from a fixed list of standard scopes", hideTitle = true)
-    @ArrayWidget(addButtonText = "Add")
-    @Effect(signals = ScopesSelectionType.IsCustom.class, type = EffectType.HIDE)
-    @Persist(customPersistor = StandardScopesPersistor.class)
-    StandardScope[] m_standardScopes = new StandardScope[0];
-
-    static final class StandardScope implements DefaultNodeSettings {
-        @Widget(hideTitle = true)
-        @ChoicesWidget(choices = StandardScopesChoicesProvider.class)
-        String m_id;
-
-        StandardScope(final String id) {
-            m_id = id;
-        }
-
-        StandardScope() {
-        }
-
-        static class StandardScopesPersistor extends NodeSettingsPersistorWithConfigKey<StandardScope[]> {
+        static class IsStandard extends OneOfEnumCondition<ScopesSelectionType> {
             @Override
-            public StandardScope[] load(final NodeSettingsRO settings) throws InvalidSettingsException {
-                return Stream.of(settings.getStringArray(getConfigKey())) //
-                        .map(StandardScope::new) //
-                        .toArray(StandardScope[]::new);
+            public ScopesSelectionType[] oneOf() {
+                return new ScopesSelectionType[] { STANDARD };
             }
 
+        }
+    }
+
+    @Widget(title = "Standard scopes", description = """
+            Select from a predefined list of standard scopes. These represent delegated permissions.
+            """, hideTitle = true)
+    @ArrayWidget(addButtonText = "Add")
+    @Effect(signals = { ScopesSelectionType.IsCustom.class,
+            AuthenticationType.IsClientSecret.class }, operation = Or.class, type = EffectType.HIDE)
+    @Persist(customPersistor = DelegatedScopePersistor.class)
+    DelegatedScope[] m_delegatedScopes = new DelegatedScope[0];
+
+    @Widget(title = "Standard scopes (application)", description = """
+            Select from a predefined list of standard scopes. These represent application permissions.
+            """, hideTitle = true)
+    @ArrayWidget(addButtonText = "Add")
+    @Effect(signals = { ScopesSelectionType.IsStandard.class,
+            AuthenticationType.IsClientSecret.class }, operation = And.class, type = EffectType.SHOW)
+    @Persist(customPersistor = ApplicationScopePersistor.class)
+    ApplicationScope[] m_appScopes = new ApplicationScope[0];
+
+    abstract static class StandardScope implements DefaultNodeSettings {
+        @JsonIgnore
+        protected abstract String getId();
+
+        abstract static class StandardScopesPersistor<S extends StandardScope>
+                extends NodeSettingsPersistorWithConfigKey<S[]> {
             @Override
-            public void save(final StandardScope[] obj, final NodeSettingsWO settings) {
-                var strings = Stream.of(obj).map(s -> s.m_id).toArray(String[]::new);
+            public void save(final S[] obj, final NodeSettingsWO settings) {
+                var strings = Stream.of(obj).map(S::getId).toArray(String[]::new);
                 settings.addStringArray(getConfigKey(), strings);
             }
         }
 
-        static class StandardScopesChoicesProvider implements ChoicesProvider {
+        abstract static class StandardScopesChoicesProvider implements ChoicesProvider {
             @Override
             public IdAndText[] choicesWithIdAndText(final DefaultNodeSettingsContext context) {
-                return Scope.listByScopeType(ScopeType.DELEGATED).stream() //
+                return Scope.listByScopeType(getScopeType()).stream() //
                         .filter(s -> s != Scope.OTHER && s != Scope.OTHERS) //
                         .map(s -> new IdAndText(s.name(), stripHtml(s.getTitle()))) //
                         .toArray(IdAndText[]::new);
@@ -156,6 +169,78 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
                         .replace("</html>", "") //
                         .replace("<i>", "") //
                         .replace("</i>", "");
+            }
+
+            protected abstract ScopeType getScopeType();
+        }
+
+        static class DelegatedScope extends StandardScope {
+            @Widget(hideTitle = true)
+            @ChoicesWidget(choices = DelegatedScopeChoicesProvider.class)
+            String m_id;
+
+            DelegatedScope(final String id) {
+                m_id = id;
+            }
+
+            DelegatedScope() {
+            }
+
+            @Override
+            protected String getId() {
+                return m_id;
+            }
+        }
+
+        static class DelegatedScopeChoicesProvider extends StandardScopesChoicesProvider {
+            @Override
+            protected ScopeType getScopeType() {
+                return ScopeType.DELEGATED;
+            }
+
+        }
+
+        static class DelegatedScopePersistor extends StandardScopesPersistor<DelegatedScope> {
+            @Override
+            public DelegatedScope[] load(final NodeSettingsRO settings) throws InvalidSettingsException {
+                return Stream.of(settings.getStringArray(getConfigKey())) //
+                        .map(DelegatedScope::new) //
+                        .toArray(DelegatedScope[]::new);
+            }
+        }
+
+        static class ApplicationScope extends StandardScope {
+            @Widget(hideTitle = true)
+            @ChoicesWidget(choices = ApplicationScopeChoicesProvider.class)
+            String m_id;
+
+            ApplicationScope(final String id) {
+                m_id = id;
+            }
+
+            ApplicationScope() {
+            }
+
+            @Override
+            protected String getId() {
+                return m_id;
+            }
+        }
+
+        static class ApplicationScopeChoicesProvider extends StandardScopesChoicesProvider {
+            @Override
+            protected ScopeType getScopeType() {
+                return ScopeType.APPLICATION;
+            }
+
+        }
+
+        static class ApplicationScopePersistor extends StandardScopesPersistor<ApplicationScope> {
+            @Override
+            public ApplicationScope[] load(final NodeSettingsRO settings) throws InvalidSettingsException {
+                return Stream.of(settings.getStringArray(getConfigKey())) //
+                        .map(ApplicationScope::new) //
+                        .toArray(ApplicationScope[]::new);
             }
         }
     }
@@ -196,30 +281,38 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
     /**
      * Validates the settings.
      *
+     * @param applicationScopes
+     *            Whether the application standard scopes are used or the delegated
+     *            ones.
+     *
      * @throws InvalidSettingsException
      */
-    public void validate() throws InvalidSettingsException {
+    public void validate(final boolean applicationScopes) throws InvalidSettingsException {// NOSONAR
+        var standardScopes = applicationScopes ? m_appScopes : m_delegatedScopes;
+
         if (m_scopesSelectionType == ScopesSelectionType.STANDARD
-                && (m_standardScopes == null || m_standardScopes.length == 0)) {
+                && (standardScopes == null || standardScopes.length == 0)) {
             throw new InvalidSettingsException("Please specify at least one scope");
         }
+
         if (m_scopesSelectionType == ScopesSelectionType.CUSTOM
                 && (m_customScopes == null || m_customScopes.length == 0)) {
             throw new InvalidSettingsException("Please specify at least one scope");
         }
 
         if (m_scopesSelectionType == ScopesSelectionType.STANDARD) {
-            validateScopesAreNotBlank(m_standardScopes, s -> s.m_id);
-            validateStandardScopesGrouping();
+            validateScopesAreNotBlank(standardScopes, StandardScope::getId);
+            validateStandardScopesGrouping(standardScopes);
         } else {
             validateScopesAreNotBlank(m_customScopes, s -> s.m_scope);
         }
     }
 
-    private void validateStandardScopesGrouping() throws InvalidSettingsException {
+    private static void validateStandardScopesGrouping(final StandardScope[] standardScopes)
+            throws InvalidSettingsException {
         Set<Scope> scopes = EnumSet.noneOf(Scope.class);
-        for (StandardScope s : m_standardScopes) {
-            var scopeToCheck = Scope.valueOf(s.m_id);
+        for (StandardScope s : standardScopes) {
+            var scopeToCheck = Scope.valueOf(s.getId());
 
             for (Scope scopeToCompare : scopes) {
                 if (!scopeToCheck.canBeGroupedWith(scopeToCompare)) {
@@ -246,13 +339,17 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
     }
 
     /**
+     * @param applicationScopes
+     *            Whether the application standard scopes are used or the delegated
+     *            ones.
      * @return The selected scopes as a set of strings.
      */
     @JsonIgnore
-    public Set<String> getScopesStringSet() {
+    public Set<String> getScopesStringSet(final boolean applicationScopes) {
         if (m_scopesSelectionType == ScopesSelectionType.STANDARD) {
-            return Stream.of(m_standardScopes) //
-                    .map(s -> Scope.valueOf(s.m_id).getScope()) //
+            var standardScopes = applicationScopes ? m_appScopes : m_delegatedScopes;
+            return Stream.of(standardScopes) //
+                    .map(s -> Scope.valueOf(s.getId()).getScope()) //
                     .collect(Collectors.toSet());
         } else {
             return Stream.of(m_customScopes) //
