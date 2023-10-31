@@ -20,11 +20,12 @@ try {
     workflowTests.runTests(
         dependencies: [
             repositories:  [
-                'knime-gateway',
                 'knime-credentials-base',
+                'knime-gateway',
+                'knime-js-base',
                 'knime-office365',
-                'knime-streaming',
-                'knime-js-base'
+                'knime-rest',
+                'knime-streaming'
             ]
         ]
     )
