@@ -23,9 +23,11 @@ try {
                 'knime-credentials-base',
                 'knime-gateway',
                 'knime-js-base',
+                'knime-kerberos',
                 'knime-office365',
                 'knime-rest',
-                'knime-streaming'
+                'knime-streaming',
+                'knime-xml',
             ]
         ]
     )
