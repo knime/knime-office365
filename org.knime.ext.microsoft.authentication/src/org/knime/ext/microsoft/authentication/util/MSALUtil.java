@@ -67,9 +67,7 @@ import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
-import com.microsoft.aad.msal4j.ClientCredentialFactory;
 import com.microsoft.aad.msal4j.ConfidentialClientApplication;
-import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.IClientCredential;
 import com.microsoft.aad.msal4j.MsalClientException;
@@ -304,23 +302,18 @@ public final class MSALUtil {
     }
 
     /**
-     * Creates {@link Credential} from the provided authentication result.
+     * Creates {@link Credential} from the provided authentication result with a
+     * {@link PublicClientApplication}.
      *
      * @param authResult
      *            The authentication result.
-     * @param appId
-     *            The client/app ID.
-     * @param endpoint
-     *            The authorization endpoint.
-     * @param tokenCache
-     *            The token cache.
-     * @param clientSecret
-     *            The client secret. May be <code>null</code> for public applicaton.
+     * @param publicApp
+     *            The public app.
      * @return The {@link JWTCredential}
      */
-    @SuppressWarnings("unchecked")
-    public static JWTCredential createCredential(final IAuthenticationResult authResult, final String appId,
-            final String endpoint, final String tokenCache, final String clientSecret) {
+    public static JWTCredential createCredential(final IAuthenticationResult authResult,
+            final PublicClientApplication publicApp) {
+
         var accessToken = authResult.accessToken();
         var idToken = authResult.idToken();
         var expiresAfter = Optional.ofNullable(authResult.expiresOnDate())//
@@ -328,15 +321,10 @@ public final class MSALUtil {
                 .orElse(null);
         var tokenType = "Bearer";
         var scopes = extractScopes(authResult);
-        var account = authResult.account();
-
-        Supplier<? extends Credential> refresher = clientSecret == null
-                ? createPublicClientRefresher(appId, endpoint, tokenCache, scopes, account)
-                : createConfidentialClientRefresher(appId, endpoint, tokenCache, scopes, clientSecret);
 
         try {
             return new JWTCredential(accessToken, tokenType, expiresAfter, idToken,
-                    (Supplier<JWTCredential>) refresher);
+                    createPublicClientRefresher(publicApp, scopes));
         } catch (ParseException ex) {
             throw new IllegalStateException("Failed to parse authentication result");
         }
@@ -351,16 +339,14 @@ public final class MSALUtil {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T extends Credential> Supplier<T> createPublicClientRefresher(final String appId,
-            final String endpoint, final String tokenCache, final Set<String> scopes, final IAccount account) {
+    private static Supplier<JWTCredential> createPublicClientRefresher(final PublicClientApplication publicApp,
+            final Set<String> scopes) {
+
         return () -> {// NOSONAR
             try {
-                var app = MSALUtil.createClientAppWithToken(appId, endpoint, tokenCache);
-                var params = SilentParameters.builder(scopes, account).build();
-
-                var authResult = MSALUtil.doLogin(() -> app.acquireTokenSilently(params));
-                return (T) createCredential(authResult, appId, endpoint, app.tokenCache().serialize(), null);
+                var params = SilentParameters.builder(scopes).build();
+                var authResult = MSALUtil.doLogin(() -> publicApp.acquireTokenSilently(params));
+                return createCredential(authResult, publicApp);
             } catch (IOException ex) {
                 LOG.error(ex.getMessage(), ex);
                 throw new UncheckedIOException(ex);
@@ -368,20 +354,43 @@ public final class MSALUtil {
         };
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T extends Credential> Supplier<T> createConfidentialClientRefresher(final String appId,
-            final String endpoint, final String tokenCache, final Set<String> scoopes, final String clientSecret) {
+    /**
+     * Creates {@link Credential} from the provided authentication result with a
+     * {@link ConfidentialClientApplication}.
+     *
+     * @param authResult
+     *            The authentication result.
+     * @param confidentialApp
+     *            The confidential app.
+     * @return The {@link JWTCredential}
+     */
+    public static JWTCredential createCredential(final IAuthenticationResult authResult,
+            final ConfidentialClientApplication confidentialApp) {
+
+        var accessToken = authResult.accessToken();
+        var idToken = authResult.idToken();
+        var expiresAfter = Optional.ofNullable(authResult.expiresOnDate())//
+                .map(Date::toInstant)//
+                .orElse(null);
+        var tokenType = "Bearer";
+        var scopes = extractScopes(authResult);
+
+        try {
+            return new JWTCredential(accessToken, tokenType, expiresAfter, idToken,
+                    createConfidentialClientRefresher(confidentialApp, scopes));
+        } catch (ParseException ex) {
+            throw new IllegalStateException("Failed to parse authentication result");
+        }
+    }
+
+    private static Supplier<JWTCredential> createConfidentialClientRefresher(
+            final ConfidentialClientApplication confidentialApp, final Set<String> scopes) {
+
         return () -> {// NOSONAR
             try {
-                var secret = ClientCredentialFactory.createFromSecret(clientSecret);
-
-                var app = MSALUtil.createConfidentialApp(appId, endpoint, secret);
-                app.tokenCache().deserialize(tokenCache);
-
-                var params = SilentParameters.builder(scoopes).build();
-
-                var authResult = MSALUtil.doLogin(() -> app.acquireTokenSilently(params));
-                return (T) createCredential(authResult, appId, endpoint, app.tokenCache().serialize(), clientSecret);
+                var params = SilentParameters.builder(scopes).build();
+                var authResult = MSALUtil.doLogin(() -> confidentialApp.acquireTokenSilently(params));
+                return createCredential(authResult, confidentialApp);
             } catch (IOException ex) {
                 LOG.error(ex.getMessage(), ex);
                 throw new UncheckedIOException(ex);

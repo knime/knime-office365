@@ -186,7 +186,7 @@ public class InteractiveAuthProvider extends DelegatedPermissionsOAuth2Provider 
             IAuthenticationResult result = app
                     .acquireTokenSilently(SilentParameters.builder(getScopesStringSet(), account).build()).get();
 
-            return MSALUtil.createCredential(result, getAppId(), getEndpoint(), app.tokenCache().serialize(), null);
+            return MSALUtil.createCredential(result, app);
         } catch (InterruptedException e) { // NOSONAR rethrowing as cause of IOE
             throw new IOException("Canceled while acquiring access token", e);
         } catch (ExecutionException ex) {// NOSONAR

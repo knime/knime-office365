@@ -58,8 +58,7 @@ import java.util.UUID;
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
-import org.knime.core.node.workflow.CredentialsProvider;
-import org.knime.core.util.Pair;
+import org.knime.core.node.util.CheckUtils;
 import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.After;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Layout;
@@ -71,14 +70,16 @@ import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect.EffectType;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.OneOfEnumCondition;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Or;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Signal;
+import org.knime.core.webui.node.dialog.defaultdialog.setting.credentials.Credentials;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Label;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.button.ButtonWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.button.CancelableActionHandler;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.credentials.CredentialsWidget;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.credentials.PasswordWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.handler.WidgetHandlerException;
-import org.knime.credentials.base.GenericTokenHolder;
-import org.knime.credentials.base.node.UsernamePasswordSettings;
+import org.knime.credentials.base.CredentialCache;
 import org.knime.credentials.base.oauth.api.nodesettings.TokenCacheKeyPersistor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.CustomOpenBrowserAction;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
@@ -270,11 +271,16 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Effect(signals = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
     String m_tenantId;
 
+    @Widget(title = "Username and password", description = "The username and password to use.")
+    @CredentialsWidget
     @Layout(UsernamePasswordSection.class)
-    UsernamePasswordSettings m_usernamePassword = new UsernamePasswordSettings();
+    Credentials m_usernamePassword = new Credentials();
 
+    @Widget(title = "Client/App ID and secret", //
+            description = "The client/app ID and secret to use.")
+    @CredentialsWidget(usernameLabel = "Client/App ID", passwordLabel = "Client/App Secret")
     @Layout(ClientAppAndSecretSection.class)
-    ConfidentialAppSettings m_confidentialApp = new ConfidentialAppSettings();
+    Credentials m_confidentialApp = new Credentials();
 
     @Layout(ScopesSection.class)
     ScopesSettings m_scopesSettings = new ScopesSettings();
@@ -329,11 +335,22 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Effect(signals = ClientSelection.IsCustom.class, type = EffectType.SHOW)
     String m_clientId;
 
+    @Widget(title = "Storage account name and shared/access key", //
+            description = "The storage account name and shared key (also called access key) to use.")
+    @CredentialsWidget(usernameLabel = "Storage account name", passwordLabel = "Shared/access key")
     @Layout(SharedKeySection.class)
-    AzureStorageSharedKeySettings m_sharedKey = new AzureStorageSharedKeySettings();
+    Credentials m_sharedKey = new Credentials();
 
+    @Widget(title = "Service SAS URL", //
+            description = """
+                    The Azure Service SAS URL. Note that only
+                    <a href="https://learn.microsoft.com/en-us/azure/storage/common/storage-sas-overview#service-sas">
+                    Service SAS</a> is supported. The SAS URL must delegate access to the Blob storage
+                    service, or an object within.
+                    """)
+    @PasswordWidget(passwordLabel = "Service SAS URL")
     @Layout(SasUrlSection.class)
-    AzureStorageSasUrlSettings m_sasUrl = new AzureStorageSasUrlSettings();
+    Credentials m_sasUrl = new Credentials();
 
     @Widget(title = "Redirect URL (should be http://localhost:XXXXX)", //
             description = """
@@ -356,7 +373,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(AuthenticationSection.class)
     @Persist(optional = true, hidden = true, customPersistor = TokenCacheKeyPersistor.class)
     @Effect(signals = AuthenticationType.IsInteractive.class, type = EffectType.SHOW)
-    UUID m_tokenCacheKey;
+    UUID m_loginCredentialRef;
 
     static class LoginActionHandler extends CancelableActionHandler<UUID, MicrosoftAuthenticatorSettings> {
 
@@ -364,12 +381,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         protected UUID invoke(final MicrosoftAuthenticatorSettings settings, final DefaultNodeSettingsContext context)
                 throws WidgetHandlerException {
             try {
-                settings.validateOtherSettings();
+                settings.validate();
             } catch (InvalidSettingsException e) { // NOSONAR
                 throw new WidgetHandlerException(e.getMessage());
             }
 
-            var app = MSALUtil.createClientApp(settings.getClientId(null), settings.getAuthorizationEndpointURL());
+            var app = MSALUtil.createClientApp(settings.getClientId(), settings.getAuthorizationEndpointURL());
 
             // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
             final var params = InteractiveRequestParameters.builder(URI.create(settings.getRedirectURL()))//
@@ -380,9 +397,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
 
             try {
                 var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
-                var pair = new Pair<>(authResult, app.tokenCache().serialize());
-                var holder = GenericTokenHolder.store(pair);
-                return holder.getCacheKey();
+                return CredentialCache.store(MSALUtil.createCredential(authResult, app));
             } catch (IOException e) {
                 LOG.error(e.getMessage(), e);
                 throw new WidgetHandlerException(e.getMessage());
@@ -456,7 +471,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         }
     }
 
-    private void validateOtherSettings() throws InvalidSettingsException {
+    private void validate() throws InvalidSettingsException {
         switch (m_authenticationType) {
             case INTERACTIVE, USERNAME_PASSWORD:
                 validateScopesSettings();
@@ -477,66 +492,66 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
      * * Validates the settings. The method is intended to be called in the
      * configure stage.
      *
-     * @param credsProvider
-     *            The credential provider.
      * @throws InvalidSettingsException
      */
-    public void validateOnConfigure(final CredentialsProvider credsProvider) throws InvalidSettingsException {
-
-        // during configure we only validate that a credentials flow
-        // variable has been set, not that it exists.
-        if (m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
-            m_usernamePassword.validateOnConfigure(credsProvider);
-        } else if (m_authenticationType == AuthenticationType.CLIENT_SECRET) {
-            m_confidentialApp.validateOnConfigure(credsProvider);
-        } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SHARED_KEY) {
-            m_sharedKey.validateOnConfigure(credsProvider);
-        } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SAS_URL) {
-            m_sasUrl.validateOnConfigure(credsProvider);
-        }
-
-        // validates other settings that do not reference credentials flow variables
-        validateOtherSettings();
+    public void validateOnConfigure() throws InvalidSettingsException {
+        validate();
     }
 
     /**
      * Validates the settings. The method is intended to be called in the execute
      * stage.
      *
-     * @param credsProvider
-     *            The credential provider.
      * @throws InvalidSettingsException
      */
-    public void validateOnExecute(final CredentialsProvider credsProvider) throws InvalidSettingsException {
-        // during execute we validate that the required credentials flow
-        // variables has been set and that it exists with valid contents
-        if (m_authenticationType == AuthenticationType.USERNAME_PASSWORD) {
-            m_usernamePassword.validateOnExecute(credsProvider);
-        } else if (m_authenticationType == AuthenticationType.CLIENT_SECRET) {
-            m_confidentialApp.validateOnExecute(credsProvider);
-        } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SHARED_KEY) {
-            m_sharedKey.validateOnExecute(credsProvider);
-        } else if (m_authenticationType == AuthenticationType.AZURE_STORAGE_SAS_URL) {
-            m_sasUrl.validateOnExecute(credsProvider);
-        }
+    public void validateOnExecute() throws InvalidSettingsException {
+        validate();
 
-        // validates other settings that do not reference credentials flow variables
-        validateOtherSettings();
+        switch (m_authenticationType) {
+            case USERNAME_PASSWORD:
+                CheckUtils.checkSetting(StringUtils.isNotBlank(m_usernamePassword.getUsername()),
+                        "Username is required");
+                CheckUtils.checkSetting(StringUtils.isNotBlank(m_usernamePassword.getPassword()),
+                        "Password is required");
+                break;
+            case CLIENT_SECRET:
+                CheckUtils.checkSetting(StringUtils.isNotBlank(m_confidentialApp.getUsername()),
+                        "Client/App ID is required");
+                CheckUtils.checkSetting(StringUtils.isNotBlank(m_confidentialApp.getPassword()),
+                        "Client/App secret is required");
+                break;
+            case AZURE_STORAGE_SAS_URL:
+                CheckUtils.checkSetting(StringUtils.isNotBlank(m_sasUrl.getPassword()), "Service SAS URL is required");
+                validateSasUrl(m_sasUrl.getPassword());
+                break;
+            case AZURE_STORAGE_SHARED_KEY:
+                CheckUtils.checkSetting(StringUtils.isNotBlank(m_sharedKey.getUsername()),
+                        "Storage account name is required");
+                CheckUtils.checkSetting(StringUtils.isNotBlank(m_sharedKey.getPassword()),
+                        "Access/shared key is required");
+                break;
+            default:
+                break;
+        }
+    }
+
+
+    private static void validateSasUrl(final String sasUrl) throws InvalidSettingsException {
+        try {
+            final var url = new URI(sasUrl);
+            CheckUtils.checkSetting(Objects.equals(url.getScheme(), "https"), "Invalid protocol: %s (expected https)",
+                    url.getScheme());
+            CheckUtils.checkSetting(StringUtils.isNotBlank(url.getQuery()), "Invalid SAS URL (query is missing)");
+        } catch (URISyntaxException ex) {
+            throw new InvalidSettingsException(ex.getMessage(), ex);
+        }
     }
 
     /**
-     *
-     * @param credsProvider
-     *            The credential provider. Only used when the authentication type is
-     *            Client Secret.
      * @return The client ID.
      */
     @JsonIgnore
-    public String getClientId(final CredentialsProvider credsProvider) {
-        if (m_authenticationType == AuthenticationType.CLIENT_SECRET) {
-            return m_confidentialApp.login(credsProvider);
-        }
-
+    public String getClientId() {
         if (m_clientSelection == ClientSelection.CUSTOM) {
             return m_clientId;
         } else {

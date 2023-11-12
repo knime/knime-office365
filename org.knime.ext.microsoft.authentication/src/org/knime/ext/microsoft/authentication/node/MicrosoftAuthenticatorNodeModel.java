@@ -50,17 +50,16 @@ package org.knime.ext.microsoft.authentication.node;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Optional;
 
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.util.Pair;
 import org.knime.core.webui.node.impl.WebUINodeConfiguration;
 import org.knime.credentials.base.Credential;
-import org.knime.credentials.base.CredentialCache;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.GenericTokenHolder;
+import org.knime.credentials.base.CredentialRef;
 import org.knime.credentials.base.node.AuthenticatorNodeModel;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCredential;
@@ -70,7 +69,6 @@ import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
 import com.microsoft.aad.msal4j.ClientCredentialParameters;
-import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.UserNamePasswordParameters;
 
 /**
@@ -83,7 +81,13 @@ import com.microsoft.aad.msal4j.UserNamePasswordParameters;
 public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<MicrosoftAuthenticatorSettings> {
     private static final String LOGIN_FIRST_ERROR = "Please use the configuration dialog to log in first.";
 
-    private GenericTokenHolder<Pair<IAuthenticationResult, String>> m_tokenHolder;
+    /**
+     * This references a {@link JWTCredential} that was acquired interactively in
+     * the node dialog. It is disposed when the workflow is closed, or when the
+     * authentication scheme is switched to non-interactive. However, it is NOT
+     * disposed during reset().
+     */
+    private CredentialRef m_interactiveCredentialRef;
 
     /**
      * @param configuration
@@ -97,30 +101,25 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
     protected void validateOnConfigure(final PortObjectSpec[] inSpecs, final MicrosoftAuthenticatorSettings settings)
             throws InvalidSettingsException {
 
-        settings.validateOnConfigure(getCredentialsProvider());
+        settings.validateOnConfigure();
 
         if (settings.m_authenticationType == AuthenticationType.INTERACTIVE) {
-            // in this case we must have already fetched the token in the node dialog
-            if (settings.m_tokenCacheKey == null) {
+            m_interactiveCredentialRef = Optional.ofNullable(settings.m_loginCredentialRef)//
+                    .map(CredentialRef::new)//
+                    .orElseThrow(() -> new InvalidSettingsException(LOGIN_FIRST_ERROR));
+
+            if (!m_interactiveCredentialRef.isPresent()) {
                 throw new InvalidSettingsException(LOGIN_FIRST_ERROR);
-            } else {
-                m_tokenHolder = CredentialCache
-                        .<GenericTokenHolder<Pair<IAuthenticationResult, String>>>get(settings.m_tokenCacheKey)//
-                        .orElseThrow(() -> new InvalidSettingsException(LOGIN_FIRST_ERROR));
             }
         } else {
-            // we have an access token from a previous interactive login -> remove it
-            if (m_tokenHolder != null) {
-                CredentialCache.delete(m_tokenHolder.getCacheKey());
-                m_tokenHolder = null;
-            }
+            disposeInteractiveCredential();
         }
     }
 
     @Override
     protected void validateOnExecute(final PortObject[] inObjects, final MicrosoftAuthenticatorSettings settings)
             throws InvalidSettingsException {
-        settings.validateOnExecute(getCredentialsProvider());
+        settings.validateOnExecute();
     }
 
     @Override
@@ -138,8 +137,8 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
             final MicrosoftAuthenticatorSettings settings) throws Exception {
 
         return switch (settings.m_authenticationType) {
-            case INTERACTIVE -> fromAuthResult(settings, m_tokenHolder.getToken().getFirst(),
-                    m_tokenHolder.getToken().getSecond());
+            case INTERACTIVE -> m_interactiveCredentialRef.getCredential(JWTCredential.class)//
+                    .orElseThrow(() -> new InvalidSettingsException(LOGIN_FIRST_ERROR));
             case CLIENT_SECRET -> fetchCredentialFromClientSecret(settings);
             case USERNAME_PASSWORD -> fetchCredentialFromUsernamePassword(settings);
             case AZURE_STORAGE_SHARED_KEY -> createAzureSharedKeyCredential(settings);
@@ -149,64 +148,66 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
         };
     }
 
-    private Credential createAzureSharedKeyCredential(final MicrosoftAuthenticatorSettings settings) {
-        return new AzureStorageSharedKeyCredential(settings.m_sharedKey.login(getCredentialsProvider()),
-                settings.m_sharedKey.secret(getCredentialsProvider()));
+    private static Credential fetchCredentialFromUsernamePassword(final MicrosoftAuthenticatorSettings settings)
+            throws IOException {
+
+        final var usernamePassword = settings.m_usernamePassword;
+
+        final var clientId = settings.getClientId();
+        final var authEndpointURL = settings.getAuthorizationEndpointURL();
+        final var app = MSALUtil.createClientApp(clientId, authEndpointURL);
+        final var params = UserNamePasswordParameters
+                .builder(settings.getScopes(), //
+                        usernamePassword.getUsername(), //
+                        usernamePassword.getPassword().toCharArray())
+                .build();
+
+        final var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
+
+        return MSALUtil.createCredential(authResult, app);
     }
 
-    private Credential fetchCredentialFromSasUrl(final MicrosoftAuthenticatorSettings settings) throws Exception { // NOSONAR
+    private static Credential fetchCredentialFromClientSecret(final MicrosoftAuthenticatorSettings settings)
+            throws IOException {
+
+        final var clientId = settings.m_confidentialApp.getUsername();
+        final var clientSecret = ClientCredentialFactory.createFromSecret(settings.m_confidentialApp.getPassword());
+        final var authEndpointURL = settings.getAuthorizationEndpointURL();
+
+        var app = MSALUtil.createConfidentialApp(clientId, authEndpointURL, clientSecret);
+        var params = ClientCredentialParameters.builder(settings.getScopes()).build();
+        var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
+
+        return MSALUtil.createCredential(authResult, app);
+    }
+
+    private static Credential createAzureSharedKeyCredential(final MicrosoftAuthenticatorSettings settings) {
+
+        final var sharedKey = settings.m_sharedKey;
+        return new AzureStorageSharedKeyCredential(sharedKey.getUsername(), sharedKey.getPassword());
+    }
+
+    private static Credential fetchCredentialFromSasUrl(final MicrosoftAuthenticatorSettings settings)
+            throws InvalidSettingsException {
+
+        final var sasUrl = settings.m_sasUrl;
         try {
-            var sasUrl = URI.create(settings.m_sasUrl.secret(getCredentialsProvider()));
-            return new AzureStorageSasUrlCredential(sasUrl);
+            var sasUri = URI.create(sasUrl.getPassword());
+            return new AzureStorageSasUrlCredential(sasUri);
         } catch (IllegalArgumentException e) {
-            throw new Exception("Invalid SAS URL. " + e.getMessage(), e); // NOSONAR
+            throw new InvalidSettingsException("Invalid SAS URL. " + e.getMessage(), e); // NOSONAR
         }
     }
 
-    private Credential fetchCredentialFromUsernamePassword(final MicrosoftAuthenticatorSettings settings)
-            throws IOException {
-
-        var app = MSALUtil.createClientApp(settings.getClientId(null), settings.getAuthorizationEndpointURL());
-        var params = UserNamePasswordParameters
-                .builder(settings.getScopes(), settings.m_usernamePassword.login(getCredentialsProvider()),
-                        settings.m_usernamePassword.secret(getCredentialsProvider()).toCharArray())
-                .build();
-
-        var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
-        return fromAuthResult(settings, authResult, app.tokenCache().serialize());
-    }
-
-    private Credential fetchCredentialFromClientSecret(final MicrosoftAuthenticatorSettings settings)
-            throws IOException {
-        var secret = ClientCredentialFactory
-                .createFromSecret(settings.m_confidentialApp.secret(getCredentialsProvider()));
-
-        var app = MSALUtil.createConfidentialApp(settings.getClientId(getCredentialsProvider()),
-                settings.getAuthorizationEndpointURL(), secret);
-        var params = ClientCredentialParameters.builder(settings.getScopes()).build();
-
-        var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
-        return fromAuthResult(settings, authResult, app.tokenCache().serialize());
-    }
-
-    private Credential fromAuthResult(final MicrosoftAuthenticatorSettings settings,
-            final IAuthenticationResult authResult, final String tokenCache) {
-        var clientId = settings.getClientId(getCredentialsProvider());
-        var endpoint = settings.getAuthorizationEndpointURL();
-        var clientSecret = settings.m_authenticationType == AuthenticationType.CLIENT_SECRET
-                ? settings.m_confidentialApp.secret(getCredentialsProvider())
-                : null;
-
-        return MSALUtil.createCredential(authResult, clientId, endpoint, tokenCache, clientSecret);
+    private void disposeInteractiveCredential() {
+        if (m_interactiveCredentialRef != null) {
+            m_interactiveCredentialRef.dispose();
+            m_interactiveCredentialRef = null;
+        }
     }
 
     @Override
     protected void onDisposeInternal() {
-        // dispose of the token that was retrieved interactively in the node
-        // dialog
-        if (m_tokenHolder != null) {
-            CredentialCache.delete(m_tokenHolder.getCacheKey());
-            m_tokenHolder = null;
-        }
+        disposeInteractiveCredential();
     }
 }

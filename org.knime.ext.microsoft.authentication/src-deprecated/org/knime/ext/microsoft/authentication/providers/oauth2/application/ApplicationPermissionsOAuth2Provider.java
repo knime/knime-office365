@@ -73,7 +73,6 @@ import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
 import com.microsoft.aad.msal4j.ClientCredentialParameters;
-import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.IClientCredential;
 
 /**
@@ -210,11 +209,10 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
         final IClientCredential credential = ClientCredentialFactory.createFromSecret(secret);
         final var app = MSALUtil.createConfidentialApp(clientId, endpoint, credential);
 
-        IAuthenticationResult authResult;
         try {
-            authResult = app.acquireToken(ClientCredentialParameters.builder(getScopesStringSet()).build()).get();
-
-            return MSALUtil.createCredential(authResult, clientId, endpoint, app.tokenCache().serialize(), secret);
+            final var authResult = app.acquireToken(ClientCredentialParameters.builder(getScopesStringSet()).build())
+                    .get();
+            return MSALUtil.createCredential(authResult, app);
         } catch (InterruptedException ex) { // NOSONAR
             throw new IOException("Authentication cancelled/interrupted", ex);
         } catch (ExecutionException ex) {// NOSONAR

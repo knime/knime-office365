@@ -93,7 +93,7 @@ public final class OAuth2TestAuthenticator {
             var app = MSALUtil.createClientApp(appId, endpoint);
             var params = UserNamePasswordParameters.builder(scopes, username, password.toCharArray()).build();
             var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
-            return MSALUtil.createCredential(authResult, appId, endpoint, app.tokenCache().serialize(), null);
+            return MSALUtil.createCredential(authResult, app);
         } catch (RuntimeException e) {
             throw ExceptionUtil.wrapAsIOException(e);
         }

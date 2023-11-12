@@ -177,7 +177,7 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
                     UserNamePasswordParameters.builder(getScopesStringSet(), username, password.toCharArray()).build())
                     .get();
 
-            return MSALUtil.createCredential(result, getAppId(), getEndpoint(), app.tokenCache().serialize(), null);
+            return MSALUtil.createCredential(result, app);
         } catch (InterruptedException ex) { // NOSONAR we are rethrowing by attaching as cause to an IOE
             throw new IOException(ex);
         } catch (ExecutionException ex) { // NOSONAR this exception is being handled
