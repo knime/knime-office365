@@ -59,8 +59,8 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
+import org.knime.ext.microsoft.authentication.scopes.Scope;
 
 /**
  * Base class for auth providers implementing OAuth2 authentication using

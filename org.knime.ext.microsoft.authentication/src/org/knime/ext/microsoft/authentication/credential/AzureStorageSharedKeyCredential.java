@@ -44,14 +44,12 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2023-10-01 (Zkriya Rakhimberdiyev, Redfield SE): created
+ *   2023-09-29 (Zkriya Rakhimberdiyev, Redfield SE): created
  */
-package org.knime.ext.microsoft.authentication.azure.storage;
+package org.knime.ext.microsoft.authentication.credential;
 
 import static org.knime.credentials.base.CredentialPortViewUtil.obfuscate;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.LinkedList;
 
 import org.knime.credentials.base.Credential;
@@ -61,54 +59,68 @@ import org.knime.credentials.base.CredentialTypeRegistry;
 import org.knime.credentials.base.NoOpCredentialSerializer;
 
 /**
- * {@link Credential} implementation for Azure Shared Access Signature (SAS) URL
- * Credential.
- *
- * <p>
- * SAS URLs are URLs which contain a signature that was created using an Azure
- * Storage shared key. The URL grants a particular type of access to a storage
- * account or a folder/file therein.
- * </p>
+ * {@link Credential} implementation for Azure Storage share key.
  *
  * @author Zkriya Rakhimberdiyev, Redfield SE
  */
-public class AzureStorageSasUrlCredential implements Credential {
+public class AzureStorageSharedKeyCredential implements Credential {
+
+    private static final String ENDPOINT_FORMAT = "https://%s.blob.core.windows.net";
 
     /**
      * The serializer class
      */
-    public static class Serializer extends NoOpCredentialSerializer<AzureStorageSasUrlCredential> {
+    public static class Serializer extends NoOpCredentialSerializer<AzureStorageSharedKeyCredential> {
     }
 
     /**
      * Credential type.
      */
     public static final CredentialType TYPE = CredentialTypeRegistry //
-            .getCredentialType("knime.AzureStorageSasUrlCredential");
+            .getCredentialType("knime.AzureStorageSharedKeyCredential");
 
-    private URI m_sasUrl;
+    private String m_storageAccount;
+
+    private String m_accessKey;
 
     /**
      * Default constructor for ser(de).
      */
-    public AzureStorageSasUrlCredential() {
+    public AzureStorageSharedKeyCredential() {
     }
 
     /**
      * Constructor.
      *
-     * @param sasUrl
-     *            the SAS URL
+     * @param storageAccount
+     *            Azure Storage account name
+     * @param accessKey
+     *            The confidential acess key (aka shared key).
      */
-    public AzureStorageSasUrlCredential(final URI sasUrl) {
-        m_sasUrl = sasUrl;
+    public AzureStorageSharedKeyCredential(final String storageAccount, final String accessKey) {
+        m_storageAccount = storageAccount;
+        m_accessKey = accessKey;
     }
 
     /**
-     * @return the sasUrl
+     * @return Azure Storage account name
      */
-    public URI getSasUrl() {
-        return m_sasUrl;
+    public String getStorageAccount() {
+        return m_storageAccount;
+    }
+
+    /**
+     * @return the confidential access key (aka shared key).
+     */
+    public String getAccessKey() {
+        return m_accessKey;
+    }
+
+    /**
+     * @return the endpoint URL
+     */
+    public String getEndpoint() {
+        return String.format(ENDPOINT_FORMAT, m_storageAccount);
     }
 
     @Override
@@ -119,23 +131,11 @@ public class AzureStorageSasUrlCredential implements Credential {
     @Override
     public CredentialPortViewData describe() {
         final var sections = new LinkedList<CredentialPortViewData.Section>();
-        sections.add(
-                new CredentialPortViewData.Section("Azure Storage Shared Access Signature (SAS) URL", new String[][] {
-                        { "Field", "Value" }, //
-                        { "SAS URL", obfuscateSASUrl(m_sasUrl) },//
+        sections.add(new CredentialPortViewData.Section("Azure Storage shared/access key", new String[][] { //
+                { "Field", "Value" }, //
+                { "Azure storage account name", m_storageAccount }, //
+                { "Shared/access key", obfuscate(m_accessKey) }//
         }));
         return new CredentialPortViewData(sections);
-    }
-
-    private static String obfuscateSASUrl(final URI sasUrl) {
-        try {
-            return new URI(sasUrl.getScheme(), //
-                    sasUrl.getAuthority(), //
-                    sasUrl.getPath(), //
-                    obfuscate(sasUrl.getQuery()), // the query part contains the confidential SAS token
-                    null).toString();
-        } catch (URISyntaxException ex) { // NOSONAR no need to log it
-            return obfuscate(sasUrl.toString());
-        }
     }
 }

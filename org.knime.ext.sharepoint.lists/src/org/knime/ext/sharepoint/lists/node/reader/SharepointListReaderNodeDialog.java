@@ -76,8 +76,9 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.NoSuchCredentialException;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
@@ -132,7 +133,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private boolean m_ignoreEvents = false;
 
-    private MicrosoftCredential m_credential;
+    private JWTCredential m_credential;
 
     SharepointListReaderNodeDialog() {
         m_config = SharepointListReaderNodeModel.createConfig();
@@ -410,11 +411,11 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         ignoreEvents(true);
         setPreviewEnabled(false);
 
-        if (specs[0] == null || ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential() == null) {
-            throw new NotConfigurableException("Authentication required!");
+        try {
+            m_credential = ((CredentialPortObjectSpec) specs[0]).resolveCredential(JWTCredential.class);
+        } catch (NoSuchCredentialException ex) {
+            throw new NotConfigurableException(ex.getMessage(), ex);
         }
-
-        m_credential = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
 
         m_config.loadInDialog(settings, specs);
         if (m_config.hasTableSpecConfig()) {
@@ -515,12 +516,12 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
         private final SharepointListSettings m_listSettings;
 
-        private final MicrosoftCredential m_credential;
+        private final JWTCredential m_credential;
 
         private SharepointListClient m_client;
 
         private SharepointListClientAccessor(final SharepointListSettings settings,
-                final MicrosoftCredential credential) {
+                final JWTCredential credential) {
             m_listSettings = settings;
             m_credential = credential;
         }

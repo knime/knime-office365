@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.providers.oauth2.application;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 import org.apache.commons.lang3.StringUtils;
@@ -63,19 +64,16 @@ import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
+import org.knime.credentials.base.Credential;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
-import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
-import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.ApplicationPermissionsTokenSupplier;
+import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
 import com.microsoft.aad.msal4j.ClientCredentialParameters;
+import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.IClientCredential;
 
 /**
@@ -105,9 +103,6 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
 
     private final SettingsModelString m_otherScope;
 
-    private final String m_cacheKey;
-    private final String m_secretCacheKey;
-
     private final SettingsModelString m_tenantId;
     private final SettingsModelString m_clientId;
     private final SettingsModelPassword m_secret;
@@ -122,16 +117,15 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
      *            Ignored argument.
      * @param nodeInstanceId
      */
-    public ApplicationPermissionsOAuth2Provider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
-        this(nodeInstanceId);
+    public ApplicationPermissionsOAuth2Provider(final PortsConfiguration portsConfig, final String nodeInstanceId) {// NOSONAR
+        this();
     }
 
     /**
      * Constructor.
      *
-     * @param nodeInstanceId
      */
-    public ApplicationPermissionsOAuth2Provider(final String nodeInstanceId) {
+    public ApplicationPermissionsOAuth2Provider() {
         super(KEY_APP_TYPE_SCOPES, Scope.GRAPH_APP);
         m_otherScope = new SettingsModelString(KEY_OTHER_SCOPE, "");
         m_otherScope.setEnabled(false);
@@ -149,8 +143,6 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
             m_secret.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
         });
-        m_cacheKey = "appPermissionsToken-" + nodeInstanceId;
-        m_secretCacheKey = "appPermissionsSecret-" + nodeInstanceId;
     }
 
     /**
@@ -196,7 +188,7 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
     }
 
     @Override
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
+    public Credential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
         String clientId;
         String secret;
 
@@ -218,18 +210,16 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
         final IClientCredential credential = ClientCredentialFactory.createFromSecret(secret);
         final var app = MSALUtil.createConfidentialApp(clientId, endpoint, credential);
 
-        app.acquireToken(ClientCredentialParameters.builder(getScopesStringSet()).build())
-                .join();
+        IAuthenticationResult authResult;
+        try {
+            authResult = app.acquireToken(ClientCredentialParameters.builder(getScopesStringSet()).build()).get();
 
-        MemoryCredentialCache.put(m_cacheKey, app.tokenCache().serialize());
-        MemoryCredentialCache.put(m_secretCacheKey, secret);
-
-        final var tokenSupplier = new ApplicationPermissionsTokenSupplier(endpoint, m_cacheKey, clientId, m_secretCacheKey);
-
-        return new OAuth2Credential(tokenSupplier, //
-                clientId, //
-                getScopesStringSet(), //
-                endpoint, clientId, ScopeType.APPLICATION);
+            return MSALUtil.createCredential(authResult, clientId, endpoint, app.tokenCache().serialize(), secret);
+        } catch (InterruptedException ex) { // NOSONAR
+            throw new IOException("Authentication cancelled/interrupted", ex);
+        } catch (ExecutionException ex) {// NOSONAR
+            throw new IOException(ex.getCause());
+        }
     }
 
     @Override
@@ -271,7 +261,7 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        var temp = new ApplicationPermissionsOAuth2Provider("");
+        var temp = new ApplicationPermissionsOAuth2Provider();
         temp.loadSettingsFrom(settings);
         temp.validate();
     }
@@ -313,8 +303,4 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
         m_useCredentials.loadSettingsFrom(settings);
     }
 
-    @Override
-    public void clearMemoryTokenCache() {
-        MemoryCredentialCache.remove(m_cacheKey);
-    }
 }

@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.providers.azure.storage.sas;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.util.function.Supplier;
 
@@ -62,11 +63,10 @@ import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
+import org.knime.credentials.base.Credential;
+import org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCredential;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.azure.storage.AzureSasTokenCredential;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
-import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 
@@ -82,8 +82,6 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
     private static final String KEY_CREDENTIALS_NAME = "credentialsName";
     private static final String ENCRYPTION_KEY = "4fwQI8raq3ODUf3";
 
-    private final String m_cacheKey;
-
     private final SettingsModelPassword m_sasUrl;
     private final SettingsModelBoolean m_useCredentials;
     private final SettingsModelString m_credentialsName;
@@ -96,16 +94,14 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
      *            Ignored argument.
      * @param nodeInstanceId
      */
-    public AzureStorageSasTokenAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
-        this(nodeInstanceId);
+    public AzureStorageSasTokenAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {// NOSONAR
+        this();
     }
 
     /**
      * Creates new instance
-     *
-     * @param nodeInstanceId
      */
-    public AzureStorageSasTokenAuthProvider(final String nodeInstanceId) {
+    public AzureStorageSasTokenAuthProvider() {
         m_sasUrl = new SettingsModelPassword(KEY_SAS_URL, ENCRYPTION_KEY, "");
         m_useCredentials = new SettingsModelBoolean(KEY_USE_CREDENTIALS, false);
         m_credentialsName = new SettingsModelString(KEY_CREDENTIALS_NAME, "");
@@ -116,8 +112,6 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
             m_sasUrl.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
         });
-
-        m_cacheKey = "sas-url-" + nodeInstanceId;
     }
 
     /**
@@ -142,7 +136,7 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
     }
 
     @Override
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
+    public Credential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
         String sasUrl;
         if (m_useCredentials.getBooleanValue()) {
             ICredentials creds = credentialsProvider.get(m_credentialsName.getStringValue());
@@ -155,8 +149,7 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
             sasUrl = m_sasUrl.getStringValue();
         }
 
-        MemoryCredentialCache.put(m_cacheKey, sasUrl);
-        return new AzureSasTokenCredential(m_cacheKey);
+        return new AzureStorageSasUrlCredential(URI.create(sasUrl));
     }
 
     @Override
@@ -178,7 +171,7 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        var temp = new AzureStorageSasTokenAuthProvider("");
+        var temp = new AzureStorageSasTokenAuthProvider();
         temp.loadSettingsFrom(settings);
         temp.validate();
     }
@@ -223,8 +216,4 @@ public class AzureStorageSasTokenAuthProvider implements MicrosoftAuthProvider {
         m_useCredentials.loadSettingsFrom(settings);
     }
 
-    @Override
-    public void clearMemoryTokenCache() {
-        MemoryCredentialCache.remove(m_cacheKey);
-    }
 }

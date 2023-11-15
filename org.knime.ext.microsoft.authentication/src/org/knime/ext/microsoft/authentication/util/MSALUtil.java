@@ -49,21 +49,33 @@
 package org.knime.ext.microsoft.authentication.util;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
+import java.text.ParseException;
+import java.util.Date;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import org.knime.core.node.NodeLogger;
+import org.knime.credentials.base.Credential;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
+import com.microsoft.aad.msal4j.ClientCredentialFactory;
 import com.microsoft.aad.msal4j.ConfidentialClientApplication;
+import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.IClientCredential;
 import com.microsoft.aad.msal4j.MsalClientException;
 import com.microsoft.aad.msal4j.MsalException;
 import com.microsoft.aad.msal4j.PublicClientApplication;
+import com.microsoft.aad.msal4j.SilentParameters;
 
 /**
  * Utility class the help with MSAL4J.
@@ -71,6 +83,7 @@ import com.microsoft.aad.msal4j.PublicClientApplication;
  * @author Bjoern Lohrmann, KNIME GmbH
  */
 public final class MSALUtil {
+    private static final NodeLogger LOG = NodeLogger.getLogger(MSALUtil.class);
 
     /**
      * The default Application (client) ID
@@ -94,6 +107,8 @@ public final class MSALUtil {
      * https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-client-application-configuration
      */
     public static final String ORGANIZATIONS_ENDPOINT = "https://login.microsoftonline.com/organizations";
+
+    private static final Pattern WHITESPACES_PATTERN = Pattern.compile("\\s+");
 
     private MSALUtil() {
     }
@@ -286,5 +301,91 @@ public final class MSALUtil {
             current = current.getCause();
         }
         return null;
+    }
+
+    /**
+     * Creates {@link Credential} from the provided authentication result.
+     *
+     * @param authResult
+     *            The authentication result.
+     * @param appId
+     *            The client/app ID.
+     * @param endpoint
+     *            The authorization endpoint.
+     * @param tokenCache
+     *            The token cache.
+     * @param clientSecret
+     *            The client secret. May be <code>null</code> for public applicaton.
+     * @return The {@link JWTCredential}
+     */
+    @SuppressWarnings("unchecked")
+    public static JWTCredential createCredential(final IAuthenticationResult authResult, final String appId,
+            final String endpoint, final String tokenCache, final String clientSecret) {
+        var accessToken = authResult.accessToken();
+        var idToken = authResult.idToken();
+        var expiresAfter = Optional.ofNullable(authResult.expiresOnDate())//
+                .map(Date::toInstant)//
+                .orElse(null);
+        var tokenType = "Bearer";
+        var scopes = extractScopes(authResult);
+        var account = authResult.account();
+
+        Supplier<? extends Credential> refresher = clientSecret == null
+                ? createPublicClientRefresher(appId, endpoint, tokenCache, scopes, account)
+                : createConfidentialClientRefresher(appId, endpoint, tokenCache, scopes, clientSecret);
+
+        try {
+            return new JWTCredential(accessToken, tokenType, expiresAfter, idToken,
+                    (Supplier<JWTCredential>) refresher);
+        } catch (ParseException ex) {
+            throw new IllegalStateException("Failed to parse authentication result");
+        }
+    }
+
+    private static Set<String> extractScopes(final IAuthenticationResult authResult) {
+        var scopesString = authResult.scopes();
+        if (scopesString == null) {
+            return Set.of();
+        } else {
+            return Set.of(WHITESPACES_PATTERN.split(scopesString));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Credential> Supplier<T> createPublicClientRefresher(final String appId,
+            final String endpoint, final String tokenCache, final Set<String> scopes, final IAccount account) {
+        return () -> {// NOSONAR
+            try {
+                var app = MSALUtil.createClientAppWithToken(appId, endpoint, tokenCache);
+                var params = SilentParameters.builder(scopes, account).build();
+
+                var authResult = MSALUtil.doLogin(() -> app.acquireTokenSilently(params));
+                return (T) createCredential(authResult, appId, endpoint, app.tokenCache().serialize(), null);
+            } catch (IOException ex) {
+                LOG.error(ex.getMessage(), ex);
+                throw new UncheckedIOException(ex);
+            }
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Credential> Supplier<T> createConfidentialClientRefresher(final String appId,
+            final String endpoint, final String tokenCache, final Set<String> scoopes, final String clientSecret) {
+        return () -> {// NOSONAR
+            try {
+                var secret = ClientCredentialFactory.createFromSecret(clientSecret);
+
+                var app = MSALUtil.createConfidentialApp(appId, endpoint, secret);
+                app.tokenCache().deserialize(tokenCache);
+
+                var params = SilentParameters.builder(scoopes).build();
+
+                var authResult = MSALUtil.doLogin(() -> app.acquireTokenSilently(params));
+                return (T) createCredential(authResult, appId, endpoint, app.tokenCache().serialize(), clientSecret);
+            } catch (IOException ex) {
+                LOG.error(ex.getMessage(), ex);
+                throw new UncheckedIOException(ex);
+            }
+        };
     }
 }

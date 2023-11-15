@@ -60,11 +60,10 @@ import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
+import org.knime.credentials.base.Credential;
+import org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.azure.storage.AzureSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
-import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 
@@ -82,8 +81,6 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
     private static final String KEY_CREDENTIALS_NAME = "credentialsName";
     private static final String ENCRYPTION_KEY = "Jy3yBcWjcyqku2E";
 
-    private final String m_cacheKey;
-
     private final SettingsModelString m_account;
     private final SettingsModelPassword m_secretKey;
     private final SettingsModelBoolean m_useCredentials;
@@ -97,16 +94,14 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
      *            Ignored argument.
      * @param nodeInstanceId
      */
-    public AzureSharedKeyAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
-        this(nodeInstanceId);
+    public AzureSharedKeyAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {// NOSONAR
+        this();
     }
 
     /**
      * Creates new instance
-     *
-     * @param nodeInstanceId
      */
-    public AzureSharedKeyAuthProvider(final String nodeInstanceId) {
+    public AzureSharedKeyAuthProvider() {
         m_account = new SettingsModelString(KEY_ACCOUNT, "");
         m_secretKey = new SettingsModelPassword(KEY_SECRET_KEY, ENCRYPTION_KEY, "");
         m_useCredentials = new SettingsModelBoolean(KEY_USE_CREDENTIALS, false);
@@ -119,8 +114,6 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
             m_secretKey.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
         });
-
-        m_cacheKey = "sharedkey-" + nodeInstanceId;
     }
 
     /**
@@ -152,7 +145,7 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
     }
 
     @Override
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
+    public Credential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
         String account;
         String secretKey;
         if (m_useCredentials.getBooleanValue()) {
@@ -168,8 +161,7 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
             secretKey = m_secretKey.getStringValue();
         }
 
-        MemoryCredentialCache.put(m_cacheKey, secretKey);
-        return new AzureSharedKeyCredential(account, m_cacheKey);
+        return new AzureStorageSharedKeyCredential(account, secretKey);
     }
 
     @Override
@@ -193,7 +185,7 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        var temp = new AzureSharedKeyAuthProvider("");
+        var temp = new AzureSharedKeyAuthProvider();
         temp.loadSettingsFrom(settings);
         temp.validate();
     }
@@ -226,8 +218,4 @@ public class AzureSharedKeyAuthProvider implements MicrosoftAuthProvider {
         m_useCredentials.loadSettingsFrom(settings);
     }
 
-    @Override
-    public void clearMemoryTokenCache() {
-        MemoryCredentialCache.remove(m_cacheKey);
-    }
 }

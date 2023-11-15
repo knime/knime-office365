@@ -58,7 +58,6 @@ import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.LoginStatus;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 
 /**
@@ -229,17 +228,6 @@ public class StorageSettings {
      */
     public void validate() throws InvalidSettingsException {
         getCurrentStorageProvider().validate();
-    }
-
-    /**
-     * @param endpoint
-     * @param appId
-     *            the Application (client) ID
-     * @return a {@link MemoryCacheAccessTokenSupplier} that provides the credential
-     *         from the current storage provider.
-     */
-    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier(final String endpoint, final String appId) {
-        return getCurrentStorageProvider().createAccessTokenSupplier(endpoint, appId);
     }
 
     /**

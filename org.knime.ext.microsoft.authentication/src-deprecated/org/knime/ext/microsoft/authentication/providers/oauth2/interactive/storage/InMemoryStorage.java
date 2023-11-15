@@ -54,8 +54,6 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.DelegatedPermissionsTokenSupplier;
 
 /**
  * Concrete storage provider that stores an MSAL4J token cache string in the
@@ -77,11 +75,6 @@ class InMemoryStorage implements StorageProvider {
      */
     public InMemoryStorage(final String nodeInstanceId) {
         m_cacheKey = "mem-" + nodeInstanceId;
-    }
-
-    @Override
-    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier(final String endpoint, final String appId) {
-        return new DelegatedPermissionsTokenSupplier(endpoint, m_cacheKey, appId);
     }
 
     private String getMemoryCacheKey() {

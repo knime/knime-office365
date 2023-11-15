@@ -51,19 +51,18 @@ package org.knime.ext.sharepoint;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.time.ZoneOffset;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.concurrent.TimeUnit;
 
 import org.knime.core.node.Node;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
+import org.knime.credentials.base.Credential;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 import org.knime.okhttp3.OkHttpProxyAuthenticator;
 import org.osgi.framework.FrameworkUtil;
 
 import com.azure.core.credential.AccessToken;
-import com.azure.core.credential.TokenCredential;
-import com.azure.core.credential.TokenRequestContext;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
 import com.microsoft.graph.authentication.TokenCredentialAuthProvider;
 import com.microsoft.graph.core.ClientException;
@@ -138,22 +137,21 @@ public final class GraphApiUtil {
     }
 
     /**
-     * Creates a {@link GraphServiceClient} with a {@link MicrosoftCredential}.
+     * Creates a {@link GraphServiceClient} with a {@link Credential}.
      *
-     * @param connection
-     *            the {@link MicrosoftCredential}
+     * @param credential
+     *            the credential
      * @param connectionTimeout
      *            Connection timeout in milliseconds.
      * @param readTimeout
      *            Read timeout in milliseconds.
      * @return the {@link GraphServiceClient}
-     * @throws IOException
      */
-    public static GraphServiceClient<Request> createClient(final MicrosoftCredential connection,
+    public static GraphServiceClient<Request> createClient(final JWTCredential credential,
             final int connectionTimeout,
-            final int readTimeout) throws IOException {
+            final int readTimeout) {
 
-        final IAuthenticationProvider authProvider = createAuthenticationProvider(connection);
+        final var authProvider = createAuthenticationProvider(credential);
         return createClient(authProvider, connectionTimeout, readTimeout);
     }
 
@@ -189,58 +187,28 @@ public final class GraphApiUtil {
     }
 
     /**
-     * Creates a {@link IAuthenticationProvider} with a {@link MicrosoftCredential}.
+     * Creates a {@link IAuthenticationProvider} based on the given
+     * {@link JWTCredential}.
      *
-     * @param msCredential
-     *            the {@link MicrosoftCredential}
+     * @param credential
+     *            The credential.
      * @return the {@link IAuthenticationProvider}
-     * @throws IOException
-     *             if the (new) token could not be accessed.
      */
-    public static IAuthenticationProvider createAuthenticationProvider(final MicrosoftCredential msCredential)
-            throws IOException {
-
-        if (!(msCredential instanceof OAuth2Credential)) {
-            throw new IOException("Unsupported credential type: " + msCredential.getType());
-        }
-
-        return new TokenCredentialAuthProvider(new RefreshingTokenCredential((OAuth2Credential) msCredential));
+    public static IAuthenticationProvider createAuthenticationProvider(final JWTCredential credential) {
+        // as is the nature of monos, this will defer the actual retrieval of the access
+        // token to when it
+        // is fact needed.
+        final var accessTokenMono = Mono.fromCallable(() -> toMsalAccessToken(credential));
+        return new TokenCredentialAuthProvider(ignored -> accessTokenMono);
     }
 
-    private static class RefreshingTokenCredential implements TokenCredential {
+    private static AccessToken toMsalAccessToken(final JWTCredential credential) throws IOException {
+        final var accessToken = credential.getAccessToken(); // potentially throws IOE when token cannot be refreshed
+        final var expiration = credential.getExpiresAfter()
+                .map(instant -> OffsetDateTime.ofInstant(instant, ZoneId.of("UTC")))
+                .orElseThrow();
 
-        private final OAuth2Credential m_credential;
-
-        private AccessToken m_accessToken;
-
-        private long m_lastAccessTokenRefresh;
-
-        RefreshingTokenCredential(final OAuth2Credential credential) {
-            m_credential = credential;
-        }
-
-        @Override
-        public Mono<AccessToken> getToken(final TokenRequestContext request) {
-            return Mono.fromCallable(this::getTokenAndRefreshIfNecessary);
-        }
-
-        private synchronized AccessToken getTokenAndRefreshIfNecessary() throws IOException {
-            if (m_accessToken == null || tokenMightNeedRefresh()) {
-                // we don't want to call m_credential.getAccessToken() for EVERY request
-                // (because it might be a little heavyweight) but we still do it frequently
-                // (max every 5s)
-                m_lastAccessTokenRefresh = System.currentTimeMillis();
-                var oauthToken = m_credential.getAccessToken();
-                m_accessToken = new AccessToken(oauthToken.getToken(), //
-                        oauthToken.getAccessTokenExpiresAt().atOffset(ZoneOffset.of("Z")));
-            }
-
-            return m_accessToken;
-        }
-
-        private boolean tokenMightNeedRefresh() {
-            return (System.currentTimeMillis() - m_lastAccessTokenRefresh) >= 5000;
-        }
+        return new AccessToken(accessToken, expiration);
     }
 
     private static class UserAgentInterceptor implements Interceptor {
@@ -265,6 +233,5 @@ public final class GraphApiUtil {
 
             return chain.proceed(request);
         }
-
     }
 }

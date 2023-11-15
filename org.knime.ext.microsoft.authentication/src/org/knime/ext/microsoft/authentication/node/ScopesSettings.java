@@ -80,8 +80,8 @@ import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.ApplicationScopePersistor;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.DelegatedScope;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.DelegatedScopePersistor;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
-import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
+import org.knime.ext.microsoft.authentication.scopes.Scope;
+import org.knime.ext.microsoft.authentication.scopes.ScopeType;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

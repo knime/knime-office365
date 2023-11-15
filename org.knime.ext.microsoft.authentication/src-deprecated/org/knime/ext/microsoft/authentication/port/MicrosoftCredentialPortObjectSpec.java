@@ -48,102 +48,47 @@
  */
 package org.knime.ext.microsoft.authentication.port;
 
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
+import java.util.UUID;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.ModelContentRO;
-import org.knime.core.node.ModelContentWO;
-import org.knime.core.node.port.AbstractSimplePortObjectSpec;
-import org.knime.core.node.util.ViewUtils;
+import org.knime.credentials.base.CredentialPortObject;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.CredentialType;
 
 /**
- * Specification for the {@link MicrosoftCredentialPortObject}.
+ * Specification for the legacy Microsoft Credential port type. The only purpose
+ * of this class is to be referenced by the port type definition in plugin.xml.
  *
  * @author Alexander Bondaletov
+ * @deprecated Since 5.2. Use {@link CredentialPortObject} instead.
  */
-public class MicrosoftCredentialPortObjectSpec extends AbstractSimplePortObjectSpec {
+@Deprecated(since = "5.2")
+public class MicrosoftCredentialPortObjectSpec extends CredentialPortObjectSpec {
 
     /**
      * Serializer class.
      */
-    public static final class Serializer extends AbstractSimplePortObjectSpecSerializer<MicrosoftCredentialPortObjectSpec> {
+    public static final class Serializer
+            extends AbstractSimplePortObjectSpecSerializer<MicrosoftCredentialPortObjectSpec> {
     }
 
-    private MicrosoftCredential m_credentials;
-
     /**
-     * Creates new instance.
+     * Don't use, framework constructor.
      */
     public MicrosoftCredentialPortObjectSpec() {
-        this(null);
+        super(null, null);
     }
 
     /**
-     * Creates new instance with a given {@link MicrosoftCredential}.
+     * Creates a new instance. During node mode configure() it is okay to call this
+     * method with one or both arguments null.
      *
-     * @param microsoftCredentials
-     *            The connection.
+     * @param type
+     *            The credential type. May be null, but then cacheId must also be
+     *            null.
+     * @param cacheId
+     *            The cache id. May be null, if currently unknown.
      */
-    public MicrosoftCredentialPortObjectSpec(final MicrosoftCredential microsoftCredentials) {
-        m_credentials = microsoftCredentials;
-    }
-
-    /**
-     * @return the {@link MicrosoftCredential} of this port.
-     */
-    public MicrosoftCredential getMicrosoftCredential() {
-        return m_credentials;
-    }
-
-    @Override
-    protected void save(final ModelContentWO model) {
-        m_credentials.saveSettings(model);
-
-    }
-
-    @Override
-    protected void load(final ModelContentRO model) throws InvalidSettingsException {
-        m_credentials = MicrosoftCredential.loadFromSettings(model);
-    }
-
-    @Override
-    public boolean equals(final Object ospec) {
-        if (ospec == null) {
-            return false;
-        }
-
-        if (this == ospec) {
-            return true;
-        }
-
-        if (ospec.getClass() != getClass()) {
-            return false;
-        }
-
-        MicrosoftCredentialPortObjectSpec spec = (MicrosoftCredentialPortObjectSpec) ospec;
-
-        if (m_credentials == null) {
-            return spec.m_credentials == null;
-        }
-
-        return m_credentials.equals(spec.m_credentials);
-    }
-
-    @Override
-    public int hashCode() {
-        return m_credentials == null ? 0 : m_credentials.hashCode();
-    }
-
-    @Override
-    public JComponent[] getViews() {
-        if (m_credentials != null) {
-            return new JComponent[] { m_credentials.getView() };
-        }
-
-        JPanel f = ViewUtils.getInFlowLayout(new JLabel("No connection available"));
-        f.setName("Connection");
-        return new JComponent[] { f };
+    public MicrosoftCredentialPortObjectSpec(final CredentialType type, final UUID cacheId) {
+        super(type, cacheId);
     }
 }

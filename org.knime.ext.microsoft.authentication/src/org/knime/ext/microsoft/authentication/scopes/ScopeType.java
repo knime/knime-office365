@@ -44,47 +44,52 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2020-10-09 (Bjoern Lohrmann, KNIME GmbH): created
+ *   2022-10-21 (Zkriya Rakhimberdiyev): created
  */
-package org.knime.ext.microsoft.authentication.port.oauth2;
+package org.knime.ext.microsoft.authentication.scopes;
 
-import java.time.Instant;
+import java.util.stream.Stream;
 
 /**
- * Class that holds an access token and its expiry time.
+ * Scope types.
  *
- * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Zkriya Rakhimberdiyev
  */
-public class OAuth2AccessToken {
-
-    private final String m_token;
-
-    private final Instant m_accessTokenExpiresAt;
+public enum ScopeType {
 
     /**
-     * Creates a new instance.
-     *
-     * @param token
-     *            The access token as a string.
-     * @param accessTokenExpiresAt
-     *            The instant at which the access token will expire.
+     * Delegated scopes are used by apps that have a signed-in user present. The app
+     * is delegated with the permission to act as a signed-in user when it makes
+     * calls to the target resource.
      */
-    public OAuth2AccessToken(final String token, final Instant accessTokenExpiresAt) {
-        m_token = token;
-        m_accessTokenExpiresAt = accessTokenExpiresAt;
+    DELEGATED("delegated"),
+
+    /**
+     * Application scopes are used by apps that run without a signed-in user
+     * present.
+     */
+    APPLICATION("application");
+
+    private final String m_settingsValue;
+
+    private ScopeType(final String settingsValue) {
+        m_settingsValue = settingsValue;
     }
 
     /**
-     * @return the access token as a string.
+     * @return the settingsValue
      */
-    public String getToken() {
-        return m_token;
+    public String getSettingsValue() {
+        return m_settingsValue;
     }
 
     /**
-     * @return the instant at which the access token will expire.
+     * @param settingsValue
+     *            settings value to search
+     * @return found scope type otherwise default delegated scope type
      */
-    public Instant getAccessTokenExpiresAt() {
-        return m_accessTokenExpiresAt;
+    public static ScopeType forSettingsValue(final String settingsValue) {
+        return Stream.of(ScopeType.values()).filter(s -> s.getSettingsValue().equalsIgnoreCase(settingsValue)).findAny()
+                .orElse(DELEGATED);
     }
 }

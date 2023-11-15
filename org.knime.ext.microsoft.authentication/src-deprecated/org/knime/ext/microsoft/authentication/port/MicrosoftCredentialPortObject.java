@@ -48,26 +48,31 @@
  */
 package org.knime.ext.microsoft.authentication.port;
 
-import java.util.Objects;
-
-import javax.swing.JComponent;
-
-import org.knime.core.node.CanceledExecutionException;
-import org.knime.core.node.ExecutionMonitor;
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.ModelContentRO;
-import org.knime.core.node.ModelContentWO;
-import org.knime.core.node.port.AbstractSimplePortObject;
-import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.port.PortTypeRegistry;
+import org.knime.credentials.base.CredentialPortObject;
 
 /**
- * Port object containing a {@link MicrosoftCredential}.
+ * Legacy credential port object.
  *
  * @author Alexander Bondaletov
+ * @deprecated Since 5.2. Use {@link CredentialPortObject} instead.
  */
-public class MicrosoftCredentialPortObject extends AbstractSimplePortObject {
+@Deprecated(since = "5.2")
+public class MicrosoftCredentialPortObject extends CredentialPortObject {
+
+    /**
+     * Port type.
+     */
+    @SuppressWarnings("hiding")
+    public static final PortType TYPE = PortTypeRegistry.getInstance().getPortType(MicrosoftCredentialPortObject.class);
+
+    /**
+     * Optional port type.
+     */
+    @SuppressWarnings("hiding")
+    public static final PortType TYPE_OPTIONAL = PortTypeRegistry.getInstance()
+            .getPortType(MicrosoftCredentialPortObject.class, true);
 
     /**
      * Serializer class
@@ -76,88 +81,22 @@ public class MicrosoftCredentialPortObject extends AbstractSimplePortObject {
     }
 
     /**
-     * The type of this port.
-     */
-    @SuppressWarnings("hiding")
-    public static final PortType TYPE = PortTypeRegistry.getInstance().getPortType(MicrosoftCredentialPortObject.class);
-
-    private MicrosoftCredentialPortObjectSpec m_spec;
-
-    /**
-     * Creates new instance
+     * Constructor used by the framework.
      */
     public MicrosoftCredentialPortObject() {
-        this(null);
     }
 
     /**
-     * Creates new instance with a given spec.
+     * Constructor used by the framework.
      *
      * @param spec
-     *            The spec.
-     *
      */
     public MicrosoftCredentialPortObject(final MicrosoftCredentialPortObjectSpec spec) {
-        m_spec = spec;
-    }
-
-    /**
-     * @return The microsoft connection object.
-     */
-    public MicrosoftCredential getMicrosoftCredentials() {
-        return m_spec.getMicrosoftCredential();
+        super(spec);
     }
 
     @Override
-    public String getSummary() {
-        return getMicrosoftCredentials().getSummary();
-    }
-
-    @Override
-    public PortObjectSpec getSpec() {
-        return m_spec;
-    }
-
-    @Override
-    protected void save(final ModelContentWO model, final ExecutionMonitor exec) throws CanceledExecutionException {
-        // nothing to do
-
-    }
-
-    @Override
-    protected void load(final ModelContentRO model, final PortObjectSpec spec, final ExecutionMonitor exec)
-            throws InvalidSettingsException, CanceledExecutionException {
-        m_spec = (MicrosoftCredentialPortObjectSpec) spec;
-    }
-
-    @Override
-    public JComponent[] getViews() {
-        return m_spec.getViews();
-    }
-
-    @Override
-    public int hashCode() {
-        final var prime = 31;
-        var result = super.hashCode();
-        result = prime * result + Objects.hash(m_spec);
-        return result;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        if (obj == null) {
-            return false;
-        }
-
-        if (this == obj) {
-            return true;
-        }
-
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-
-        final var other = (MicrosoftCredentialPortObject) obj;
-        return Objects.equals(m_spec, other.m_spec);
+    public MicrosoftCredentialPortObjectSpec getSpec() {
+        return (MicrosoftCredentialPortObjectSpec) super.getSpec();
     }
 }

@@ -4,14 +4,14 @@
    <extension 
    		 point="org.knime.credentials.base.CredentialType">
 	 <credentialType
-            credentialClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSasUrlCredential"
-            credentialSerializerClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSasUrlCredential$Serializer"
+            credentialClass="org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCredential"
+            credentialSerializerClass="org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCredential$Serializer"
             id="knime.AzureStorageSasUrlCredential"
             name="Azure Storage SAS URL">
       </credentialType>
    	  <credentialType
-            credentialClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential"
-            credentialSerializerClass="org.knime.ext.microsoft.authentication.azure.storage.AzureStorageSharedKeyCredential$Serializer"
+            credentialClass="org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential"
+            credentialSerializerClass="org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential$Serializer"
             id="knime.AzureStorageSharedKeyCredential"
             name="Azure Storage shared key">
       </credentialType>
@@ -31,8 +31,8 @@
          point="org.knime.core.PortType">
       <portType
             color="#4386f7"
-            hidden="false"
-            name="Microsoft Credential"
+            hidden="true"
+            name="Credential (Microsoft)"
             objectClass="org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject"
             objectSerializer="org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject$Serializer"
             specClass="org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec"

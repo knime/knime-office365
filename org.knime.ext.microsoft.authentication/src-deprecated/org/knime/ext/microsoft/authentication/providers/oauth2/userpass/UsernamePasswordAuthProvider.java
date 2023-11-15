@@ -61,13 +61,10 @@ import org.knime.core.node.defaultnodesettings.SettingsModelPassword;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.workflow.CredentialsProvider;
 import org.knime.core.node.workflow.ICredentials;
+import org.knime.credentials.base.Credential;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
-import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsOAuth2Provider;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.DelegatedPermissionsTokenSupplier;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
@@ -89,8 +86,6 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
     private static final String KEY_CREDENTIALS_NAME = "credentialsName";
     private static final String ENCRYPTION_KEY = "Z4mJcnXMrtXKW8wp";
 
-    private final String m_cacheKey;
-
     private final SettingsModelString m_username;
     private final SettingsModelPassword m_password;
     private final SettingsModelBoolean m_useCredentials;
@@ -103,16 +98,15 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
      * @param portsConfig Ignored argument.
      * @param nodeInstanceId
      */
-    public UsernamePasswordAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {
-        this(nodeInstanceId);
+    public UsernamePasswordAuthProvider(final PortsConfiguration portsConfig, final String nodeInstanceId) {// NOSONAR
+        this();
     }
 
     /**
      * Creates new instance.
      *
-     * @param nodeInstanceId
      */
-    public UsernamePasswordAuthProvider(final String nodeInstanceId) {
+    public UsernamePasswordAuthProvider() {
         super();
         m_username = new SettingsModelString(KEY_USERNAME, "");
         m_password = new SettingsModelPassword(KEY_PASSWORD, ENCRYPTION_KEY, "");
@@ -126,8 +120,6 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
             m_password.setEnabled(!useCreds);
             m_credentialsName.setEnabled(useCreds);
         });
-
-        m_cacheKey = "userpass-" + nodeInstanceId;
     }
 
     /**
@@ -159,7 +151,7 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
     }
 
     @Override
-    public OAuth2Credential getCredential(
+    public Credential getCredential(
             final CredentialsProvider credentialsProvider)
             throws IOException {
         String username;
@@ -185,15 +177,7 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
                     UserNamePasswordParameters.builder(getScopesStringSet(), username, password.toCharArray()).build())
                     .get();
 
-            MemoryCredentialCache.put(m_cacheKey, app.tokenCache().serialize());
-
-            final var tokenSupplier = new DelegatedPermissionsTokenSupplier(getEndpoint(),
-                    m_cacheKey, getAppId());
-
-            return new OAuth2Credential(tokenSupplier, //
-                    result.account().username(), //
-                    getScopesStringSet(), //
-                    getEndpoint(), getAppId(), ScopeType.DELEGATED);
+            return MSALUtil.createCredential(result, getAppId(), getEndpoint(), app.tokenCache().serialize(), null);
         } catch (InterruptedException ex) { // NOSONAR we are rethrowing by attaching as cause to an IOE
             throw new IOException(ex);
         } catch (ExecutionException ex) { // NOSONAR this exception is being handled
@@ -229,7 +213,7 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
         m_useCredentials.validateSettings(settings);
         m_credentialsName.validateSettings(settings);
 
-        var temp = new UsernamePasswordAuthProvider("");
+        var temp = new UsernamePasswordAuthProvider();
         temp.loadSettingsFrom(settings);
         temp.validate();
     }
@@ -258,10 +242,5 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
         m_password.loadSettingsFrom(settings);
         m_credentialsName.loadSettingsFrom(settings);
         m_useCredentials.loadSettingsFrom(settings);
-    }
-
-    @Override
-    public void clearMemoryTokenCache() {
-        MemoryCredentialCache.remove(m_cacheKey);
     }
 }

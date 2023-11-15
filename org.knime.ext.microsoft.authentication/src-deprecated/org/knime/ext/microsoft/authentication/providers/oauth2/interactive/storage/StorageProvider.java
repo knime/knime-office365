@@ -53,7 +53,6 @@ import java.io.IOException;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
 
 /**
  * Describes a storage provider that somehow stores an MSAL4J token cache
@@ -72,8 +71,6 @@ interface StorageProvider {
     void writeTokenCache(final String tokenCacheString) throws IOException;
 
     String readTokenCache() throws IOException;
-
-    MemoryCacheAccessTokenSupplier createAccessTokenSupplier(final String endpoint, final String appId);
 
     void clear() throws IOException;
 

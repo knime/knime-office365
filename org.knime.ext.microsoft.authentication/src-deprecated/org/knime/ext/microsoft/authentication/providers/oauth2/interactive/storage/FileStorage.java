@@ -74,8 +74,6 @@ import org.knime.core.util.crypto.Encrypter;
 import org.knime.core.util.crypto.IEncrypter;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory;
 import org.knime.ext.microsoft.authentication.providers.MemoryCredentialCache;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.MemoryCacheAccessTokenSupplier;
-import org.knime.ext.microsoft.authentication.providers.oauth2.tokensupplier.DelegatedPermissionsTokenSupplier;
 import org.knime.filehandling.core.connections.FSFiles;
 import org.knime.filehandling.core.connections.FSPath;
 import org.knime.filehandling.core.defaultnodesettings.EnumConfig;
@@ -220,11 +218,6 @@ class FileStorage implements StorageProvider {
         } catch (NoSuchFileException e) { // NOSONAR we are intentionally returning null here and not rethrowing.
             return null;
         }
-    }
-
-    @Override
-    public MemoryCacheAccessTokenSupplier createAccessTokenSupplier(final String endpoint, final String appId) {
-        return new DelegatedPermissionsTokenSupplier(endpoint, m_cacheKey, appId);
     }
 
     @Override

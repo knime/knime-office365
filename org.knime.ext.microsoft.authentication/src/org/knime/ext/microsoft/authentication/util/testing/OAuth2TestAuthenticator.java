@@ -44,52 +44,58 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2022-10-21 (Zkriya Rakhimberdiyev): created
+ *   2020-07-06 (bjoern): created
  */
-package org.knime.ext.microsoft.authentication.port.oauth2;
+package org.knime.ext.microsoft.authentication.util.testing;
 
-import java.util.stream.Stream;
+import java.io.IOException;
+import java.util.Set;
+
+import org.knime.credentials.base.Credential;
+import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.ext.microsoft.authentication.util.MSALUtil;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
+
+import com.microsoft.aad.msal4j.UserNamePasswordParameters;
 
 /**
- * Scope types.
+ * This class is part of the testing infrastructure and allows to easily
+ * authenticate in order to get a {@link Credential}.
  *
- * @author Zkriya Rakhimberdiyev
+ * @author Bjoern Lohrmann, KNIME GmbH
  */
-public enum ScopeType {
+public final class OAuth2TestAuthenticator {
 
-    /**
-     * Delegated scopes are used by apps that have a signed-in user present. The app
-     * is delegated with the permission to act as a signed-in user when it makes
-     * calls to the target resource.
-     */
-    DELEGATED("delegated"),
-
-    /**
-     * Application scopes are used by apps that run without a signed-in user
-     * present.
-     */
-    APPLICATION("application");
-
-    private final String m_settingsValue;
-
-    private ScopeType(final String settingsValue) {
-        m_settingsValue = settingsValue;
+    private OAuth2TestAuthenticator() {
     }
 
     /**
-     * @return the settingsValue
+     * Logs into the Microsoft Identity platform using the given user/password pair
+     * and returns a {@link JWTCredential} which contains an access token.
+     *
+     * @param username
+     *            The username to use for login.
+     * @param password
+     *            The password to use for login.
+     * @param scopes
+     *            The set of (delegated) scopes to request
+     * @return a {@link Credential} which contains an access token
+     * @throws IOException
+     *             when something went wrong during login.
      */
-    public String getSettingsValue() {
-        return m_settingsValue;
-    }
+    public static JWTCredential authenticateWithUsernamePassword(final String username, final String password,
+            final Set<String> scopes) throws IOException {
 
-    /**
-     * @param settingsValue
-     *            settings value to search
-     * @return found scope type otherwise default delegated scope type
-     */
-    public static ScopeType forSettingsValue(final String settingsValue) {
-        return Stream.of(ScopeType.values()).filter(s -> s.getSettingsValue().equalsIgnoreCase(settingsValue)).findAny()
-                .orElse(DELEGATED);
+        final var appId = MSALUtil.DEFAULT_APP_ID;
+        final var endpoint = MSALUtil.ORGANIZATIONS_ENDPOINT;
+
+        try {
+            var app = MSALUtil.createClientApp(appId, endpoint);
+            var params = UserNamePasswordParameters.builder(scopes, username, password.toCharArray()).build();
+            var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
+            return MSALUtil.createCredential(authResult, appId, endpoint, app.tokenCache().serialize(), null);
+        } catch (RuntimeException e) {
+            throw ExceptionUtil.wrapAsIOException(e);
+        }
     }
 }

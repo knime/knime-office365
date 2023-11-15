@@ -63,6 +63,7 @@ import org.knime.filehandling.core.port.FileSystemPortObject;
  *
  * @author Alexander Bondaletov
  */
+@SuppressWarnings("deprecation")
 public class MicrosoftAuthenticationNodeFactory extends ConfigurableNodeFactory<MicrosoftAuthenticationNodeModel> {
 
     /**
@@ -78,11 +79,12 @@ public class MicrosoftAuthenticationNodeFactory extends ConfigurableNodeFactory<
      */
     private final String m_nodeInstanceId = UUID.randomUUID().toString();
 
+    @SuppressWarnings("deprecation")
     @Override
     protected Optional<PortsConfigurationBuilder> createPortsConfigBuilder() {
         final var builder = new PortsConfigurationBuilder();
         builder.addOptionalInputPortGroup(FILE_SYSTEM_CONNECTION_PORT_NAME, FileSystemPortObject.TYPE);
-        builder.addFixedOutputPortGroup("Microsoft Credential", MicrosoftCredentialPortObject.TYPE);
+        builder.addFixedOutputPortGroup("Credential", MicrosoftCredentialPortObject.TYPE);
         return Optional.of(builder);
     }
 

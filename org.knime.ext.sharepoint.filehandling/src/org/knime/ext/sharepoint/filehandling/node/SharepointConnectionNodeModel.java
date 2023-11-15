@@ -61,9 +61,9 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.credentials.base.CredentialPortObject;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSDescriptorProvider;
@@ -76,7 +76,6 @@ import org.knime.filehandling.core.port.FileSystemPortObjectSpec;
  *
  * @author Alexander Bondaletov
  */
-@SuppressWarnings("deprecation")
 final class SharepointConnectionNodeModel extends NodeModel {
 
     private static final String FILE_SYSTEM_NAME = "Sharepoint Online";
@@ -90,27 +89,27 @@ final class SharepointConnectionNodeModel extends NodeModel {
      * Creates new instance.
      */
     SharepointConnectionNodeModel() {
-        super(new PortType[] { MicrosoftCredentialPortObject.TYPE }, new PortType[] { FileSystemPortObject.TYPE });
+        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[] { FileSystemPortObject.TYPE });
     }
 
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        MicrosoftCredential connection = ((MicrosoftCredentialPortObjectSpec) inObjects[0].getSpec())
-                .getMicrosoftCredential();
+        var jwtCredential = ((CredentialPortObject) inObjects[0]).getSpec().resolveCredential(JWTCredential.class);
         m_fsConnection = new SharepointFSConnection(
-                m_settings.toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(connection)));
+                m_settings.toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(jwtCredential)));
         FSConnectionRegistry.getInstance().register(m_fsId, m_fsConnection);
         return new PortObject[] { new FileSystemPortObject(createSpec()) };
     }
 
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        MicrosoftCredential connection = ((MicrosoftCredentialPortObjectSpec) inSpecs[0]).getMicrosoftCredential();
-        if (connection == null) {
-            throw new InvalidSettingsException("Not authenticated");
-        }
         m_settings.validate();
-        m_settings.validateCredential(connection);
+
+        var optionalCredentialType = ((CredentialPortObjectSpec) inSpecs[0]).getCredentialType();
+        if (optionalCredentialType.isPresent()) {
+            m_settings.validateCredentialType(optionalCredentialType.get());
+        }
+
         m_fsId = FSConnectionRegistry.getInstance().getKey();
         return new PortObjectSpec[] { createSpec() };
     }

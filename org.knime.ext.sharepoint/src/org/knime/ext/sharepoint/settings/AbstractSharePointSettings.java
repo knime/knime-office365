@@ -52,9 +52,9 @@ package org.knime.ext.sharepoint.settings;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
+import org.knime.credentials.base.CredentialType;
+import org.knime.credentials.base.oauth.api.AccessTokenCredential;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 
 /**
  * Abstract class for Sharepoint settings which are common for certain
@@ -149,18 +149,19 @@ public abstract class AbstractSharePointSettings<T extends AbstractSharePointSet
     }
 
     /**
-     * @param credential
-     *            {@link MicrosoftCredential}
+     * @param credentialType
+     *            The credential type
      * @throws InvalidSettingsException
      *             if Group site is used with application scope type
      */
-    public void validateCredential(final MicrosoftCredential credential) throws InvalidSettingsException {
-        final var mode = SiteMode.valueOf(getSiteSettings().getModeModel().getStringValue());
-
-        if (!(credential instanceof OAuth2Credential)) {
-            throw new InvalidSettingsException("Provided credentials cannot be used with SharePoint");
+    public void validateCredentialType(final CredentialType credentialType) throws InvalidSettingsException {
+        if (credentialType != JWTCredential.TYPE && credentialType != AccessTokenCredential.TYPE) {
+            throw new InvalidSettingsException(
+                    "Provided credentials cannot be used with SharePoint: " + credentialType);
         }
-        if (mode == SiteMode.GROUP && ((OAuth2Credential) credential).getScopeType() == ScopeType.APPLICATION) {
+
+        final var mode = SiteMode.valueOf(getSiteSettings().getModeModel().getStringValue());
+        if (mode == SiteMode.GROUP && credentialType == AccessTokenCredential.TYPE) {
             throw new InvalidSettingsException("Client Secret Authentication cannot be used with Group site");
         }
     }

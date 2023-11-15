@@ -48,7 +48,7 @@
  */
 package org.knime.ext.microsoft.authentication.providers.oauth2.application;
 
-import static org.knime.ext.microsoft.authentication.port.oauth2.Scope.OTHER;
+import static org.knime.ext.microsoft.authentication.scopes.Scope.OTHER;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -63,9 +63,9 @@ import javax.swing.JCheckBox;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
-import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 import org.knime.ext.microsoft.authentication.providers.oauth2.ScopesEditComponent;
+import org.knime.ext.microsoft.authentication.scopes.Scope;
+import org.knime.ext.microsoft.authentication.scopes.ScopeType;
 
 /**
  * Editor component for selecting Microsoft scopes with application permissions.

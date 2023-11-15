@@ -51,10 +51,11 @@ package org.knime.ext.sharepoint.filehandling.testing;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 
 import org.knime.core.node.util.CheckUtils;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.microsoft.authentication.port.oauth2.testing.OAuth2TestAuthenticator;
+import org.knime.ext.microsoft.authentication.scopes.Scope;
+import org.knime.ext.microsoft.authentication.util.testing.OAuth2TestAuthenticator;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
@@ -86,13 +87,13 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
         final String workingDir = generateRandomizedWorkingDir(configuration.get("workingDirPrefix"),
                 SharepointFileSystem.PATH_SEPARATOR);
 
-        final SharepointFSConnectionConfig fsConfig = new SharepointFSConnectionConfig(workingDir, authProvider);
+        final var fsConfig = new SharepointFSConnectionConfig(workingDir, authProvider);
         fsConfig.setMode(SiteMode.WEB_URL);
         fsConfig.setWebURL(getParameter(configuration, "siteWebURL"));
         fsConfig.setConnectionTimeOut(Duration.ofSeconds(SharepointFSConnectionConfig.DEFAULT_TIMEOUT));
         fsConfig.setReadTimeOut(Duration.ofSeconds(SharepointFSConnectionConfig.DEFAULT_TIMEOUT));
 
-        final SharepointFSConnection fsConnection = new SharepointFSConnection(fsConfig);
+        final var fsConnection = new SharepointFSConnection(fsConfig);
 
         return new SharepointTestInitializer(fsConnection);
     }
@@ -106,9 +107,10 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
 
     private IAuthenticationProvider authenticate(final Map<String, String> config) throws IOException {
 
-        final OAuth2Credential credential = OAuth2TestAuthenticator.authenticateWithUsernamePassword(
+        final var credential = OAuth2TestAuthenticator.authenticateWithUsernamePassword(
                 getParameter(config, "username"), //
-                getParameter(config, "password"));
+                getParameter(config, "password"),//
+                Set.of(Scope.SITES_READ_WRITE.getScope()));
         return GraphApiUtil.createAuthenticationProvider(credential);
     }
 

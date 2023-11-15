@@ -62,18 +62,18 @@ import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.credentials.base.Credential;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsOAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.StorageSettings;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
+import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
 import com.microsoft.aad.msal4j.PublicClientApplication;
+import com.microsoft.aad.msal4j.SilentParameters;
 import com.microsoft.aad.msal4j.SystemBrowserOptions;
 
 /**
@@ -171,18 +171,27 @@ public class InteractiveAuthProvider extends DelegatedPermissionsOAuth2Provider 
     }
 
     @Override
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
+    public Credential getCredential(final CredentialsProvider credentialsProvider) throws IOException {
         final var loginStatus = m_storageSettings.getLoginStatus();
 
         if (loginStatus == LoginStatus.NOT_LOGGED_IN) {
             throw new IOException("Access token not available anymore. Please login in the node dialog again.");
         }
 
-        return new OAuth2Credential(
-                m_storageSettings.createAccessTokenSupplier(getEndpoint(), getAppId()), //
-                loginStatus.getUsername(), //
-                getScopesStringSet(), //
-                getEndpoint(), getAppId(), ScopeType.DELEGATED);
+        var tokenCache = m_storageSettings.readTokenCache();
+        var app = MSALUtil.createClientAppWithToken(getAppId(), getEndpoint(), tokenCache);
+
+        try {
+            IAccount account = app.getAccounts().get().iterator().next();
+            IAuthenticationResult result = app
+                    .acquireTokenSilently(SilentParameters.builder(getScopesStringSet(), account).build()).get();
+
+            return MSALUtil.createCredential(result, getAppId(), getEndpoint(), app.tokenCache().serialize(), null);
+        } catch (InterruptedException e) { // NOSONAR rethrowing as cause of IOE
+            throw new IOException("Canceled while acquiring access token", e);
+        } catch (ExecutionException ex) {// NOSONAR
+            throw new IOException(ex.getCause());
+        }
     }
 
     @Override

@@ -55,8 +55,8 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.workflow.CredentialsProvider;
+import org.knime.credentials.base.Credential;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
 
 /**
  * Base interface for auth providers implementing different authentication
@@ -68,7 +68,7 @@ public interface MicrosoftAuthProvider {
 
     /**
      * Performs authentication and returns the result in a form of
-     * {@link MicrosoftCredential} object.
+     * {@link Credential} object.
      *
      * @param credentialsProvider
      *            A provider for workflow credentials. Only required by certain
@@ -77,7 +77,7 @@ public interface MicrosoftAuthProvider {
      * @return The Microsoft connection object.
      * @throws IOException
      */
-    public MicrosoftCredential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
+    public Credential getCredential(final CredentialsProvider credentialsProvider) throws IOException;
 
     /**
      * Creates editor component for the provider.
@@ -121,5 +121,7 @@ public interface MicrosoftAuthProvider {
     /**
      * Clears any tokens that this provider has put into {@link MemoryCredentialCache}.
      */
-    public void clearMemoryTokenCache();
+    default void clearMemoryTokenCache() {
+        // default no-op implementation
+    }
 }

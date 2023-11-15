@@ -48,8 +48,8 @@
  */
 package org.knime.ext.microsoft.authentication.providers.oauth2;
 
-import static org.knime.ext.microsoft.authentication.port.oauth2.Scope.AZURE_BLOB_STORAGE;
-import static org.knime.ext.microsoft.authentication.port.oauth2.Scope.OTHERS;
+import static org.knime.ext.microsoft.authentication.scopes.Scope.AZURE_BLOB_STORAGE;
+import static org.knime.ext.microsoft.authentication.scopes.Scope.OTHERS;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -68,8 +68,8 @@ import org.knime.core.node.defaultnodesettings.DialogComponentMultiLineString;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
-import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
+import org.knime.ext.microsoft.authentication.scopes.Scope;
+import org.knime.ext.microsoft.authentication.scopes.ScopeType;
 
 
 /**

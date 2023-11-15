@@ -51,14 +51,9 @@ package org.knime.ext.microsoft.authentication.providers;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-
 /**
  * Provides a JVM global in-memory cache for storing sensitive credential fields
- * (like MSAL4J token cache strings). Main motivation for this class is to avoid
- * writing any tokens into the {@link MicrosoftCredential} (which is part of the
- * port object and serialized to disk). Instead, the {@link MicrosoftCredential}
- * only holds a key for this cache.
+ * (like MSAL4J token cache strings).
  *
  * @author Bjoern Lohrmann, KNIME GmbH
  */

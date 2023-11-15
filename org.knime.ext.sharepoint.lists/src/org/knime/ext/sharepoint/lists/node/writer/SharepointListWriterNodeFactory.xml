@@ -132,8 +132,8 @@
 
 	</fullDescription>
 	<ports>
-		<inPort index="0" name="Microsoft Connection">
-			Microsoft Connection that provides user authentication.
+		<inPort index="0" name="Credential (JWT)">
+			A JWT credential as provided by the Microsoft Authenticator node.
 		</inPort>
 		<inPort index="1" name="Table">
 			The table to be written to SharePoint.

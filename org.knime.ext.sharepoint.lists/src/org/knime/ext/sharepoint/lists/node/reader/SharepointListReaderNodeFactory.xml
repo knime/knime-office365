@@ -145,9 +145,9 @@
         </tab>
     </fullDescription>
     <ports>
-        <inPort index="0" name="Microsoft Connection">
-            Microsoft Connection that provides user authentication.
-        </inPort>
+		<inPort index="0" name="Credential (JWT)">
+			A JWT credential as provided by the Microsoft Authenticator node.
+		</inPort>
         <outPort index="0" name="Table">
             Read SharePoint list in a table
         </outPort>

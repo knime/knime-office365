@@ -58,7 +58,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
+import org.knime.ext.microsoft.authentication.scopes.Scope;
 
 /**
  * Editor component for selecting Microsoft scopes.

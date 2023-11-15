@@ -63,8 +63,9 @@ import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.credentials.base.CredentialPortObject;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
@@ -85,33 +86,29 @@ final class SharepointDeleteListNodeModel extends NodeModel {
     private final SharepointDeleteListConfig m_config;
 
     protected SharepointDeleteListNodeModel() {
-        super(new PortType[] { MicrosoftCredentialPortObject.TYPE }, new PortType[] {});
+        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[] {});
         m_config = new SharepointDeleteListConfig();
     }
 
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        final var authPortSpec = (MicrosoftCredentialPortObjectSpec) inSpecs[0];
-        m_config.getSharepointListSettings().validateCredential(authPortSpec.getMicrosoftCredential());
+        var optionalCredentialType = ((CredentialPortObjectSpec) inSpecs[0]).getCredentialType();
+        if (optionalCredentialType.isPresent()) {
+            m_config.getSharepointListSettings().validateCredentialType(optionalCredentialType.get());
+        }
 
         return new PortObjectSpec[] {};
     }
 
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        final var authPortSpec = (MicrosoftCredentialPortObjectSpec) inObjects[0].getSpec();
-
-        final var credential = authPortSpec.getMicrosoftCredential();
-        if (credential == null) {
-            throw new InvalidSettingsException("Not authenticated!");
-        }
+        var credential = ((CredentialPortObjectSpec) inObjects[0].getSpec()).resolveCredential(JWTCredential.class);
 
         CheckUtils.checkSetting(listSettingsEmpty(), "No list selected. Please select a list.");
 
         final var timeouts = m_config.getSharepointListSettings().getTimeoutSettings();
         final GraphServiceClient<Request> client = GraphApiUtil.createClient(credential,
-                timeouts.getConnectionTimeout(),
-                timeouts.getReadTimeout());
+                timeouts.getConnectionTimeout(), timeouts.getReadTimeout());
 
         deleteList(client);
 

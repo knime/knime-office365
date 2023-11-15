@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.node.auth;
 import java.io.File;
 import java.io.IOException;
 import java.util.EnumSet;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.knime.core.node.CanceledExecutionException;
@@ -63,7 +64,12 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.context.ports.PortsConfiguration;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
+import org.knime.credentials.base.CredentialCache;
+import org.knime.credentials.base.CredentialPortObject;
+import org.knime.credentials.base.oauth.api.AccessTokenCredential;
+import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCredential;
+import org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
 import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
 import org.knime.ext.microsoft.authentication.providers.AuthProviderType;
@@ -75,10 +81,11 @@ import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage.Mess
 
 /**
  * Microsoft authentication node. Performs authentication using one of the
- * different methods and provides {@link MicrosoftCredentialPortObject}.
+ * different methods and provides {@link CredentialPortObject}.
  *
  * @author Alexander Bondaletov
  */
+@SuppressWarnings("deprecation")
 class MicrosoftAuthenticationNodeModel extends NodeModel {
 
     private static final Consumer<StatusMessage> NOOP_STATUS_CONSUMER = s -> {
@@ -88,6 +95,8 @@ class MicrosoftAuthenticationNodeModel extends NodeModel {
 
     private final NodeModelStatusConsumer m_statusConsumer = new NodeModelStatusConsumer(
             EnumSet.of(MessageType.ERROR, MessageType.WARNING));
+
+    private UUID m_credentialCacheKey;
 
     /**
      * Creates new instance.
@@ -122,40 +131,50 @@ class MicrosoftAuthenticationNodeModel extends NodeModel {
             }
         }
 
-        return new PortObjectSpec[] { new MicrosoftCredentialPortObjectSpec(null) };
+        m_credentialCacheKey = null;
+        return new PortObjectSpec[] { createSpec() };
     }
 
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+        var creds = m_settings.getCurrentProvider().getCredential(getCredentialsProvider());
+        m_credentialCacheKey = CredentialCache.store(creds);
         return new PortObject[] { new MicrosoftCredentialPortObject(createSpec()) };
     }
 
+    private MicrosoftCredentialPortObjectSpec createSpec() throws InvalidSettingsException {
+        AuthProviderType type = m_settings.getProviderType();
+        var credentialType = switch (type) {
+            case AZURE_STORAGE_SAS -> AzureStorageSasUrlCredential.TYPE;
+            case AZURE_STORAGE_SHARED_KEY -> AzureStorageSharedKeyCredential.TYPE;
+            case CLIENT_SECRET -> AccessTokenCredential.TYPE;
+            case INTERACTIVE -> JWTCredential.TYPE;
+            case USERNAME_PASSWORD -> JWTCredential.TYPE;
+            default -> throw new InvalidSettingsException("Unexpected provider type: " + type);
+        };
 
-    private MicrosoftCredentialPortObjectSpec createSpec() throws IOException {
-        MicrosoftCredential cred = m_settings.getCurrentProvider().getCredential(getCredentialsProvider());
-
-        return new MicrosoftCredentialPortObjectSpec(cred);
+        return new MicrosoftCredentialPortObjectSpec(credentialType, m_credentialCacheKey);
     }
 
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
 
-        final var needResetAndRexecuteMsg = "Credentials not available anymore. Please re-execute this node.";
+        final var needResetAndRexecuteMsg = "Credential not available anymore. Please re-execute this node.";
 
         if (m_settings.getProviderType() == AuthProviderType.INTERACTIVE) {
             final InteractiveAuthProvider provider = (InteractiveAuthProvider) m_settings.getCurrentProvider();
             switch (provider.getStorageSettings().getStorageType()) {
-            case MEMORY:
-                setWarningMessage(
-                        "Access token not available anymore. Please reset this node and login in the node dialog again.");
-                break;
-            case FILE:
-            case SETTINGS:
-                setWarningMessage(needResetAndRexecuteMsg);
-                break;
-            default:
-                break;
+                case MEMORY:
+                    setWarningMessage(
+                            "Credential not available anymore. Please reset this node and login in the node dialog again.");
+                    break;
+                case FILE:
+                case SETTINGS:
+                    setWarningMessage(needResetAndRexecuteMsg);
+                    break;
+                default:
+                    break;
             }
         } else {
             // USERNAME_PASSWORD, AZURE_STORAGE_SHARED_KEY, and AZURE_STORAGE_TOKEN
@@ -186,11 +205,15 @@ class MicrosoftAuthenticationNodeModel extends NodeModel {
 
     @Override
     protected void reset() {
-        // nothing needs to be done
+        if (m_credentialCacheKey != null) {
+            CredentialCache.delete(m_credentialCacheKey);
+            m_credentialCacheKey = null;
+        }
     }
 
     @Override
-    protected void onDispose() {
+    protected final void onDispose() {
+        reset();
         m_settings.clearMemoryTokenCache();
     }
 }

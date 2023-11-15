@@ -57,7 +57,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.ext.microsoft.authentication.port.oauth2.Scope;
+import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 /**

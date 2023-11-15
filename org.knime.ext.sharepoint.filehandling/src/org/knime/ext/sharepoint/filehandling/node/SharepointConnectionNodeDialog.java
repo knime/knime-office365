@@ -61,8 +61,9 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.NoSuchCredentialException;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
@@ -86,7 +87,7 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
     private final WorkingDirectoryChooser m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir",
             this::createFSConnection);
 
-    private MicrosoftCredential m_connection;
+    private JWTCredential m_credential;
 
     /**
      * Creates new instance.
@@ -107,8 +108,9 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
 
     private FSConnection createFSConnection() throws IOException {
         final SharepointConnectionSettings clonedSettings = m_settings.copy(m_settings);
+
         return new SharepointFSConnection(clonedSettings
-                .toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(m_connection)));
+                .toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(m_credential)));
     }
 
     private JComponent createTimeoutsPanel() {
@@ -142,16 +144,17 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
             throws NotConfigurableException {
         try {
             m_settings.loadSettingsFrom(settings);
-        } catch (InvalidSettingsException ex) {
+        } catch (InvalidSettingsException ex) {// NOSONAR
             // ignore
         }
 
-        m_connection = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
-        if (m_connection == null) {
-            throw new NotConfigurableException("Authentication required");
+        try {
+            m_credential = ((CredentialPortObjectSpec) specs[0]).resolveCredential(JWTCredential.class);
+        } catch (NoSuchCredentialException ex) {
+            throw new NotConfigurableException(ex.getMessage(), ex);
         }
 
-        m_sitePanel.settingsLoaded(m_connection);
+        m_sitePanel.settingsLoaded(m_credential);
         settingsLoaded();
     }
 }

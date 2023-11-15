@@ -62,8 +62,7 @@ import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeLogger;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
@@ -89,9 +88,6 @@ import okhttp3.Request;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 class SharepointListWriterClient implements AutoCloseable {
-
-    // Attribute it to the node in the logs
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListWriterNodeModel.class); // NOSONAR
 
     private final GraphServiceClient<Request> m_client;
 
@@ -123,14 +119,15 @@ class SharepointListWriterClient implements AutoCloseable {
 
     SharepointListWriterClient(final SharepointListWriterConfig config, final Consumer<String> pushListId,
             final BufferedDataTable table,
-            final MicrosoftCredentialPortObjectSpec authPortSpec, final ExecutionContext exec)
+            final JWTCredential credential, final ExecutionContext exec)
             throws IOException, InvalidSettingsException {
+
         m_config = config;
         m_sharePointListSettings = config.getSharepointListSettings();
         m_table = table;
         m_tableSpec = m_table.getDataTableSpec();
         m_exec = exec;
-        m_client = createGraphServiceClient(authPortSpec);
+        m_client = createGraphServiceClient(credential);
         m_pushListId = pushListId;
         m_siteId = getSiteId();
         m_listId = getListId();
@@ -172,10 +169,12 @@ class SharepointListWriterClient implements AutoCloseable {
     }
 
     private GraphServiceClient<Request> createGraphServiceClient(
-            final MicrosoftCredentialPortObjectSpec authPortSpec) throws IOException {
+            final JWTCredential credential) {
+
         final var timeouts = m_sharePointListSettings.getTimeoutSettings();
-        return GraphApiUtil.createClient(authPortSpec.getMicrosoftCredential(),
-                timeouts.getConnectionTimeout(), timeouts.getReadTimeout());
+        return GraphApiUtil.createClient(credential, //
+                timeouts.getConnectionTimeout(), //
+                timeouts.getReadTimeout());
     }
 
     /**

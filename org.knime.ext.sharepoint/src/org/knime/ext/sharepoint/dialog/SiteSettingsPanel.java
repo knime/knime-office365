@@ -67,9 +67,8 @@ import javax.swing.JRadioButton;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.oauth2.OAuth2Credential;
-import org.knime.ext.microsoft.authentication.port.oauth2.ScopeType;
+import org.knime.credentials.base.Credential;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.settings.SiteMode;
@@ -104,7 +103,7 @@ public class SiteSettingsPanel extends JPanel {
 
     private final SiteSettings m_settings;
 
-    private MicrosoftCredential m_credential;
+    private JWTCredential m_credential;
 
     private JPanel m_cards;
 
@@ -139,14 +138,15 @@ public class SiteSettingsPanel extends JPanel {
     /**
      * Should be called by the parent dialog after settings are loaded.
      *
-     * @param credentials
+     * @param credential
      *            The Microsoft Credential object.
      */
-    public void settingsLoaded(final MicrosoftCredential credentials) {
-        m_credential = credentials;
+    public void settingsLoaded(final JWTCredential credential) {
+        m_credential = credential;
 
-        final var isGroupEnabled = m_credential instanceof OAuth2Credential
-                && ((OAuth2Credential) m_credential).getScopeType() == ScopeType.DELEGATED;
+        // only users get an ID token (and can be part of groups); service principals do
+        // not get an id token and cannot be member of groups
+        final var isGroupEnabled = m_credential.getIdToken().isPresent();
         m_rbGroup.setEnabled(isGroupEnabled);
 
         m_subsiteSelector.onSettingsLoaded();
@@ -288,7 +288,7 @@ public class SiteSettingsPanel extends JPanel {
     }
 
     /**
-     * Creates a {@link GraphServiceClient} with a {@link MicrosoftCredential}.
+     * Creates a {@link GraphServiceClient} with a {@link Credential}.
      *
      * @return the {@link GraphServiceClient}
      * @throws IOException

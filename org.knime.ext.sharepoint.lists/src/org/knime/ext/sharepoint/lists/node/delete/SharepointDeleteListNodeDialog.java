@@ -60,8 +60,9 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredential;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.NoSuchCredentialException;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel;
 import org.knime.filehandling.core.util.GBCBuilder;
@@ -81,8 +82,6 @@ public final class SharepointDeleteListNodeDialog extends NodeDialogPane {
     private final SharepointListSettingsPanel m_listSettingsPanel;
 
     private final TimeoutPanel m_timeoutPanel;
-
-    private MicrosoftCredential m_credential;
 
     SharepointDeleteListNodeDialog() {
         m_config = new SharepointDeleteListConfig();
@@ -121,17 +120,19 @@ public final class SharepointDeleteListNodeDialog extends NodeDialogPane {
     @Override
     protected void loadSettingsFrom(final NodeSettingsRO settings, final PortObjectSpec[] specs)
             throws NotConfigurableException {
-        if (specs[0] == null || ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential() == null) {
-            throw new NotConfigurableException("Authentication required!");
-        }
 
-        m_credential = ((MicrosoftCredentialPortObjectSpec) specs[0]).getMicrosoftCredential();
         try {
             m_config.loadSettings(settings);
         } catch (InvalidSettingsException ex) {
             LOGGER.error("An unexpected error occured during the loading of the settings.", ex);
         }
-        m_listSettingsPanel.settingsLoaded(m_credential);
+
+        try {
+            final var credential = ((CredentialPortObjectSpec) specs[0]).resolveCredential(JWTCredential.class);
+            m_listSettingsPanel.settingsLoaded(credential);
+        } catch (NoSuchCredentialException ex) {
+            throw new NotConfigurableException(ex.getMessage(), ex);
+        }
     }
 
     @Override

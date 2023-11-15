@@ -67,8 +67,9 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.VariableType;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObject;
-import org.knime.ext.microsoft.authentication.port.MicrosoftCredentialPortObjectSpec;
+import org.knime.credentials.base.CredentialPortObject;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 
 /**
  * “SharePoint List Writer” implementation of a {@link NodeModel}.
@@ -84,7 +85,7 @@ final class SharepointListWriterNodeModel extends NodeModel {
     private boolean m_raiseVariableOverwriteWarning;
 
     protected SharepointListWriterNodeModel() {
-        super(new PortType[] { MicrosoftCredentialPortObject.TYPE, BufferedDataTable.TYPE }, new PortType[] {});
+        super(new PortType[] { CredentialPortObject.TYPE, BufferedDataTable.TYPE }, new PortType[] {});
         m_config = new SharepointListWriterConfig();
     }
 
@@ -117,21 +118,26 @@ final class SharepointListWriterNodeModel extends NodeModel {
         }
         pushListId(listID);
 
-        final var authPortSpec = (MicrosoftCredentialPortObjectSpec) inSpecs[0];
-        m_config.getSharepointListSettings().validateCredential(authPortSpec.getMicrosoftCredential());
+        var optionalCredentialType = ((CredentialPortObjectSpec) inSpecs[0]).getCredentialType();
+        if (optionalCredentialType.isPresent()) {
+            m_config.getSharepointListSettings().validateCredentialType(optionalCredentialType.get());
+        }
 
         return new PortObjectSpec[] {};
     }
 
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        final var authPortSpec = (MicrosoftCredentialPortObjectSpec) inObjects[0].getSpec();
+
+        final var credential = ((CredentialPortObjectSpec) inObjects[0].getSpec())
+                .resolveCredential(JWTCredential.class);
+
         final var table = (BufferedDataTable) inObjects[1];
 
         CheckUtils.checkSetting(listSettingsEmpty(),
                 "No list selected or entered. Please select a list or enter a list name.");
 
-        try (final var client = new SharepointListWriterClient(m_config, this::pushListId, table, authPortSpec, exec)) {
+        try (final var client = new SharepointListWriterClient(m_config, this::pushListId, table, credential, exec)) {
             client.writeList();
         }
 

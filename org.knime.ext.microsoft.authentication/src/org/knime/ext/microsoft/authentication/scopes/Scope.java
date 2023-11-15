@@ -46,7 +46,7 @@
  * History
  *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.port.oauth2;
+package org.knime.ext.microsoft.authentication.scopes;
 
 import java.util.EnumMap;
 import java.util.HashMap;
