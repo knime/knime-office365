@@ -93,12 +93,14 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @SuppressWarnings("restriction")
 public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
 
-    @Widget(title = "Scope selection type", //
+    @Widget(title = "How to select scopes", //
             description = """
-                    Whether to select from a list of predefined standard scopes, or enter custom scopes manually.
-                    Scopes define the level of access that will be requested.
-                    """, //
-            hideTitle = true)
+                    Scopes are
+                    <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
+                    permissions</a> that need to be requested during login. They specify what the resulting
+                    access token can be used for. This setting defines whether to select scopes from a list of predefined
+                    <b>standard</b> scopes or to enter <b>custom</b> scopes manually.
+                    """)
     @Signal(condition = ScopesSelectionType.IsCustom.class)
     @Signal(condition = ScopesSelectionType.IsStandard.class)
     @ValueSwitchWidget
@@ -124,19 +126,23 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         }
     }
 
-    @Widget(title = "Standard scopes", description = """
-            Select from a predefined list of standard scopes. These represent delegated permissions.
-            """, hideTitle = true)
-    @ArrayWidget(addButtonText = "Add")
+    @Widget(title = "Standard scopes (delegated permissions)", description = """
+            Choose scopes from a predefined list of standard scopes. These scopes are
+            <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
+            delegated permissions</a> and define what the resulting access token can be used for.
+            """)
+    @ArrayWidget(addButtonText = "Add Scope")
     @Effect(signals = { ScopesSelectionType.IsCustom.class,
             AuthenticationType.IsClientSecret.class }, operation = Or.class, type = EffectType.HIDE)
     @Persist(customPersistor = DelegatedScopePersistor.class)
     DelegatedScope[] m_delegatedScopes = new DelegatedScope[0];
 
-    @Widget(title = "Standard scopes (application)", description = """
-            Select from a predefined list of standard scopes. These represent application permissions.
-            """, hideTitle = true)
-    @ArrayWidget(addButtonText = "Add")
+    @Widget(title = "Standard scopes (application permissions)", description = """
+            Choose scopes from a predefined list of standard scopes. These scopes are
+            <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
+            application permissions</a> and define what the resulting access token can be used for.
+            """)
+    @ArrayWidget(addButtonText = "Add Scope")
     @Effect(signals = { ScopesSelectionType.IsStandard.class,
             AuthenticationType.IsClientSecret.class }, operation = And.class, type = EffectType.SHOW)
     @Persist(customPersistor = ApplicationScopePersistor.class)
@@ -175,7 +181,7 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         }
 
         static class DelegatedScope extends StandardScope {
-            @Widget(hideTitle = true)
+            @Widget(title = "Scope/permission")
             @ChoicesWidget(choices = DelegatedScopeChoicesProvider.class)
             String m_id;
 
@@ -210,7 +216,7 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         }
 
         static class ApplicationScope extends StandardScope {
-            @Widget(hideTitle = true)
+            @Widget(title = "Scope/permission")
             @ChoicesWidget(choices = ApplicationScopeChoicesProvider.class)
             String m_id;
 
@@ -245,14 +251,19 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         }
     }
 
-    @Widget(title = "Custom scopes", description = "Enter the a custom lst of scopes to request.", hideTitle = true)
-    @ArrayWidget(addButtonText = "Add")
+    @Widget(title = "Custom scopes", description = """
+            Enter a list of custom scopes to request during login.
+            These scopes are
+            <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
+            permissions</a> and define what the resulting access token can be used for.
+            """)
+    @ArrayWidget(addButtonText = "Add Scope")
     @Effect(signals = ScopesSelectionType.IsCustom.class, type = EffectType.SHOW)
     @Persist(customPersistor = CustomScopesPersistor.class)
     CustomScope[] m_customScopes = new CustomScope[0];
 
     static class CustomScope implements DefaultNodeSettings {
-        @Widget(hideTitle = true)
+        @Widget(title = "Custom scope/permission")
         String m_scope;
 
         CustomScope(final String scope) {

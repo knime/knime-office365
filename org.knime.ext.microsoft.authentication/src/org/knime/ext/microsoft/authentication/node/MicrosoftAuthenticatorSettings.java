@@ -99,12 +99,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
 
     private static final String DEFAULT_REDIRECT_URL = "http://localhost:51355/";
 
-    @Section(title = "Authentication type")
-    interface AuthenticationTypeSection {
-    }
-
     @Section(title = "Username and Password")
-    @After(AuthenticationTypeSection.class)
     @Effect(signals = AuthenticationType.IsUsernamePassword.class, type = EffectType.SHOW)
     interface UsernamePasswordSection {
     }
@@ -201,9 +196,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                             here.</a>
                         </li>
                     </ul>
-                    """, // NOSONAR
-            hideTitle = true)
-    @Layout(AuthenticationTypeSection.class)
+                    """)
     @Signal(condition = AuthenticationType.IsInteractive.class)
     @Signal(condition = AuthenticationType.IsUsernamePassword.class)
     @Signal(condition = AuthenticationType.IsClientSecret.class)
@@ -267,7 +260,6 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             The directory tenant the application plans to operate against, in ID or domain-name format,
             for example <i>cf47ff49-7da6-4603-b339-f4475176432b,</i> or <i>mycompany.onmicrosoft.com.</i>
             """)
-    @Layout(AuthenticationTypeSection.class)
     @Effect(signals = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
     String m_tenantId;
 
@@ -285,7 +277,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(ScopesSection.class)
     ScopesSettings m_scopesSettings = new ScopesSettings();
 
-    @Widget(title = "Authorization endpoint", hideTitle = true, //
+    @Widget(title = "Which authorization endpoint to use", //
             description = "Whether to use the Microsoft default authorization endpoint, or a custom one.")
     @ValueSwitchWidget
     @Layout(AuthorizationEndpointSection.class)
@@ -308,7 +300,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Effect(signals = AuthorizationEndpointSelection.IsCustom.class, type = EffectType.SHOW)
     String m_authorizationEndpointUrl = "";
 
-    @Widget(title = "Client/App", hideTitle = true, //
+    @Widget(title = "Which client/app to use", //
             description = """
                     Whether to use the KNIME default app, or enter a custom one. The
                     KNIME default app is called "KNIME Analytics Platform" and its
