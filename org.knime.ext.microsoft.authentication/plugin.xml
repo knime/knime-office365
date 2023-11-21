@@ -20,7 +20,8 @@
          point="org.knime.workbench.repository.nodes">
       <node
             category-path="/io/connectors"
-            factory-class="org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory">
+            factory-class="org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeFactory"
+            deprecated="true">
       </node>
       <node
             category-path="/io/connectors"
