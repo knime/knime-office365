@@ -48,6 +48,7 @@
  */
 package org.knime.ext.microsoft.authentication.node;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.function.Function;
@@ -58,13 +59,16 @@ import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.util.CheckUtils;
 import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.LayoutGroup;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.NodeSettingsPersistorWithConfigKey;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.And;
+import org.knime.core.webui.node.dialog.defaultdialog.rule.ArrayContainsCondition;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect.EffectType;
+import org.knime.core.webui.node.dialog.defaultdialog.rule.IsSpecificStringCondition;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.OneOfEnumCondition;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Or;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.Signal;
@@ -122,7 +126,25 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
             public ScopesSelectionType[] oneOf() {
                 return new ScopesSelectionType[] { STANDARD };
             }
+        }
+    }
 
+    static class HasAzureStorageScope extends ArrayContainsCondition {
+        static class IsAzureStorageScope extends IsSpecificStringCondition {
+            @Override
+            public String getValue() {
+                return Scope.AZURE_BLOB_STORAGE.name();
+            }
+        }
+
+        @Override
+        public Class<IsAzureStorageScope> getItemCondition() {
+            return IsAzureStorageScope.class;
+        }
+
+        @Override
+        public String[] getItemFieldPath() {
+            return new String[] { "id" };
         }
     }
 
@@ -134,6 +156,7 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
     @ArrayWidget(addButtonText = "Add Scope")
     @Effect(signals = { ScopesSelectionType.IsCustom.class,
             AuthenticationType.IsClientSecret.class }, operation = Or.class, type = EffectType.HIDE)
+    @Signal(condition = HasAzureStorageScope.class)
     @Persist(customPersistor = DelegatedScopePersistor.class)
     DelegatedScope[] m_delegatedScopes = new DelegatedScope[0];
 
@@ -183,7 +206,7 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         static class DelegatedScope extends StandardScope {
             @Widget(title = "Scope/permission")
             @ChoicesWidget(choices = DelegatedScopeChoicesProvider.class)
-            String m_id;
+            String m_id = "";
 
             DelegatedScope(final String id) {
                 m_id = id;
@@ -218,7 +241,7 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         static class ApplicationScope extends StandardScope {
             @Widget(title = "Scope/permission")
             @ChoicesWidget(choices = ApplicationScopeChoicesProvider.class)
-            String m_id;
+            String m_id = "";
 
             ApplicationScope(final String id) {
                 m_id = id;
@@ -289,6 +312,18 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         }
     }
 
+    @Widget(title = "Azure Storage account", //
+            description = """
+                    If the Azure Blob Storage/Azure Data Lake Storage Gen2 scope is chosen, then this field
+                    specifies the specific Azure storage account to request access to.
+                    """)
+    @Effect(signals = { AuthenticationType.RequiresDelegatedPermissions.class, //
+            ScopesSelectionType.IsStandard.class, //
+            HasAzureStorageScope.class }, operation = And.class, type = EffectType.SHOW)
+    @Persist(optional = true) // added shortly before AP 5.2 code freeze, there might already be example
+                              // workflows
+    String m_azureStorageAccount = "";
+
     /**
      * Validates the settings.
      *
@@ -314,10 +349,15 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         if (m_scopesSelectionType == ScopesSelectionType.STANDARD) {
             validateScopesAreNotBlank(standardScopes, StandardScope::getId);
             validateStandardScopesGrouping(standardScopes);
+
+            if (!applicationScopes) {
+                validateAzureStorageAccountIfNecessary(standardScopes);
+            }
         } else {
             validateScopesAreNotBlank(m_customScopes, s -> s.m_scope);
         }
     }
+
 
     private static void validateStandardScopesGrouping(final StandardScope[] standardScopes)
             throws InvalidSettingsException {
@@ -349,6 +389,27 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
         }
     }
 
+    private void validateAzureStorageAccountIfNecessary(final StandardScope[] standardScopes)
+            throws InvalidSettingsException {
+
+        final var azureScope = Scope.AZURE_BLOB_STORAGE.name();
+        final var hasAzureStorageScope = Arrays.stream(standardScopes).map(StandardScope::getId)
+                .anyMatch(azureScope::equals);
+        if (hasAzureStorageScope) {
+            CheckUtils.checkSetting(StringUtils.isNotBlank(m_azureStorageAccount),
+                    "Please specify an Azure Storage account name when requesting the %s scope.",
+                    Scope.AZURE_BLOB_STORAGE.getTitle());
+        }
+    }
+
+    private String adjustAzureStorageScopeIfNecessary(final Scope scope) {
+        if (scope == Scope.AZURE_BLOB_STORAGE) {
+            return String.format(scope.getScope(), m_azureStorageAccount);
+        } else {
+            return scope.getScope();
+        }
+    }
+
     /**
      * @param applicationScopes
      *            Whether the application standard scopes are used or the delegated
@@ -359,14 +420,19 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
     public Set<String> getScopesStringSet(final boolean applicationScopes) {
         if (m_scopesSelectionType == ScopesSelectionType.STANDARD) {
             var standardScopes = applicationScopes ? m_appScopes : m_delegatedScopes;
+
+            // convert the list of chosen standard scopes into strings
+            // as part of this we need to modify the string for the AZURE_BLOB_STORAGE scope
+            // because it needs to contain the user-provided azure storage account name
             return Stream.of(standardScopes) //
-                    .map(s -> Scope.valueOf(s.getId()).getScope()) //
+                    .map(StandardScope::getId)//
+                    .map(Scope::valueOf)//
+                    .map(s -> (!applicationScopes) ? adjustAzureStorageScopeIfNecessary(s) : s.getScope())//
                     .collect(Collectors.toSet());
         } else {
             return Stream.of(m_customScopes) //
                     .map(s -> s.m_scope) //
                     .collect(Collectors.toSet());
         }
-
     }
 }

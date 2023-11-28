@@ -199,6 +199,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     """)
     @Signal(condition = AuthenticationType.IsInteractive.class)
     @Signal(condition = AuthenticationType.IsUsernamePassword.class)
+    @Signal(condition = AuthenticationType.RequiresDelegatedPermissions.class)
     @Signal(condition = AuthenticationType.IsClientSecret.class)
     @Signal(condition = AuthenticationType.IsAzureStorageSharedKey.class)
     @Signal(condition = AuthenticationType.IsAzureStorageSasUrl.class)
@@ -231,6 +232,13 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             @Override
             public AuthenticationType[] oneOf() {
                 return new AuthenticationType[] { USERNAME_PASSWORD };
+            }
+        }
+
+        static class RequiresDelegatedPermissions extends OneOfEnumCondition<AuthenticationType> {
+            @Override
+            public AuthenticationType[] oneOf() {
+                return new AuthenticationType[] { INTERACTIVE, USERNAME_PASSWORD };
             }
         }
 
