@@ -130,7 +130,7 @@ public class SharepointListWriterNodeSettings implements DefaultNodeSettings {
     interface IsUseSubsite {
     }
 
-    @Widget(description = "SharePoint site to use.", hideTitle = true)
+    @Widget(title = "SharePoint site", description = "SharePoint site to use.", hideTitle = true)
     @Layout(SharepointSiteSection.TypeSwitcher.class)
     @Signal(condition = SiteModeIsWebURL.class)
     @Signal(condition = SiteModeIsGroup.class)
