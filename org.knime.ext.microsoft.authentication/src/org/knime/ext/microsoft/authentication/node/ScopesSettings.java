@@ -61,7 +61,7 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
-import org.knime.core.webui.node.dialog.defaultdialog.layout.LayoutGroup;
+import org.knime.core.webui.node.dialog.defaultdialog.layout.WidgetGroup;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.NodeSettingsPersistorWithConfigKey;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
 import org.knime.core.webui.node.dialog.defaultdialog.rule.And;
@@ -87,15 +87,13 @@ import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.
 import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.scopes.ScopeType;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 /**
  * The scopes settings for the Microsoft Authenticator node.
  *
  * @author Alexander Bondaletov, Redfield SE
  */
 @SuppressWarnings("restriction")
-public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
+public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
 
     @Widget(title = "How to select scopes", //
             description = """
@@ -172,7 +170,6 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
     ApplicationScope[] m_appScopes = new ApplicationScope[0];
 
     abstract static class StandardScope implements DefaultNodeSettings {
-        @JsonIgnore
         protected abstract String getId();
 
         abstract static class StandardScopesPersistor<S extends StandardScope>
@@ -416,7 +413,6 @@ public class ScopesSettings implements LayoutGroup, DefaultNodeSettings {
      *            ones.
      * @return The selected scopes as a set of strings.
      */
-    @JsonIgnore
     public Set<String> getScopesStringSet(final boolean applicationScopes) {
         if (m_scopesSelectionType == ScopesSelectionType.STANDARD) {
             var standardScopes = applicationScopes ? m_appScopes : m_delegatedScopes;

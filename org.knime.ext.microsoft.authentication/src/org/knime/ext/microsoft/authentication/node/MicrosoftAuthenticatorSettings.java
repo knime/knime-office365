@@ -84,7 +84,6 @@ import org.knime.credentials.base.oauth.api.nodesettings.TokenCacheKeyPersistor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.CustomOpenBrowserAction;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
 import com.microsoft.aad.msal4j.SystemBrowserOptions;
 
@@ -550,7 +549,6 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     /**
      * @return The client ID.
      */
-    @JsonIgnore
     public String getClientId() {
         if (m_clientSelection == ClientSelection.CUSTOM) {
             return m_clientId;
@@ -562,7 +560,6 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     /**
      * @return The authorization endpoint URL.
      */
-    @JsonIgnore
     public String getAuthorizationEndpointURL() {
         if (m_authenticationType == AuthenticationType.CLIENT_SECRET) {
             if (m_tenantId.startsWith("http")) {
@@ -586,7 +583,6 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     /**
      * @return The redirect URL.
      */
-    @JsonIgnore
     public String getRedirectURL() {
         if (m_clientSelection == ClientSelection.CUSTOM) {
             return m_redirectUrl;
@@ -598,7 +594,6 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     /**
      * @return The scopes strings.
      */
-    @JsonIgnore
     public Set<String> getScopes() {
         return m_scopesSettings.getScopesStringSet(m_authenticationType == AuthenticationType.CLIENT_SECRET);
     }
