@@ -4,16 +4,18 @@
    <extension 
    		 point="org.knime.credentials.base.CredentialType">
 	 <credentialType
+            id="knime.AzureStorageSasUrlCredential"
+            name="Azure Storage SAS URL"
             credentialClass="org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCredential"
             credentialSerializerClass="org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCredential$Serializer"
-            id="knime.AzureStorageSasUrlCredential"
-            name="Azure Storage SAS URL">
+            secretConsumableParserProvider="org.knime.ext.microsoft.authentication.credential.parsers.AzureStorageSasUrlParserProvider">
       </credentialType>
    	  <credentialType
+            id="knime.AzureStorageSharedKeyCredential"
+            name="Azure Storage Shared Key"
             credentialClass="org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential"
             credentialSerializerClass="org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential$Serializer"
-            id="knime.AzureStorageSharedKeyCredential"
-            name="Azure Storage shared key">
+            secretConsumableParserProvider="org.knime.ext.microsoft.authentication.credential.parsers.AzureStorageSharedKeyParserProvider">
       </credentialType>
    </extension>
    <extension

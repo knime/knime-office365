@@ -79,9 +79,9 @@ public class AzureStorageSharedKeyCredential implements Credential {
     public static final CredentialType TYPE = CredentialTypeRegistry //
             .getCredentialType("knime.AzureStorageSharedKeyCredential");
 
-    private String m_storageAccount;
+    private String m_storageAccountName;
 
-    private String m_accessKey;
+    private String m_sharedKey;
 
     /**
      * Default constructor for ser(de).
@@ -92,35 +92,35 @@ public class AzureStorageSharedKeyCredential implements Credential {
     /**
      * Constructor.
      *
-     * @param storageAccount
+     * @param storageAccountName
      *            Azure Storage account name
-     * @param accessKey
-     *            The confidential acess key (aka shared key).
+     * @param sharedKey
+     *            The confidential shared key (aka access key).
      */
-    public AzureStorageSharedKeyCredential(final String storageAccount, final String accessKey) {
-        m_storageAccount = storageAccount;
-        m_accessKey = accessKey;
+    public AzureStorageSharedKeyCredential(final String storageAccountName, final String sharedKey) {
+        m_storageAccountName = storageAccountName;
+        m_sharedKey = sharedKey;
     }
 
     /**
      * @return Azure Storage account name
      */
-    public String getStorageAccount() {
-        return m_storageAccount;
+    public String getStorageAccountName() {
+        return m_storageAccountName;
     }
 
     /**
      * @return the confidential access key (aka shared key).
      */
-    public String getAccessKey() {
-        return m_accessKey;
+    public String getSharedKey() {
+        return m_sharedKey;
     }
 
     /**
      * @return the endpoint URL
      */
     public String getEndpoint() {
-        return String.format(ENDPOINT_FORMAT, m_storageAccount);
+        return String.format(ENDPOINT_FORMAT, m_storageAccountName);
     }
 
     @Override
@@ -133,8 +133,8 @@ public class AzureStorageSharedKeyCredential implements Credential {
         final var sections = new LinkedList<CredentialPortViewData.Section>();
         sections.add(new CredentialPortViewData.Section("Azure Storage shared/access key", new String[][] { //
                 { "Field", "Value" }, //
-                { "Azure storage account name", m_storageAccount }, //
-                { "Shared/access key", obfuscate(m_accessKey) }//
+                { "Azure storage account name", m_storageAccountName }, //
+                { "Shared/access key", obfuscate(m_sharedKey) }//
         }));
         return new CredentialPortViewData(sections);
     }
