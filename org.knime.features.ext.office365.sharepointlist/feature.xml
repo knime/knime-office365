@@ -2,7 +2,7 @@
 <feature
       id="org.knime.features.ext.office365.sharepointlist"
       label="KNIME SharePoint List"
-      version="5.2.0.qualifier"
+      version="5.2.1.qualifier"
       provider-name="KNIME AG, Zurich, Switzerland">
 
    <description>
