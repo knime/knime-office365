@@ -302,7 +302,7 @@ class SharepointFileSystemProvider extends BaseFileSystemProvider<SharepointPath
 
         if (absPath.isRoot() || absPath.getParent().isRoot()) {
             throw new AccessDeniedException(path.toString(), null,
-                    String.format("Cannot %s outside of document library.", operation));
+                    String.format("Cannot %s outside of document library", operation));
         }
     }
 }
