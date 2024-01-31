@@ -67,17 +67,17 @@ public enum Scope {
     /**
      * Sites.Read.All scope.
      */
-    SITES_READ("Sharepoint files and list items (Read)", "Sites.Read.All", ScopeType.DELEGATED),
+    SITES_READ("Sharepoint files and list items (read-only)", "Sites.Read.All", ScopeType.DELEGATED),
 
     /**
      * Sites.ReadWrite.All scope.
      */
-    SITES_READ_WRITE("Sharepoint files and list items (Read/Write)", "Sites.ReadWrite.All", ScopeType.DELEGATED),
+    SITES_READ_WRITE("Sharepoint files and list items", "Sites.ReadWrite.All", ScopeType.DELEGATED),
 
     /**
      * Sites.Manage.All scope.
      */
-    SITES_MANAGE_ALL("Sharepoint files, lists and list items (Read/Write)", "Sites.Manage.All", 
+    SITES_MANAGE_ALL("Sharepoint files, lists and list items", "Sites.Manage.All",
             ScopeType.DELEGATED),
 
     /**
@@ -88,12 +88,17 @@ public enum Scope {
     /**
      * Directory.Read.All scope.
      */
-    DIRECTORY_READ("<html>User Groups (Read) <i>Note: Requires admin consent</i></html>",
+    DIRECTORY_READ(
+            "<html>User Groups (Read) <i>Note: Only used to list groups in Sharepoint Connector dialog. "
+                    + "This is a sensitive scope which requires admin consent.</i></html>",
             "Directory.Read.All", ScopeType.DELEGATED),
     /**
      * User.Read scope.
      */
-    USER_READ("<html>User Groups (Read) <i>(Limited)</i></html>", "User.Read", ScopeType.DELEGATED),
+    USER_READ(
+            "<html>User Groups (IDs only) <i>Note: Only used to list groups in Sharepoint Connector dialog. "
+                    + "This scope only allows to see technical IDs of groups, not the human-readable name.</i></html>",
+            "User.Read", ScopeType.DELEGATED),
     /**
      * Azure Blob storage scope
      */
