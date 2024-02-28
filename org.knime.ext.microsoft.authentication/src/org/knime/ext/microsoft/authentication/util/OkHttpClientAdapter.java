@@ -54,6 +54,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.microsoft.aad.msal4j.HttpRequest;
 import com.microsoft.aad.msal4j.HttpResponse;
 import com.microsoft.aad.msal4j.IHttpClient;
@@ -72,8 +74,6 @@ import okhttp3.Response;
  */
 public class OkHttpClientAdapter implements IHttpClient {
 
-    private static final String USER_AGENT = String.format("KNIME (%s)", System.getProperty("os.name"));
-
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
 
@@ -88,6 +88,15 @@ public class OkHttpClientAdapter implements IHttpClient {
                 .connectTimeout(CONNECT_TIMEOUT) //
                 .readTimeout(READ_TIMEOUT) //
                 .build();
+    }
+
+    private static String getUserAgent() {
+        final var sysProp = System.getProperty("msauth.useragent");
+        if (StringUtils.isBlank(sysProp)) {
+            return String.format("KNIME (%s)", System.getProperty("os.name"));
+        } else {
+            return sysProp;
+        }
     }
 
     @SuppressWarnings("resource")
@@ -105,7 +114,7 @@ public class OkHttpClientAdapter implements IHttpClient {
 
     private static Request buildRequest(final HttpRequest httpRequest) throws IOException {
         final var builder = new Request.Builder() //
-                .header("User-Agent", USER_AGENT) //
+                .header("User-Agent", getUserAgent()) //
                 .url(httpRequest.url());
 
         if (httpRequest.headers() != null) {
