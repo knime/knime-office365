@@ -62,6 +62,7 @@ import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.NodeLogger;
 import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.oauth.api.JWTCredential;
@@ -84,6 +85,11 @@ public final class MSALUtil {
     private static final NodeLogger LOG = NodeLogger.getLogger(MSALUtil.class);
 
     /**
+     * The platform-specific default HTTP User-Agent.
+     */
+    private static final String DEFAULT_USER_AGENT = String.format("KNIME (%s)", System.getProperty("os.name"));
+
+    /**
      * The default Application (client) ID
      */
     public static final String DEFAULT_APP_ID = "cf47ff49-7da6-4603-b339-f4475176432b";
@@ -100,8 +106,7 @@ public final class MSALUtil {
 
     /**
      * OAuth2 authorization endpoint to sign in users with work and school accounts.
-     *
-     * See list of available endpoints here:
+     * DEFAULT_USER_AGENT See list of available endpoints here:
      * https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-client-application-configuration
      */
     public static final String ORGANIZATIONS_ENDPOINT = "https://login.microsoftonline.com/organizations";
@@ -119,14 +124,23 @@ public final class MSALUtil {
      * @param endpoint
      *            The OAuth authorization endpoint URL to use with the
      *            {@link PublicClientApplication}.
+     * @param userAgent
+     *            The HTTP User-Agent to use. May be null, in which case a default
+     *            User-Agent will be used.
      *
      * @return the {@link PublicClientApplication}.
      */
-    public static PublicClientApplication createClientApp(final String appId, final String endpoint) {
+    public static PublicClientApplication createClientApp(final String appId, final String endpoint,
+            String userAgent) {
+
+        if (StringUtils.isBlank(userAgent)) {
+            userAgent = DEFAULT_USER_AGENT;
+        }
+
         try {
             return PublicClientApplication.builder(appId) //
                     .authority(endpoint) //
-                    .httpClient(new OkHttpClientAdapter()) //
+                    .httpClient(new OkHttpClientAdapter(userAgent)) //
                     .build();
         } catch (MalformedURLException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
@@ -144,15 +158,18 @@ public final class MSALUtil {
      * @param tokenCache
      *            A string from which to load access/refresh token into the
      *            {@link PublicClientApplication}.
+     * @param userAgent
+     *            The HTTP User-Agent to use. May be null, in which case a default
+     *            User-Agent will be used.
      * @return the {@link PublicClientApplication}.
      * @throws IOException
      *             when something went wrong while trying to load the access/refresh
      *             token.
      */
     public static PublicClientApplication createClientAppWithToken(final String appId, final String endpoint,
-            final String tokenCache) throws IOException {
+            final String tokenCache, final String userAgent) throws IOException {
         try {
-            final PublicClientApplication app = createClientApp(appId, endpoint);
+            final PublicClientApplication app = createClientApp(appId, endpoint, userAgent);
             app.tokenCache().deserialize(tokenCache);
             return app;
         } catch (MsalClientException e) {
@@ -170,16 +187,22 @@ public final class MSALUtil {
      *            {@link ConfidentialClientApplication}.
      * @param secret
      *            The secret to use to authenticate as the application.
-     *
+     * @param userAgent
+     *            The HTTP User-Agent to use. May be null, in which case a default
+     *            User-Agent will be used.
      * @return the {@link ConfidentialClientApplication}.
      */
     public static ConfidentialClientApplication createConfidentialApp(final String appId, final String endpoint,
-            final IClientCredential secret) {
+            final IClientCredential secret, String userAgent) {
+
+        if (StringUtils.isBlank(userAgent)) {
+            userAgent = DEFAULT_USER_AGENT;
+        }
 
         try {
             return ConfidentialClientApplication.builder(appId, secret) //
                     .authority(endpoint) //
-                    .httpClient(new OkHttpClientAdapter()) //
+                    .httpClient(new OkHttpClientAdapter(userAgent)) //
                     .build();
         } catch (MalformedURLException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);

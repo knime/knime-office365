@@ -54,6 +54,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+import org.knime.core.node.util.CheckUtils;
 import org.knime.okhttp3.OkHttpProxyAuthenticator;
 
 import com.microsoft.aad.msal4j.HttpRequest;
@@ -74,17 +76,22 @@ import okhttp3.Response;
  */
 public class OkHttpClientAdapter implements IHttpClient {
 
-    private static final String USER_AGENT = String.format("KNIME (%s)", System.getProperty("os.name"));
-
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
 
     private final OkHttpClient m_client;
 
+    private final String m_userAgent;
+
     /**
      * Creates new instance.
+     *
+     * @param userAgent
+     *            The HTTP User-Agent to set.
      */
-    public OkHttpClientAdapter() {
+    public OkHttpClientAdapter(final String userAgent) {
+        CheckUtils.checkArgument(StringUtils.isNotBlank(userAgent), "HTTP User-Agent must not be blank.");
+        m_userAgent = userAgent;
         m_client = new OkHttpClient.Builder() //
                 .proxyAuthenticator(new OkHttpProxyAuthenticator()) //
                 .connectTimeout(CONNECT_TIMEOUT) //
@@ -105,9 +112,9 @@ public class OkHttpClientAdapter implements IHttpClient {
         }
     }
 
-    private static Request buildRequest(final HttpRequest httpRequest) throws IOException {
+    private Request buildRequest(final HttpRequest httpRequest) throws IOException {
         final var builder = new Request.Builder() //
-                .header("User-Agent", USER_AGENT) //
+                .header("User-Agent", m_userAgent) //
                 .url(httpRequest.url());
 
         if (httpRequest.headers() != null) {
@@ -119,14 +126,14 @@ public class OkHttpClientAdapter implements IHttpClient {
         }
 
         switch (httpRequest.httpMethod()) {
-        case GET:
-            builder.get();
-            break;
-        case POST:
-            builder.post(createRequestBody(httpRequest));
-            break;
-        default:
-            return null;
+            case GET:
+                builder.get();
+                break;
+            case POST:
+                builder.post(createRequestBody(httpRequest));
+                break;
+            default:
+                return null;
         }
 
         return builder.build();

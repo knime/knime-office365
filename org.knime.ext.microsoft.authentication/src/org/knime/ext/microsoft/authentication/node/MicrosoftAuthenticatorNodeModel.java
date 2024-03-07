@@ -65,6 +65,7 @@ import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCredential;
 import org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
+import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.UserAgentSelection;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
@@ -152,10 +153,13 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
             throws IOException {
 
         final var usernamePassword = settings.m_usernamePassword;
+        final var httpUserAgent = settings.m_userAgentSelection == UserAgentSelection.CUSTOM
+                ? settings.m_customUserAgent
+                : null;
 
         final var clientId = settings.getClientId();
         final var authEndpointURL = settings.getAuthorizationEndpointURL();
-        final var app = MSALUtil.createClientApp(clientId, authEndpointURL);
+        final var app = MSALUtil.createClientApp(clientId, authEndpointURL, httpUserAgent);
         final var params = UserNamePasswordParameters
                 .builder(settings.getScopes(), //
                         usernamePassword.getUsername(), //
@@ -173,8 +177,11 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
         final var clientId = settings.m_confidentialApp.getUsername();
         final var clientSecret = ClientCredentialFactory.createFromSecret(settings.m_confidentialApp.getPassword());
         final var authEndpointURL = settings.getAuthorizationEndpointURL();
+        final var httpUserAgent = settings.m_userAgentSelection == UserAgentSelection.CUSTOM
+                ? settings.m_customUserAgent
+                : null;
 
-        var app = MSALUtil.createConfidentialApp(clientId, authEndpointURL, clientSecret);
+        var app = MSALUtil.createConfidentialApp(clientId, authEndpointURL, clientSecret, httpUserAgent);
         var params = ClientCredentialParameters.builder(settings.getScopes()).build();
         var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
 
