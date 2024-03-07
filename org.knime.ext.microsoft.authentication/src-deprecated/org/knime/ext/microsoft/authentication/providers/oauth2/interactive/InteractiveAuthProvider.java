@@ -139,7 +139,7 @@ public class InteractiveAuthProvider extends DelegatedPermissionsOAuth2Provider 
         CheckUtils.checkArgument(redirectUri.getScheme() != null, "Invalid redirect URL: %s", getRedirectUrl());
         CheckUtils.checkArgument(redirectUri.getAuthority() != null, "Invalid redirect URL: %s", getRedirectUrl());
 
-        final PublicClientApplication app = MSALUtil.createClientApp(getAppId(), getEndpoint());
+        final PublicClientApplication app = MSALUtil.createClientApp(getAppId(), getEndpoint(), null);
 
         // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
         final InteractiveRequestParameters params = InteractiveRequestParameters
@@ -179,7 +179,7 @@ public class InteractiveAuthProvider extends DelegatedPermissionsOAuth2Provider 
         }
 
         var tokenCache = m_storageSettings.readTokenCache();
-        var app = MSALUtil.createClientAppWithToken(getAppId(), getEndpoint(), tokenCache);
+        var app = MSALUtil.createClientAppWithToken(getAppId(), getEndpoint(), tokenCache, null);
 
         try {
             IAccount account = app.getAccounts().get().iterator().next();

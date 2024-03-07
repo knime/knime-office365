@@ -207,7 +207,7 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
         final var endpoint = "https://login.microsoftonline.com/" + m_tenantId.getStringValue();
 
         final IClientCredential credential = ClientCredentialFactory.createFromSecret(secret);
-        final var app = MSALUtil.createConfidentialApp(clientId, endpoint, credential);
+        final var app = MSALUtil.createConfidentialApp(clientId, endpoint, credential, null);
 
         try {
             final var authResult = app.acquireToken(ClientCredentialParameters.builder(getScopesStringSet()).build())

@@ -136,6 +136,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     interface AuthorizationEndpointSection {
     }
 
+
     @Section(title = "Client/App", advanced = true)
     @After(AuthorizationEndpointSection.class)
     @Effect(signals = { AuthenticationType.IsInteractive.class,
@@ -143,8 +144,14 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     interface ClientApplicationSection {
     }
 
-    @Section(title = "Authentication")
+    @Section(title = "User-Agent", advanced = true)
     @After(ClientApplicationSection.class)
+    @Effect(signals = AuthenticationType.IsOAuth2.class, type = EffectType.SHOW)
+    interface UserAgentSection {
+    }
+
+    @Section(title = "Authentication")
+    @After(UserAgentSection.class)
     @Effect(signals = AuthenticationType.IsInteractive.class, type = EffectType.SHOW)
     interface AuthenticationSection {
     }
@@ -200,6 +207,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Signal(condition = AuthenticationType.IsUsernamePassword.class)
     @Signal(condition = AuthenticationType.RequiresDelegatedPermissions.class)
     @Signal(condition = AuthenticationType.IsClientSecret.class)
+    @Signal(condition = AuthenticationType.IsOAuth2.class)
     @Signal(condition = AuthenticationType.IsAzureStorageSharedKey.class)
     @Signal(condition = AuthenticationType.IsAzureStorageSasUrl.class)
     AuthenticationType m_authenticationType = AuthenticationType.INTERACTIVE;
@@ -245,6 +253,13 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             @Override
             public AuthenticationType[] oneOf() {
                 return new AuthenticationType[] { CLIENT_SECRET };
+            }
+        }
+
+        static class IsOAuth2 extends OneOfEnumCondition<AuthenticationType> {
+            @Override
+            public AuthenticationType[] oneOf() {
+                return new AuthenticationType[] { INTERACTIVE, USERNAME_PASSWORD, CLIENT_SECRET };
             }
         }
 
@@ -306,6 +321,40 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(AuthorizationEndpointSection.class)
     @Effect(signals = AuthorizationEndpointSelection.IsCustom.class, type = EffectType.SHOW)
     String m_authorizationEndpointUrl = "";
+
+    enum UserAgentSelection {
+        DEFAULT, CUSTOM;
+
+        static class IsCustom extends OneOfEnumCondition<UserAgentSelection> {
+            @Override
+            public UserAgentSelection[] oneOf() {
+                return new UserAgentSelection[] { CUSTOM };
+            }
+        }
+    }
+
+    @Widget(title = "HTTP User-Agent", //
+            description = """
+                    Whether to use the default HTTP User-Agent or a custom one, when fetching the OAuth2 access token.
+                    The default User-Agent is OS-specific, for example "KNIME (Windows 11)". A custom User-Agent
+                    only needs to be set in rare cases, for example if the default User-Agent is rejected by a
+                    conditional access rule in Azure Entra ID.
+                    """)
+    @ValueSwitchWidget
+    @Layout(UserAgentSection.class)
+    @Signal(condition = UserAgentSelection.IsCustom.class)
+    @Persist(optional = true) // added with AP 5.2.2
+    UserAgentSelection m_userAgentSelection = UserAgentSelection.DEFAULT;
+
+    @Widget(title = "Custom HTTP User-Agent", //
+            description = """
+                    Sets a custom HTTP User-Agent when fetching the OAuth2 access token. This only needs
+                    to be set in rare cases, where the default KNIME User-Agent is rejected.
+                    """)
+    @Layout(UserAgentSection.class)
+    @Effect(signals = UserAgentSelection.IsCustom.class, type = EffectType.SHOW)
+    @Persist(optional = true) // added with AP 5.2.2
+    String m_customUserAgent = "";
 
     @Widget(title = "Which client/app to use", //
             description = """
@@ -385,7 +434,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                 throw new WidgetHandlerException(e.getMessage());
             }
 
-            var app = MSALUtil.createClientApp(settings.getClientId(), settings.getAuthorizationEndpointURL());
+            final var httpUserAgent = settings.m_userAgentSelection == UserAgentSelection.CUSTOM
+                    ? settings.m_customUserAgent
+                    : null;
+
+            final var app = MSALUtil.createClientApp(settings.getClientId(), settings.getAuthorizationEndpointURL(),
+                    httpUserAgent);
 
             // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
             final var params = InteractiveRequestParameters.builder(URI.create(settings.getRedirectURL()))//
@@ -395,7 +449,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     .build();
 
             try {
-                var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
+                final var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
                 return CredentialCache.store(MSALUtil.createCredential(authResult, app));
             } catch (IOException e) {
                 LOG.error(e.getMessage(), e);
@@ -428,6 +482,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         if (m_authorizationEndpointSelection == AuthorizationEndpointSelection.CUSTOM
                 && StringUtils.isBlank(m_authorizationEndpointUrl)) {
             throw new InvalidSettingsException("Please specify the authorization endpoint URL");
+        }
+    }
+
+    private void validateUserAgentSettings() throws InvalidSettingsException {
+        if (m_userAgentSelection == UserAgentSelection.CUSTOM && StringUtils.isBlank(m_customUserAgent)) {
+            throw new InvalidSettingsException("Please specify the custom HTTP User-Agent to use.");
         }
     }
 
@@ -475,12 +535,14 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             case INTERACTIVE, USERNAME_PASSWORD:
                 validateScopesSettings();
                 validateAuthorizationEndpointSettings();
+                validateUserAgentSettings();
                 validateClientSettings();
                 break;
             case CLIENT_SECRET:
                 validateTenantId();
                 validateScopesSettings();
                 validateAuthorizationEndpointSettings();
+                validateUserAgentSettings();
                 break;
             default:
                 break;

@@ -170,7 +170,7 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
             password = m_password.getStringValue();
         }
 
-        PublicClientApplication app = MSALUtil.createClientApp(getAppId(), getEndpoint());
+        PublicClientApplication app = MSALUtil.createClientApp(getAppId(), getEndpoint(), null);
 
         try {
             final IAuthenticationResult result = app.acquireToken(

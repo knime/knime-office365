@@ -90,7 +90,7 @@ public final class OAuth2TestAuthenticator {
         final var endpoint = MSALUtil.ORGANIZATIONS_ENDPOINT;
 
         try {
-            var app = MSALUtil.createClientApp(appId, endpoint);
+            var app = MSALUtil.createClientApp(appId, endpoint, null);
             var params = UserNamePasswordParameters.builder(scopes, username, password.toCharArray()).build();
             var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
             return MSALUtil.createCredential(authResult, app);
