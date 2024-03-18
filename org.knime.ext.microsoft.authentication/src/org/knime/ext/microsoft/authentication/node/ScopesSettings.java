@@ -201,7 +201,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         }
 
         static class DelegatedScope extends StandardScope {
-            @Widget(title = "Scope/permission")
+            @Widget(title = "Scope/permission", description = "")
             @ChoicesWidget(choices = DelegatedScopeChoicesProvider.class)
             String m_id = "";
 
@@ -236,7 +236,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         }
 
         static class ApplicationScope extends StandardScope {
-            @Widget(title = "Scope/permission")
+            @Widget(title = "Scope/permission", description = "")
             @ChoicesWidget(choices = ApplicationScopeChoicesProvider.class)
             String m_id = "";
 
@@ -283,7 +283,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
     CustomScope[] m_customScopes = new CustomScope[0];
 
     static class CustomScope implements DefaultNodeSettings {
-        @Widget(title = "Custom scope/permission")
+        @Widget(title = "Custom scope/permission", description = "")
         String m_scope;
 
         CustomScope(final String scope) {
