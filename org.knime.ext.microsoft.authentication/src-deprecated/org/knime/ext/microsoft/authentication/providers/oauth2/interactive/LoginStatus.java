@@ -49,11 +49,15 @@
 package org.knime.ext.microsoft.authentication.providers.oauth2.interactive;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.time.Instant;
-
-import org.json.JSONObject;
+import java.time.temporal.ChronoUnit;
 
 import com.microsoft.aad.msal4j.IAuthenticationResult;
+
+import jakarta.json.Json;
+import jakarta.json.JsonNumber;
+import jakarta.json.JsonString;
 
 /**
  * Captures the current OAuth2 login status. Main use case is displaying it in
@@ -100,7 +104,7 @@ public final class LoginStatus {
     }
 
     /**
-     * cparsing the given token cache string for a valid access token.
+     * Parse the given token cache string for a valid access token.
      *
      * @param tokenCache
      *            The given token cache string to check.
@@ -111,15 +115,26 @@ public final class LoginStatus {
      *             string.
      */
     public static LoginStatus parseFromTokenCache(final String tokenCache) throws IOException {
-        try {
-            final var obj = new JSONObject(tokenCache);
+        try (final var strReader = new StringReader(tokenCache); final var jsonReader = Json.createReader(strReader)) {
+            final var obj = jsonReader.readObject();
 
-            final var accessTokenObj = obj.getJSONObject("AccessToken");
-            final var expiresOnSecs = accessTokenObj.getJSONObject((String) accessTokenObj.keys().next())
-                    .getLong("expires_on");
+            final var accessTokenObj = obj.getJsonObject("AccessToken");
 
-            final var accountObj = obj.getJSONObject("Account");
-            final var username = accountObj.getJSONObject((String) accountObj.keys().next()).getString("username");
+            final var expiresOnJsonValue = accessTokenObj.getJsonObject(accessTokenObj.keySet().iterator().next())//
+                    .get("expires_on");
+
+            final long expiresOnSecs;
+            if (expiresOnJsonValue instanceof JsonString jsonStr) {
+                expiresOnSecs = Long.parseLong(jsonStr.getString());
+            } else if (expiresOnJsonValue instanceof JsonNumber jsonNum) {
+                expiresOnSecs = jsonNum.longValue();
+            } else {
+                // will assume expiry in the distant future...
+                expiresOnSecs = Instant.now().plus(100, ChronoUnit.DAYS).getEpochSecond();
+            }
+
+            final var accountObj = obj.getJsonObject("Account");
+            final var username = accountObj.getJsonObject(accountObj.keySet().iterator().next()).getString("username");
             return new LoginStatus(username, Instant.ofEpochSecond(expiresOnSecs));
         } catch (Exception e) { // NOSONAR intentionally catching a generic one here
             throw new IOException("Could not read token", e);
