@@ -81,6 +81,17 @@ public enum Scope {
             ScopeType.DELEGATED),
 
     /**
+     * Azure Databricks delegated scope.
+     */
+    AZURE_DATABRICKS("Azure Databricks", "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/user_impersonation",
+            ScopeType.DELEGATED),
+
+    /**
+     * Azure Databricks application scope.
+     */
+    AZURE_DATABRICKS_APP("Azure Databricks", "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default", ScopeType.APPLICATION),
+
+    /**
      * Resource identifier of the Microsoft Graph
      */
     GRAPH_APP("Sharepoint", "https://graph.microsoft.com/.default", ScopeType.APPLICATION),
@@ -164,6 +175,8 @@ public enum Scope {
         // resource: not known beforehand, but https://%s.blob.core.windows.net
         scopesByResource.add(Set.of(AZURE_BLOB_STORAGE));
 
+        scopesByResource.add(Set.of(AZURE_DATABRICKS));
+
         // resource: https://database.windows.net
         scopesByResource.add(Set.of(AZURE_SQL_DATABASE));
 
@@ -172,6 +185,8 @@ public enum Scope {
 
         // resource: not known beforehand
         scopesByResource.add(Set.of(OTHERS));
+
+        scopesByResource.add(Set.of(AZURE_DATABRICKS_APP));
 
         scopesByResource.add(Set.of(GRAPH_APP));
 
