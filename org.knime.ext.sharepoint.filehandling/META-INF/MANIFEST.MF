@@ -4,9 +4,9 @@ Bundle-Name: Sharepoint extension for KNIME Workbench
 Bundle-SymbolicName: org.knime.ext.sharepoint.filehandling;singleton:=true
 Bundle-Version: 5.4.0.qualifier
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
-Require-Bundle: org.knime.workbench.repository;bundle-version="[5.3.0,6.0.0)",
- org.knime.core;bundle-version="[5.3.0,6.0.0)",
- org.knime.filehandling.core;bundle-version="[5.3.0,6.0.0)",
+Require-Bundle: org.knime.workbench.repository;bundle-version="[5.4.0,6.0.0)",
+ org.knime.core;bundle-version="[5.4.0,6.0.0)",
+ org.knime.filehandling.core;bundle-version="[5.4.0,6.0.0)",
  com.microsoft.aad.msal4j;bundle-version="[1.8.1,2.0.0)",
  com.microsoft.graph.microsoft-graph;bundle-version="[5.49.0,6.0.0)",
  com.microsoft.graph.microsoft-graph-core;bundle-version="[2.0.0,3.0.0)",
