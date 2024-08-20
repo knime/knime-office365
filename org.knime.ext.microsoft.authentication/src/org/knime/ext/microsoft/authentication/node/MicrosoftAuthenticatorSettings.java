@@ -64,12 +64,6 @@ import org.knime.core.webui.node.dialog.defaultdialog.layout.After;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Layout;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Section;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.And;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect.EffectType;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.OneOfEnumCondition;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.Or;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.Signal;
 import org.knime.core.webui.node.dialog.defaultdialog.setting.credentials.Credentials;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Label;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
@@ -79,6 +73,12 @@ import org.knime.core.webui.node.dialog.defaultdialog.widget.button.CancelableAc
 import org.knime.core.webui.node.dialog.defaultdialog.widget.credentials.CredentialsWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.credentials.PasswordWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.handler.WidgetHandlerException;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect.EffectType;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Predicate;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.PredicateProvider;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Reference;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.ValueReference;
 import org.knime.credentials.base.CredentialCache;
 import org.knime.credentials.base.oauth.api.nodesettings.TokenCacheKeyPersistor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.CustomOpenBrowserAction;
@@ -99,60 +99,78 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     private static final String DEFAULT_REDIRECT_URL = "http://localhost:51355/";
 
     @Section(title = "Username and Password")
-    @Effect(signals = AuthenticationType.IsUsernamePassword.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthenticationType.IsUsernamePassword.class, type = EffectType.SHOW)
     interface UsernamePasswordSection {
     }
 
     @Section(title = "Client/App")
     @After(UsernamePasswordSection.class)
-    @Effect(signals = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
     interface ClientAppAndSecretSection {
     }
 
     @Section(title = "Shared Key")
     @After(ClientAppAndSecretSection.class)
-    @Effect(signals = AuthenticationType.IsAzureStorageSharedKey.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthenticationType.IsAzureStorageSharedKey.class, type = EffectType.SHOW)
     interface SharedKeySection {
     }
 
     @Section(title = "Shared access signature (SAS)")
     @After(SharedKeySection.class)
-    @Effect(signals = AuthenticationType.IsAzureStorageSasUrl.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthenticationType.IsAzureStorageSasUrl.class, type = EffectType.SHOW)
     interface SasUrlSection {
+    }
+
+    static final class RequiresScopes implements PredicateProvider {
+
+        @Override
+        public Predicate init(final PredicateInitializer i) {
+            final var isInteractive = i.getPredicate(AuthenticationType.IsInteractive.class);
+            final var isUsernamePassword = i.getPredicate(AuthenticationType.IsUsernamePassword.class);
+            final var isClientSecret = i.getPredicate(AuthenticationType.IsClientSecret.class);
+            return or(isInteractive, isUsernamePassword, isClientSecret);
+        }
+
     }
 
     @Section(title = "Scopes of access")
     @After(SasUrlSection.class)
-    @Effect(signals = { AuthenticationType.IsInteractive.class, //
-            AuthenticationType.IsUsernamePassword.class, //
-            AuthenticationType.IsClientSecret.class }, type = EffectType.SHOW, operation = Or.class)
+    @Effect(predicate = RequiresScopes.class, type = EffectType.SHOW)
     interface ScopesSection {
+    }
+
+    static final class IsInteractiveOrUsernamePassword implements PredicateProvider {
+
+        @Override
+        public Predicate init(final PredicateInitializer i) {
+            final var isInteractive = i.getPredicate(AuthenticationType.IsInteractive.class);
+            final var isUsernamePassword = i.getPredicate(AuthenticationType.IsUsernamePassword.class);
+            return or(isInteractive, isUsernamePassword);
+        }
+
     }
 
     @Section(title = "Authorization endpoint", advanced = true)
     @After(ScopesSection.class)
-    @Effect(signals = { AuthenticationType.IsInteractive.class,
-            AuthenticationType.IsUsernamePassword.class }, type = EffectType.SHOW, operation = Or.class)
+    @Effect(predicate = IsInteractiveOrUsernamePassword.class, type = EffectType.SHOW)
     interface AuthorizationEndpointSection {
     }
 
-
     @Section(title = "Client/App", advanced = true)
     @After(AuthorizationEndpointSection.class)
-    @Effect(signals = { AuthenticationType.IsInteractive.class,
-            AuthenticationType.IsUsernamePassword.class }, type = EffectType.SHOW, operation = Or.class)
+    @Effect(predicate = IsInteractiveOrUsernamePassword.class, type = EffectType.SHOW)
     interface ClientApplicationSection {
     }
 
     @Section(title = "User-Agent", advanced = true)
     @After(ClientApplicationSection.class)
-    @Effect(signals = AuthenticationType.IsOAuth2.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthenticationType.IsOAuth2.class, type = EffectType.SHOW)
     interface UserAgentSection {
     }
 
     @Section(title = "Authentication")
     @After(UserAgentSection.class)
-    @Effect(signals = AuthenticationType.IsInteractive.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthenticationType.IsInteractive.class, type = EffectType.SHOW)
     interface AuthenticationSection {
     }
 
@@ -203,13 +221,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                         </li>
                     </ul>
                     """)
-    @Signal(condition = AuthenticationType.IsInteractive.class)
-    @Signal(condition = AuthenticationType.IsUsernamePassword.class)
-    @Signal(condition = AuthenticationType.RequiresDelegatedPermissions.class)
-    @Signal(condition = AuthenticationType.IsClientSecret.class)
-    @Signal(condition = AuthenticationType.IsOAuth2.class)
-    @Signal(condition = AuthenticationType.IsAzureStorageSharedKey.class)
-    @Signal(condition = AuthenticationType.IsAzureStorageSasUrl.class)
+    @ValueReference(AuthenticationType.Ref.class)
     AuthenticationType m_authenticationType = AuthenticationType.INTERACTIVE;
 
     enum AuthenticationType {
@@ -228,52 +240,55 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         @Label("Azure Storage shared access signature (SAS)")
         AZURE_STORAGE_SAS_URL;
 
-        static class IsInteractive extends OneOfEnumCondition<AuthenticationType> {
+        interface Ref extends Reference<AuthenticationType> {
+        }
+
+        static class IsInteractive implements PredicateProvider {
             @Override
-            public AuthenticationType[] oneOf() {
-                return new AuthenticationType[] { INTERACTIVE };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(INTERACTIVE);
             }
         }
 
-        static class IsUsernamePassword extends OneOfEnumCondition<AuthenticationType> {
+        static class IsUsernamePassword implements PredicateProvider {
             @Override
-            public AuthenticationType[] oneOf() {
-                return new AuthenticationType[] { USERNAME_PASSWORD };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(USERNAME_PASSWORD);
             }
         }
 
-        static class RequiresDelegatedPermissions extends OneOfEnumCondition<AuthenticationType> {
+        static class RequiresDelegatedPermissions implements PredicateProvider {
             @Override
-            public AuthenticationType[] oneOf() {
-                return new AuthenticationType[] { INTERACTIVE, USERNAME_PASSWORD };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(INTERACTIVE, USERNAME_PASSWORD);
             }
         }
 
-        static class IsClientSecret extends OneOfEnumCondition<AuthenticationType> {
+        static class IsClientSecret implements PredicateProvider {
             @Override
-            public AuthenticationType[] oneOf() {
-                return new AuthenticationType[] { CLIENT_SECRET };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(CLIENT_SECRET);
             }
         }
 
-        static class IsOAuth2 extends OneOfEnumCondition<AuthenticationType> {
+        static class IsOAuth2 implements PredicateProvider {
             @Override
-            public AuthenticationType[] oneOf() {
-                return new AuthenticationType[] { INTERACTIVE, USERNAME_PASSWORD, CLIENT_SECRET };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(INTERACTIVE, USERNAME_PASSWORD, CLIENT_SECRET);
             }
         }
 
-        static class IsAzureStorageSharedKey extends OneOfEnumCondition<AuthenticationType> {
+        static class IsAzureStorageSharedKey implements PredicateProvider {
             @Override
-            public AuthenticationType[] oneOf() {
-                return new AuthenticationType[] { AZURE_STORAGE_SHARED_KEY };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(AZURE_STORAGE_SHARED_KEY);
             }
         }
 
-        static class IsAzureStorageSasUrl extends OneOfEnumCondition<AuthenticationType> {
+        static class IsAzureStorageSasUrl implements PredicateProvider {
             @Override
-            public AuthenticationType[] oneOf() {
-                return new AuthenticationType[] { AZURE_STORAGE_SAS_URL };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(AZURE_STORAGE_SAS_URL);
             }
         }
     }
@@ -282,7 +297,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             The directory tenant the application plans to operate against, in ID or domain-name format,
             for example <i>cf47ff49-7da6-4603-b339-f4475176432b,</i> or <i>mycompany.onmicrosoft.com.</i>
             """)
-    @Effect(signals = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
     String m_tenantId;
 
     @Widget(title = "Username and password", description = "The username and password to use.")
@@ -303,32 +318,38 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             description = "Whether to use the Microsoft default authorization endpoint, or a custom one.")
     @ValueSwitchWidget
     @Layout(AuthorizationEndpointSection.class)
-    @Signal(condition = AuthorizationEndpointSelection.IsCustom.class)
+    @ValueReference(AuthorizationEndpointSelection.Ref.class)
     AuthorizationEndpointSelection m_authorizationEndpointSelection = AuthorizationEndpointSelection.DEFAULT;
 
     enum AuthorizationEndpointSelection {
         DEFAULT, CUSTOM;
 
-        static class IsCustom extends OneOfEnumCondition<AuthorizationEndpointSelection> {
+        interface Ref extends Reference<AuthorizationEndpointSelection> {
+        }
+
+        static class IsCustom implements PredicateProvider {
             @Override
-            public AuthorizationEndpointSelection[] oneOf() {
-                return new AuthorizationEndpointSelection[] { CUSTOM };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(CUSTOM);
             }
         }
     }
 
     @Widget(title = "Endpoint URL", description = "Custom authorization endpoint URL to use.")
     @Layout(AuthorizationEndpointSection.class)
-    @Effect(signals = AuthorizationEndpointSelection.IsCustom.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthorizationEndpointSelection.IsCustom.class, type = EffectType.SHOW)
     String m_authorizationEndpointUrl = "";
 
     enum UserAgentSelection {
         DEFAULT, CUSTOM;
 
-        static class IsCustom extends OneOfEnumCondition<UserAgentSelection> {
+        interface Ref extends Reference<UserAgentSelection> {
+        }
+
+        static class IsCustom implements PredicateProvider {
             @Override
-            public UserAgentSelection[] oneOf() {
-                return new UserAgentSelection[] { CUSTOM };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(CUSTOM);
             }
         }
     }
@@ -342,7 +363,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     """)
     @ValueSwitchWidget
     @Layout(UserAgentSection.class)
-    @Signal(condition = UserAgentSelection.IsCustom.class)
+    @ValueReference(UserAgentSelection.Ref.class)
     @Persist(optional = true) // added with AP 5.2.2
     UserAgentSelection m_userAgentSelection = UserAgentSelection.DEFAULT;
 
@@ -352,7 +373,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     to be set in rare cases, where the default KNIME User-Agent is rejected.
                     """)
     @Layout(UserAgentSection.class)
-    @Effect(signals = UserAgentSelection.IsCustom.class, type = EffectType.SHOW)
+    @Effect(predicate = UserAgentSelection.IsCustom.class, type = EffectType.SHOW)
     @Persist(optional = true) // added with AP 5.2.2
     String m_customUserAgent = "";
 
@@ -364,23 +385,26 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     """)
     @ValueSwitchWidget
     @Layout(ClientApplicationSection.class)
-    @Signal(condition = ClientSelection.IsCustom.class)
+    @ValueReference(ClientSelection.Ref.class)
     ClientSelection m_clientSelection = ClientSelection.DEFAULT;
 
     enum ClientSelection {
         DEFAULT, CUSTOM;
 
-        static class IsCustom extends OneOfEnumCondition<ClientSelection> {
+        interface Ref extends Reference<ClientSelection> {
+        }
+
+        static class IsCustom implements PredicateProvider {
             @Override
-            public ClientSelection[] oneOf() {
-                return new ClientSelection[] { CUSTOM };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(CUSTOM);
             }
         }
     }
 
     @Widget(title = "Custom client/app ID", description = "The custom client/app ID to use.")
     @Layout(ClientApplicationSection.class)
-    @Effect(signals = ClientSelection.IsCustom.class, type = EffectType.SHOW)
+    @Effect(predicate = ClientSelection.IsCustom.class, type = EffectType.SHOW)
     String m_clientId;
 
     @Widget(title = "Storage account name and shared/access key", //
@@ -400,6 +424,16 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(SasUrlSection.class)
     Credentials m_sasUrl = new Credentials();
 
+    static final class ShowRedirectUrl implements PredicateProvider {
+
+        @Override
+        public Predicate init(final PredicateInitializer i) {
+            return i.getPredicate(AuthenticationType.IsInteractive.class)
+                    .and(i.getPredicate(ClientSelection.IsCustom.class));
+        }
+
+    }
+
     @Widget(title = "Redirect URL (should be http://localhost:XXXXX)", //
             description = """
                     Redirect URL to use during interactive login. Technical note: Only
@@ -408,8 +442,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     must be part of the configuration of your custom app.
                     """)
     @Layout(ClientApplicationSection.class)
-    @Effect(signals = { AuthenticationType.IsInteractive.class,
-            ClientSelection.IsCustom.class }, type = EffectType.SHOW, operation = And.class)
+    @Effect(predicate = ShowRedirectUrl.class, type = EffectType.SHOW)
     String m_redirectUrl;
 
     @ButtonWidget(actionHandler = LoginActionHandler.class, //
@@ -420,7 +453,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     + "allows to interactively log into the service.")
     @Layout(AuthenticationSection.class)
     @Persist(optional = true, hidden = true, customPersistor = TokenCacheKeyPersistor.class)
-    @Effect(signals = AuthenticationType.IsInteractive.class, type = EffectType.SHOW)
+    @Effect(predicate = AuthenticationType.IsInteractive.class, type = EffectType.SHOW)
     UUID m_loginCredentialRef;
 
     static class LoginActionHandler extends CancelableActionHandler<UUID, MicrosoftAuthenticatorSettings> {
@@ -471,7 +504,6 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     static class LoginUpdateHandler
             extends CancelableActionHandler.UpdateHandler<UUID, MicrosoftAuthenticatorSettings> {
     }
-
 
     private void validateScopesSettings() throws InvalidSettingsException {
         var requireApplicationScopes = m_authenticationType == AuthenticationType.CLIENT_SECRET;
@@ -595,7 +627,6 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                 break;
         }
     }
-
 
     private static void validateSasUrl(final String sasUrl) throws InvalidSettingsException {
         try {

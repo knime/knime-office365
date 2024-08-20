@@ -64,20 +64,18 @@ import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.WidgetGroup;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.NodeSettingsPersistorWithConfigKey;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.And;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.ArrayContainsCondition;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.Effect.EffectType;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.IsSpecificStringCondition;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.OneOfEnumCondition;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.Or;
-import org.knime.core.webui.node.dialog.defaultdialog.rule.Signal;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ArrayWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesProvider;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.IdAndText;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect.EffectType;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Predicate;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.PredicateProvider;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Reference;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.ValueReference;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.CustomScope.CustomScopesPersistor;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.ApplicationScope;
@@ -103,47 +101,53 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
                     access token can be used for. This setting defines whether to select scopes from a list of predefined
                     <b>standard</b> scopes or to enter <b>custom</b> scopes manually.
                     """)
-    @Signal(condition = ScopesSelectionType.IsCustom.class)
-    @Signal(condition = ScopesSelectionType.IsStandard.class)
+    @ValueReference(ScopesSelectionType.Ref.class)
     @ValueSwitchWidget
     ScopesSelectionType m_scopesSelectionType = ScopesSelectionType.STANDARD;
 
     enum ScopesSelectionType {
         STANDARD, CUSTOM;
 
-        static class IsCustom extends OneOfEnumCondition<ScopesSelectionType> {
-            @Override
-            public ScopesSelectionType[] oneOf() {
-                return new ScopesSelectionType[] { CUSTOM };
-            }
-
+        interface Ref extends Reference<ScopesSelectionType> {
         }
 
-        static class IsStandard extends OneOfEnumCondition<ScopesSelectionType> {
+        static class IsCustom implements PredicateProvider {
             @Override
-            public ScopesSelectionType[] oneOf() {
-                return new ScopesSelectionType[] { STANDARD };
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(CUSTOM);
+            }
+        }
+
+        static class IsStandard implements PredicateProvider {
+            @Override
+            public Predicate init(final PredicateInitializer i) {
+                return i.getEnum(Ref.class).isOneOf(STANDARD);
             }
         }
     }
 
-    static class HasAzureStorageScope extends ArrayContainsCondition {
-        static class IsAzureStorageScope extends IsSpecificStringCondition {
-            @Override
-            public String getValue() {
-                return Scope.AZURE_BLOB_STORAGE.name();
-            }
+    static class HasAzureStorageScope implements PredicateProvider {
+
+        interface ArrayReference extends Reference<DelegatedScope[]> {
+        }
+
+        interface IdFieldReference extends Reference<String> {
         }
 
         @Override
-        public Class<IsAzureStorageScope> getItemCondition() {
-            return IsAzureStorageScope.class;
+        public Predicate init(final PredicateInitializer i) {
+            return i.getArray(ArrayReference.class).containsElementSatisfying(
+                    el -> el.getString(IdFieldReference.class).isEqualTo(Scope.AZURE_BLOB_STORAGE.name()));
+        }
+    }
+
+    static final class HideDelegateScropes implements PredicateProvider {
+        @Override
+        public Predicate init(final PredicateInitializer i) {
+            return i.getPredicate(ScopesSelectionType.IsCustom.class)
+                    .or(i.getPredicate(AuthenticationType.IsClientSecret.class));
         }
 
-        @Override
-        public String[] getItemFieldPath() {
-            return new String[] { "id" };
-        }
     }
 
     @Widget(title = "Standard scopes (delegated permissions)", description = """
@@ -152,11 +156,18 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             delegated permissions</a> and define what the resulting access token can be used for.
             """)
     @ArrayWidget(addButtonText = "Add Scope")
-    @Effect(signals = { ScopesSelectionType.IsCustom.class,
-            AuthenticationType.IsClientSecret.class }, operation = Or.class, type = EffectType.HIDE)
-    @Signal(condition = HasAzureStorageScope.class)
+    @Effect(predicate = HideDelegateScropes.class, type = EffectType.HIDE)
+    @ValueReference(HasAzureStorageScope.ArrayReference.class)
     @Persist(customPersistor = DelegatedScopePersistor.class)
     DelegatedScope[] m_delegatedScopes = new DelegatedScope[0];
+
+    static final class ShowAppScopes implements PredicateProvider {
+        @Override
+        public Predicate init(final PredicateInitializer i) {
+            return i.getPredicate(ScopesSelectionType.IsStandard.class)
+                    .and(i.getPredicate(AuthenticationType.IsClientSecret.class));
+        }
+    }
 
     @Widget(title = "Standard scopes (application permissions)", description = """
             Choose scopes from a predefined list of standard scopes. These scopes are
@@ -164,8 +175,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             application permissions</a> and define what the resulting access token can be used for.
             """)
     @ArrayWidget(addButtonText = "Add Scope")
-    @Effect(signals = { ScopesSelectionType.IsStandard.class,
-            AuthenticationType.IsClientSecret.class }, operation = And.class, type = EffectType.SHOW)
+    @Effect(predicate = ShowAppScopes.class, type = EffectType.SHOW)
     @Persist(customPersistor = ApplicationScopePersistor.class)
     ApplicationScope[] m_appScopes = new ApplicationScope[0];
 
@@ -278,7 +288,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             permissions</a> and define what the resulting access token can be used for.
             """)
     @ArrayWidget(addButtonText = "Add Scope")
-    @Effect(signals = ScopesSelectionType.IsCustom.class, type = EffectType.SHOW)
+    @Effect(predicate = ScopesSelectionType.IsCustom.class, type = EffectType.SHOW)
     @Persist(customPersistor = CustomScopesPersistor.class)
     CustomScope[] m_customScopes = new CustomScope[0];
 
@@ -309,14 +319,21 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         }
     }
 
+    static final class RequireAzureStorageAccount implements PredicateProvider {
+        @Override
+        public Predicate init(final PredicateInitializer i) {
+            return i.getPredicate(AuthenticationType.RequiresDelegatedPermissions.class)
+                    .and(i.getPredicate(HasAzureStorageScope.class));
+        }
+
+    }
+
     @Widget(title = "Azure Storage account", //
             description = """
                     If the Azure Blob Storage/Azure Data Lake Storage Gen2 scope is chosen, then this field
                     specifies the specific Azure storage account to request access to.
                     """)
-    @Effect(signals = { AuthenticationType.RequiresDelegatedPermissions.class, //
-            ScopesSelectionType.IsStandard.class, //
-            HasAzureStorageScope.class }, operation = And.class, type = EffectType.SHOW)
+    @Effect(predicate = RequireAzureStorageAccount.class, type = EffectType.SHOW)
     @Persist(optional = true) // added shortly before AP 5.2 code freeze, there might already be example
                               // workflows
     String m_azureStorageAccount = "";
@@ -354,7 +371,6 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             validateScopesAreNotBlank(m_customScopes, s -> s.m_scope);
         }
     }
-
 
     private static void validateStandardScopesGrouping(final StandardScope[] standardScopes)
             throws InvalidSettingsException {
