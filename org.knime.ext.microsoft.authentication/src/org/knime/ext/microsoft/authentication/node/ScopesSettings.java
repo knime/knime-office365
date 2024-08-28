@@ -78,6 +78,7 @@ import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Reference;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.ValueReference;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.CustomScope.CustomScopesPersistor;
+import org.knime.ext.microsoft.authentication.node.ScopesSettings.HasAzureStorageScope.IdFieldReference;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.ApplicationScope;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.ApplicationScopePersistor;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.DelegatedScope;
@@ -213,6 +214,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         static class DelegatedScope extends StandardScope {
             @Widget(title = "Scope/permission", description = "")
             @ChoicesWidget(choices = DelegatedScopeChoicesProvider.class)
+            @ValueReference(IdFieldReference.class)
             String m_id = "";
 
             DelegatedScope(final String id) {
