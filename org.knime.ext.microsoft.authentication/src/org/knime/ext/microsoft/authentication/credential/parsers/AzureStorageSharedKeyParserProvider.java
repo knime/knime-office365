@@ -50,6 +50,8 @@ package org.knime.ext.microsoft.authentication.credential.parsers;
 
 import static org.knime.credentials.base.secretstore.ParserUtil.getStringField;
 
+import java.util.function.Supplier;
+
 import org.knime.credentials.base.secretstore.SecretConsumableParserProvider;
 import org.knime.credentials.base.secretstore.UnparseableSecretConsumableException;
 import org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential;
@@ -73,8 +75,10 @@ public class AzureStorageSharedKeyParserProvider
         super("azure_storage_shared_key", AzureStorageSharedKeyParserProvider::parse);
     }
 
-    private static AzureStorageSharedKeyCredential parse(final JsonObject consumable)
+    private static AzureStorageSharedKeyCredential parse(final Supplier<JsonObject> consumableSupplier)
             throws UnparseableSecretConsumableException {
+
+        final var consumable = consumableSupplier.get();
 
         return new AzureStorageSharedKeyCredential(//
                 getStringField(consumable, "accountName"), //
