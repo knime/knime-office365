@@ -51,6 +51,7 @@ package org.knime.ext.microsoft.authentication.credential.parsers;
 import static org.knime.credentials.base.secretstore.ParserUtil.getStringField;
 
 import java.net.URI;
+import java.util.function.Supplier;
 
 import org.knime.credentials.base.secretstore.SecretConsumableParserProvider;
 import org.knime.credentials.base.secretstore.UnparseableSecretConsumableException;
@@ -74,8 +75,11 @@ public class AzureStorageSasUrlParserProvider extends SecretConsumableParserProv
         super("azure_storage_sas", AzureStorageSasUrlParserProvider::parse);
     }
 
-    private static AzureStorageSasUrlCredential parse(final JsonObject consumable)
+    private static AzureStorageSasUrlCredential parse(final Supplier<JsonObject> consumableSupplier)
             throws UnparseableSecretConsumableException {
+
+        final var consumable = consumableSupplier.get();
+
         try {
             return new AzureStorageSasUrlCredential(URI.create(getStringField(consumable, "sasUrl")));
         } catch (IllegalArgumentException e) {
