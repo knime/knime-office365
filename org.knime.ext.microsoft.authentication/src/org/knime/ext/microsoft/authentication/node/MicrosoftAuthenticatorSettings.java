@@ -98,12 +98,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
 
     private static final String DEFAULT_REDIRECT_URL = "http://localhost:51355/";
 
-    @Section(title = "Username and Password")
+    @Section(title = "Credentials")
     @Effect(predicate = AuthenticationType.IsUsernamePassword.class, type = EffectType.SHOW)
     interface UsernamePasswordSection {
     }
 
-    @Section(title = "Client/App")
+    @Section(title = "Client/App configuration")
     @After(UsernamePasswordSection.class)
     @Effect(predicate = AuthenticationType.IsClientSecret.class, type = EffectType.SHOW)
     interface ClientAppAndSecretSection {
@@ -225,13 +225,13 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     AuthenticationType m_authenticationType = AuthenticationType.INTERACTIVE;
 
     enum AuthenticationType {
-        @Label("Interactive (OAuth 2)")
+        @Label("Interactive")
         INTERACTIVE,
 
-        @Label("Username/Password (OAuth 2)")
+        @Label("Username/Password")
         USERNAME_PASSWORD,
 
-        @Label("Client/Application secret (OAuth 2)")
+        @Label("Application/Service principal")
         CLIENT_SECRET,
 
         @Label("Azure Storage shared key")
@@ -293,7 +293,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         }
     }
 
-    @Widget(title = "Azure tenant ID (or domain)", description = """
+    @Widget(title = "Tenant ID/Domain", description = """
             The directory tenant the application plans to operate against, in ID or domain-name format,
             for example <i>cf47ff49-7da6-4603-b339-f4475176432b,</i> or <i>mycompany.onmicrosoft.com.</i>
             """)
@@ -307,7 +307,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
 
     @Widget(title = "Client/App ID and secret", //
             description = "The client/app ID and secret to use.")
-    @CredentialsWidget(usernameLabel = "Client/App ID", passwordLabel = "Client/App Secret")
+    @CredentialsWidget(usernameLabel = "ID", passwordLabel = "Client application secret")
     @Layout(ClientAppAndSecretSection.class)
     Credentials m_confidentialApp = new Credentials();
 
@@ -402,14 +402,14 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         }
     }
 
-    @Widget(title = "Custom client/app ID", description = "The custom client/app ID to use.")
+    @Widget(title = "ID", description = "The custom client/app ID to use.")
     @Layout(ClientApplicationSection.class)
     @Effect(predicate = ClientSelection.IsCustom.class, type = EffectType.SHOW)
     String m_clientId;
 
-    @Widget(title = "Storage account name and shared/access key", //
+    @Widget(title = "Storage account and shared key", //
             description = "The storage account name and shared key (also called access key) to use.")
-    @CredentialsWidget(usernameLabel = "Storage account name", passwordLabel = "Shared/access key")
+    @CredentialsWidget(usernameLabel = "Storage account", passwordLabel = "Shared key")
     @Layout(SharedKeySection.class)
     Credentials m_sharedKey = new Credentials();
 
