@@ -265,6 +265,9 @@ final class ListBatchRequest implements AutoCloseable {
             switch (status) {
             case THROTTLED: // fallthrough
             case SERVICE_UNAVAILABLE: // fallthrough
+            case INVALID_REQUEST: // fallthrough
+                // sometimes we get a random invalid request response
+                // retrying the request may work because SharePoint works in mysterious ways
             case UNKNOWN_ERROR:
                 processRetryAfter(ex.getError().rawObject);
                 retryableErrors.add(formatError(ex.getError().rawObject));
@@ -436,7 +439,8 @@ final class ListBatchRequest implements AutoCloseable {
     }
 
     private enum ResponseStatus {
-        THROTTLED, TOKEN_ERROR, SERVICE_UNAVAILABLE, FAILED_DEPENDENCY, UNKNOWN_ERROR, NON_RETRYABLE_ERROR, SUCCESS;
+        THROTTLED, TOKEN_ERROR, SERVICE_UNAVAILABLE, FAILED_DEPENDENCY, //
+        INVALID_REQUEST, UNKNOWN_ERROR, NON_RETRYABLE_ERROR, SUCCESS;
 
         static ResponseStatus getFromStatusCode(final int status) { // NOSONAR: this is nicer this way
             switch (status) {
@@ -444,6 +448,8 @@ final class ListBatchRequest implements AutoCloseable {
                 return THROTTLED;
             case 503:
                 return SERVICE_UNAVAILABLE;
+            case 400:
+                return INVALID_REQUEST;
             case 401: // UNAUTHORISED
                 return TOKEN_ERROR;
             case 424:
