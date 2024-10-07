@@ -156,7 +156,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     interface AuthorizationEndpointSection {
     }
 
-    @Section(title = "Client/App", advanced = true)
+    @Section(title = "Client/App configuration", advanced = true)
     @After(AuthorizationEndpointSection.class)
     @Effect(predicate = IsInteractiveOrUsernamePassword.class, type = EffectType.SHOW)
     interface ClientApplicationSection {
@@ -335,7 +335,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         }
     }
 
-    @Widget(title = "Endpoint URL", description = "Custom authorization endpoint URL to use.")
+    @Widget(title = "Custom endpoint URL", description = "Custom authorization endpoint URL to use.")
     @Layout(AuthorizationEndpointSection.class)
     @Effect(predicate = AuthorizationEndpointSelection.IsCustom.class, type = EffectType.SHOW)
     String m_authorizationEndpointUrl = "";
