@@ -94,7 +94,7 @@ import org.knime.ext.microsoft.authentication.scopes.ScopeType;
 @SuppressWarnings("restriction")
 public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
 
-    @Widget(title = "How to select scopes", //
+    @Widget(title = "Scope type", //
             description = """
                     Scopes are
                     <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
@@ -156,7 +156,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
             delegated permissions</a> and define what the resulting access token can be used for.
             """)
-    @ArrayWidget(addButtonText = "Add Scope")
+    @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = HideDelegateScropes.class, type = EffectType.HIDE)
     @ValueReference(HasAzureStorageScope.ArrayReference.class)
     @Persist(customPersistor = DelegatedScopePersistor.class)
@@ -175,7 +175,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
             application permissions</a> and define what the resulting access token can be used for.
             """)
-    @ArrayWidget(addButtonText = "Add Scope")
+    @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = ShowAppScopes.class, type = EffectType.SHOW)
     @Persist(customPersistor = ApplicationScopePersistor.class)
     ApplicationScope[] m_appScopes = new ApplicationScope[0];
@@ -289,7 +289,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
             permissions</a> and define what the resulting access token can be used for.
             """)
-    @ArrayWidget(addButtonText = "Add Scope")
+    @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = ScopesSelectionType.IsCustom.class, type = EffectType.SHOW)
     @Persist(customPersistor = CustomScopesPersistor.class)
     CustomScope[] m_customScopes = new CustomScope[0];
