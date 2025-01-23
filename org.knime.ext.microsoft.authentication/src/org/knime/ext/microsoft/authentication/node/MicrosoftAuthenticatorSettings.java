@@ -63,7 +63,8 @@ import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.After;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Layout;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.Section;
-import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
+import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Migrate;
+import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Persistor;
 import org.knime.core.webui.node.dialog.defaultdialog.setting.credentials.Credentials;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Label;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
@@ -82,7 +83,7 @@ import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.PredicatePr
 import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Reference;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.ValueReference;
 import org.knime.credentials.base.CredentialCache;
-import org.knime.credentials.base.oauth.api.nodesettings.TokenCacheKeyPersistor;
+import org.knime.credentials.base.oauth.api.nodesettings.AbstractTokenCacheKeyPersistor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.CustomOpenBrowserAction;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
@@ -366,7 +367,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @ValueSwitchWidget
     @Layout(UserAgentSection.class)
     @ValueReference(UserAgentSelection.Ref.class)
-    @Persist(optional = true) // added with AP 5.2.2
+    @Migrate(loadDefaultIfAbsent = true) // added with AP 5.2.2
     UserAgentSelection m_userAgentSelection = UserAgentSelection.DEFAULT;
 
     @Widget(title = "Custom HTTP User-Agent", //
@@ -376,7 +377,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
                     """)
     @Layout(UserAgentSection.class)
     @Effect(predicate = UserAgentSelection.IsCustom.class, type = EffectType.SHOW)
-    @Persist(optional = true) // added with AP 5.2.2
+    @Migrate(loadDefaultIfAbsent = true) // added with AP 5.2.2
     String m_customUserAgent = "";
 
     @Widget(title = "Which client/app to use", //
@@ -454,9 +455,15 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             description = "Clicking on login opens a new browser window/tab which "
                     + "allows to interactively log into the service.")
     @Layout(AuthenticationSection.class)
-    @Persist(optional = true, hidden = true, customPersistor = TokenCacheKeyPersistor.class)
+    @Persistor(LoginCredentialRefPersistor.class)
     @Effect(predicate = AuthenticationType.IsInteractive.class, type = EffectType.SHOW)
     UUID m_loginCredentialRef;
+
+    static final class LoginCredentialRefPersistor extends AbstractTokenCacheKeyPersistor {
+        LoginCredentialRefPersistor() {
+            super("loginCredentialRef");
+        }
+    }
 
     static class LoginActionHandler extends CancelableActionHandler<UUID, MicrosoftAuthenticatorSettings> {
 

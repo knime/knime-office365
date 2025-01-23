@@ -62,8 +62,9 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.layout.WidgetGroup;
-import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.NodeSettingsPersistorWithConfigKey;
-import org.knime.core.webui.node.dialog.defaultdialog.persistence.field.Persist;
+import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Migrate;
+import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.NodeSettingsPersistor;
+import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Persistor;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ArrayWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesProvider;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesWidget;
@@ -159,7 +160,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
     @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = HideDelegateScropes.class, type = EffectType.HIDE)
     @ValueReference(HasAzureStorageScope.ArrayReference.class)
-    @Persist(customPersistor = DelegatedScopePersistor.class)
+    @Persistor(DelegatedScopePersistor.class)
     DelegatedScope[] m_delegatedScopes = new DelegatedScope[0];
 
     static final class ShowAppScopes implements PredicateProvider {
@@ -177,18 +178,29 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             """)
     @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = ShowAppScopes.class, type = EffectType.SHOW)
-    @Persist(customPersistor = ApplicationScopePersistor.class)
+    @Persistor(ApplicationScopePersistor.class)
     ApplicationScope[] m_appScopes = new ApplicationScope[0];
 
     abstract static class StandardScope implements DefaultNodeSettings {
         protected abstract String getId();
 
-        abstract static class StandardScopesPersistor<S extends StandardScope>
-                extends NodeSettingsPersistorWithConfigKey<S[]> {
+        abstract static class StandardScopesPersistor<S extends StandardScope> implements NodeSettingsPersistor<S[]> {
+
+            final String m_configKey;
+
+            protected StandardScopesPersistor(final String configKey) {
+                m_configKey = configKey;
+            }
+
             @Override
             public void save(final S[] obj, final NodeSettingsWO settings) {
                 var strings = Stream.of(obj).map(S::getId).toArray(String[]::new);
-                settings.addStringArray(getConfigKey(), strings);
+                settings.addStringArray(m_configKey, strings);
+            }
+
+            @Override
+            public String[][] getConfigPaths() {
+                return new String[][] { { m_configKey } };
             }
         }
 
@@ -239,9 +251,13 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         }
 
         static class DelegatedScopePersistor extends StandardScopesPersistor<DelegatedScope> {
+            DelegatedScopePersistor() {
+                super("delegatedScopes");
+            }
+
             @Override
             public DelegatedScope[] load(final NodeSettingsRO settings) throws InvalidSettingsException {
-                return Stream.of(settings.getStringArray(getConfigKey())) //
+                return Stream.of(settings.getStringArray(m_configKey)) //
                         .map(DelegatedScope::new) //
                         .toArray(DelegatedScope[]::new);
             }
@@ -274,9 +290,13 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         }
 
         static class ApplicationScopePersistor extends StandardScopesPersistor<ApplicationScope> {
+            ApplicationScopePersistor() {
+                super("appScopes");
+            }
+
             @Override
             public ApplicationScope[] load(final NodeSettingsRO settings) throws InvalidSettingsException {
-                return Stream.of(settings.getStringArray(getConfigKey())) //
+                return Stream.of(settings.getStringArray(m_configKey))//
                         .map(ApplicationScope::new) //
                         .toArray(ApplicationScope[]::new);
             }
@@ -291,7 +311,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             """)
     @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = ScopesSelectionType.IsCustom.class, type = EffectType.SHOW)
-    @Persist(customPersistor = CustomScopesPersistor.class)
+    @Persistor(CustomScopesPersistor.class)
     CustomScope[] m_customScopes = new CustomScope[0];
 
     static class CustomScope implements DefaultNodeSettings {
@@ -305,10 +325,13 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         CustomScope() {
         }
 
-        static class CustomScopesPersistor extends NodeSettingsPersistorWithConfigKey<CustomScope[]> {
+        static class CustomScopesPersistor implements NodeSettingsPersistor<CustomScope[]> {
+
+            static final String CONFIG_KEY = "customScopes";
+
             @Override
             public CustomScope[] load(final NodeSettingsRO settings) throws InvalidSettingsException {
-                return Stream.of(settings.getStringArray(getConfigKey())) //
+                return Stream.of(settings.getStringArray(CONFIG_KEY)) //
                         .map(CustomScope::new) //
                         .toArray(CustomScope[]::new);
             }
@@ -316,7 +339,12 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             @Override
             public void save(final CustomScope[] obj, final NodeSettingsWO settings) {
                 var strings = Stream.of(obj).map(s -> s.m_scope).toArray(String[]::new);
-                settings.addStringArray(getConfigKey(), strings);
+                settings.addStringArray(CONFIG_KEY, strings);
+            }
+
+            @Override
+            public String[][] getConfigPaths() {
+                return new String[][] { { CONFIG_KEY } };
             }
         }
     }
@@ -336,8 +364,11 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
                     specifies the specific Azure storage account to request access to.
                     """)
     @Effect(predicate = RequireAzureStorageAccount.class, type = EffectType.SHOW)
-    @Persist(optional = true) // added shortly before AP 5.2 code freeze, there might already be example
-                              // workflows
+    /**
+     * added shortly before AP 5.2 code freeze, there might already be example
+     * workflows
+     */
+    @Migrate(loadDefaultIfAbsent = true)
     String m_azureStorageAccount = "";
 
     /**
