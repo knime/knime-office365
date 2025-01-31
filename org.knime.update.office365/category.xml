@@ -15,6 +15,10 @@
    <feature id="org.knime.features.ext.office365.sharepointlist.source" version="0.0.0">
        <category name="knime-office365" />
    </feature>
+   
+   <bundle id="org.knime.ext.microsoft.authentication" />
+
+   <bundle id="org.knime.ext.microsoft.authentication.source" />
 
    <category-def name="knime-office365" label="Build artifacts from knime-office365">
        <description>Build artifacts from knime-office365</description>
