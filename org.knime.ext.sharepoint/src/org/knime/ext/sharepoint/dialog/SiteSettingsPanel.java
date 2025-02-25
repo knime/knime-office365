@@ -113,8 +113,6 @@ public class SiteSettingsPanel extends JPanel {
 
     private LoadedItemsSelector m_subsiteSelector;
 
-    private JRadioButton m_rbGroup;
-
     /**
      * @param settings
      */
@@ -144,11 +142,6 @@ public class SiteSettingsPanel extends JPanel {
     public void settingsLoaded(final JWTCredential credential) {
         m_credential = credential;
 
-        // only users get an ID token (and can be part of groups); service principals do
-        // not get an id token and cannot be member of groups
-        final var isGroupEnabled = m_credential.getIdToken().isPresent();
-        m_rbGroup.setEnabled(isGroupEnabled);
-
         m_subsiteSelector.onSettingsLoaded();
         m_groupSelector.onSettingsLoaded();
         showModePanel(m_settings.getMode());
@@ -157,17 +150,17 @@ public class SiteSettingsPanel extends JPanel {
     private JPanel createRadioSelectorPanel() {
         final var rbRoot = createModeRadiobutton(SiteMode.ROOT);
         final var rbSite = createModeRadiobutton(SiteMode.WEB_URL);
-        m_rbGroup = createModeRadiobutton(SiteMode.GROUP);
+        final var rbGroup = createModeRadiobutton(SiteMode.GROUP);
 
         final var group = new ButtonGroup();
         group.add(rbRoot);
         group.add(rbSite);
-        group.add(m_rbGroup);
+        group.add(rbGroup);
 
         final var buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         buttonsPanel.add(rbRoot);
         buttonsPanel.add(rbSite);
-        buttonsPanel.add(m_rbGroup);
+        buttonsPanel.add(rbGroup);
         buttonsPanel.add(Box.createHorizontalGlue());
         return buttonsPanel;
     }
