@@ -50,6 +50,7 @@ package org.knime.ext.microsoft.authentication.node;
 
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -66,11 +67,11 @@ import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Migrate;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.NodeSettingsPersistor;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Persistor;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ArrayWidget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesProvider;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.ChoicesWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.IdAndText;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.ChoicesProvider;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.StringChoice;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.StringChoicesProvider;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect.EffectType;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Predicate;
@@ -204,13 +205,13 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             }
         }
 
-        abstract static class StandardScopesChoicesProvider implements ChoicesProvider {
+        abstract static class StandardScopesChoicesProvider implements StringChoicesProvider {
             @Override
-            public IdAndText[] choicesWithIdAndText(final DefaultNodeSettingsContext context) {
+            public List<StringChoice> computeState(final DefaultNodeSettingsContext context) {
                 return Scope.listByScopeType(getScopeType()).stream() //
                         .filter(s -> s != Scope.OTHER && s != Scope.OTHERS) //
-                        .map(s -> new IdAndText(s.name(), stripHtml(s.getTitle()))) //
-                        .toArray(IdAndText[]::new);
+                        .map(s -> new StringChoice(s.name(), stripHtml(s.getTitle()))) //
+                        .toList();
             }
 
             private static String stripHtml(final String str) {
@@ -225,7 +226,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
 
         static class DelegatedScope extends StandardScope {
             @Widget(title = "Scope/permission", description = "")
-            @ChoicesWidget(choices = DelegatedScopeChoicesProvider.class)
+            @ChoicesProvider(DelegatedScopeChoicesProvider.class)
             @ValueReference(IdFieldReference.class)
             String m_id = "";
 
@@ -265,7 +266,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
 
         static class ApplicationScope extends StandardScope {
             @Widget(title = "Scope/permission", description = "")
-            @ChoicesWidget(choices = ApplicationScopeChoicesProvider.class)
+            @ChoicesProvider(ApplicationScopeChoicesProvider.class)
             String m_id = "";
 
             ApplicationScope(final String id) {
