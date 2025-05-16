@@ -138,6 +138,16 @@ public enum Scope {
     POWER_BI_APP("Power BI", "https://analysis.windows.net/powerbi/api/.default", ScopeType.APPLICATION),
 
     /**
+     * Fabric
+     */
+    FABRIC("Fabric", "https://api.fabric.microsoft.com/Workspace.Read.All", ScopeType.DELEGATED),
+
+    /**
+     * Fabric application.
+     */
+    FABRIC_APP("Fabric", "https://api.fabric.microsoft.com/.default", ScopeType.APPLICATION),
+
+    /**
      * Other scope manually entered by the user
      */
     OTHER("Other", "<other>", ScopeType.APPLICATION),
@@ -180,6 +190,9 @@ public enum Scope {
         // resource: https://database.windows.net
         scopesByResource.add(Set.of(AZURE_SQL_DATABASE));
 
+        // resource: https://api.fabric.microsoft.com/
+        scopesByResource.add(Set.of(FABRIC));
+
         // resource: https://analysis.windows.net/powerbi/api
         scopesByResource.add(Set.of(POWER_BI));
 
@@ -193,6 +206,8 @@ public enum Scope {
         scopesByResource.add(Set.of(AZURE_SQL_DATABASE_APP));
 
         scopesByResource.add(Set.of(POWER_BI_APP));
+
+        scopesByResource.add(Set.of(FABRIC_APP));
 
         scopesByResource.add(Set.of(OTHER));
 
