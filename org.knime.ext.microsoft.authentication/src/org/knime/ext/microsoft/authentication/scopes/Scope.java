@@ -135,6 +135,16 @@ public enum Scope {
     POWER_BI_APP("Power BI", "https://analysis.windows.net/powerbi/api/.default", ScopeType.APPLICATION),
 
     /**
+     * Fabric
+     */
+    FABRIC("Fabric", "https://api.fabric.microsoft.com/Workspace.Read.All", ScopeType.DELEGATED),
+
+    /**
+     * Fabric application.
+     */
+    FABRIC_APP("Fabric", "https://api.fabric.microsoft.com/.default", ScopeType.APPLICATION),
+    
+    /**
      * Exchange Online
      */
     OUTLOOK("Exchange Online",
