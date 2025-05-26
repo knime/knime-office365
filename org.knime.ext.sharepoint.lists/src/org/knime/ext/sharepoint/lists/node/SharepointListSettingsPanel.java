@@ -75,7 +75,7 @@ import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.util.ViewUtils;
 import org.knime.core.util.SwingWorkerWithContext;
-import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 import org.knime.ext.sharepoint.lists.node.writer.ListOverwritePolicy;
@@ -280,13 +280,13 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
     /**
      * Should be called by the parent dialog after settings are loaded.
      *
-     * @param credential
+     * @param credSpec
      *            The Credential object.
      */
     @Override
-    public void settingsLoaded(final JWTCredential credential) {
+    public void settingsLoaded(final CredentialPortObjectSpec credSpec) {
         m_ignoreEvents = true;
-        super.settingsLoaded(credential);
+        super.settingsLoaded(credSpec);
         m_listSelector.onSettingsLoaded();
         m_ignoreEvents = false;
     }

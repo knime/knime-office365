@@ -62,8 +62,10 @@ import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
@@ -117,17 +119,19 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private boolean m_processItemsSequential = true; // change this with toggle later
 
-    SharepointListWriterClient(final SharepointListWriterConfig config, final Consumer<String> pushListId,
-            final BufferedDataTable table,
-            final JWTCredential credential, final ExecutionContext exec)
-            throws IOException, InvalidSettingsException {
+    SharepointListWriterClient(final SharepointListWriterConfig config, //
+            final Consumer<String> pushListId, //
+            final BufferedDataTable table, //
+            final CredentialPortObjectSpec credSpec, //
+            final ExecutionContext exec)
+            throws IOException, InvalidSettingsException, NoSuchCredentialException {
 
         m_config = config;
         m_sharePointListSettings = config.getSharepointListSettings();
         m_table = table;
         m_tableSpec = m_table.getDataTableSpec();
         m_exec = exec;
-        m_client = createGraphServiceClient(credential);
+        m_client = createGraphServiceClient(credSpec);
         m_pushListId = pushListId;
         m_siteId = getSiteId();
         m_listId = getListId();
@@ -168,11 +172,12 @@ class SharepointListWriterClient implements AutoCloseable {
 
     }
 
-    private GraphServiceClient<Request> createGraphServiceClient(
-            final JWTCredential credential) {
+    private GraphServiceClient<Request> createGraphServiceClient(final CredentialPortObjectSpec credSpecl)
+            throws NoSuchCredentialException, IOException {
 
         final var timeouts = m_sharePointListSettings.getTimeoutSettings();
-        return GraphApiUtil.createClient(credential, //
+        return GraphApiUtil.createClient(//
+                GraphCredentialUtil.createAuthenticationProvider(credSpecl), //
                 timeouts.getConnectionTimeout(), //
                 timeouts.getReadTimeout());
     }

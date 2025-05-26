@@ -68,8 +68,9 @@ import javax.swing.JRadioButton;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.credentials.base.Credential;
-import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.ext.sharepoint.settings.SiteSettings;
@@ -103,7 +104,7 @@ public class SiteSettingsPanel extends JPanel {
 
     private final SiteSettings m_settings;
 
-    private JWTCredential m_credential;
+    private CredentialPortObjectSpec m_credentialPortSpec;
 
     private JPanel m_cards;
 
@@ -136,11 +137,11 @@ public class SiteSettingsPanel extends JPanel {
     /**
      * Should be called by the parent dialog after settings are loaded.
      *
-     * @param credential
-     *            The Microsoft Credential object.
+     * @param credentialPortSpec
+     *            the CredentialPortObjectSpec
      */
-    public void settingsLoaded(final JWTCredential credential) {
-        m_credential = credential;
+    public void settingsLoaded(final CredentialPortObjectSpec credentialPortSpec) {
+        m_credentialPortSpec = credentialPortSpec;
 
         m_subsiteSelector.onSettingsLoaded();
         m_groupSelector.onSettingsLoaded();
@@ -287,10 +288,16 @@ public class SiteSettingsPanel extends JPanel {
      * @throws IOException
      */
     protected GraphServiceClient<Request> createClient() throws IOException {
-        if (m_credential == null) {
+        if (m_credentialPortSpec == null) {
             throw new IOException("Settings aren't loaded");
         }
-        return GraphApiUtil.createClient(m_credential, DIALOG_CLIENT_TIMEOUT_MILLIS, DIALOG_CLIENT_TIMEOUT_MILLIS);
+
+        try {
+            final var authProvider = GraphCredentialUtil.createAuthenticationProvider(m_credentialPortSpec);
+            return GraphApiUtil.createClient(authProvider, DIALOG_CLIENT_TIMEOUT_MILLIS, DIALOG_CLIENT_TIMEOUT_MILLIS);
+        } catch (Exception ex) {
+            throw ExceptionUtil.wrapAsIOException(ex);
+        }
     }
 
     private List<IdComboboxItem> fetchSubsites() throws InvalidSettingsException, IOException {

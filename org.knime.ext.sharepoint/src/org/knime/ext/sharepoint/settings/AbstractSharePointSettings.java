@@ -52,9 +52,6 @@ package org.knime.ext.sharepoint.settings;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.credentials.base.CredentialType;
-import org.knime.credentials.base.oauth.api.AccessTokenCredential;
-import org.knime.credentials.base.oauth.api.JWTCredential;
 
 /**
  * Abstract class for Sharepoint settings which are common for certain
@@ -146,23 +143,5 @@ public abstract class AbstractSharePointSettings<T extends AbstractSharePointSet
      */
     public TimeoutSettings getTimeoutSettings() {
         return m_timeoutSettings;
-    }
-
-    /**
-     * @param credentialType
-     *            The credential type
-     * @throws InvalidSettingsException
-     *             if Group site is used with application scope type
-     */
-    public void validateCredentialType(final CredentialType credentialType) throws InvalidSettingsException {
-        if (credentialType != JWTCredential.TYPE && credentialType != AccessTokenCredential.TYPE) {
-            throw new InvalidSettingsException(
-                    "Provided credentials cannot be used with SharePoint: " + credentialType);
-        }
-
-        final var mode = SiteMode.valueOf(getSiteSettings().getModeModel().getStringValue());
-        if (mode == SiteMode.GROUP && credentialType == AccessTokenCredential.TYPE) {
-            throw new InvalidSettingsException("Client Secret Authentication cannot be used with Group site");
-        }
     }
 }

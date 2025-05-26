@@ -61,8 +61,6 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.NoSuchCredentialException;
-import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel;
 import org.knime.filehandling.core.util.GBCBuilder;
@@ -126,12 +124,8 @@ public class SharepointListWriterNodeDialog extends NodeDialogPane {
             LOGGER.error("An unexpected error occured during the loading of the settings.", ex);
         }
 
-        try {
-            final var credential = ((CredentialPortObjectSpec) specs[0]).resolveCredential(JWTCredential.class);
-            m_listSettingsPanel.settingsLoaded(credential);
-        } catch (NoSuchCredentialException ex) {
-            throw new NotConfigurableException(ex.getMessage(), ex);
-        }
+        final var credSpec = (CredentialPortObjectSpec) specs[0];
+        m_listSettingsPanel.settingsLoaded(credSpec);
     }
 
     @Override

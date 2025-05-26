@@ -56,7 +56,7 @@ import java.util.Set;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.util.testing.OAuth2TestAuthenticator;
-import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSDescriptorProvider;
@@ -111,7 +111,7 @@ public class SharepointTestInitializerProvider extends DefaultFSTestInitializerP
                 getParameter(config, "username"), //
                 getParameter(config, "password"),//
                 Set.of(Scope.SITES_READ_WRITE.getScope()));
-        return GraphApiUtil.createAuthenticationProvider(credential);
+        return GraphCredentialUtil.createAuthenticationProvider(credential);
     }
 
     @Override

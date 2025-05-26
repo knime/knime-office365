@@ -51,20 +51,14 @@ package org.knime.ext.sharepoint;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.concurrent.TimeUnit;
 
 import org.knime.core.node.Node;
-import org.knime.credentials.base.Credential;
-import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 import org.knime.okhttp3.OkHttpProxyAuthenticator;
 import org.osgi.framework.FrameworkUtil;
 
-import com.azure.core.credential.AccessToken;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
-import com.microsoft.graph.authentication.TokenCredentialAuthProvider;
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.httpcore.HttpClients;
 import com.microsoft.graph.requests.GraphServiceClient;
@@ -73,7 +67,6 @@ import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import reactor.core.publisher.Mono;
 
 /**
  * Utility class for Graph API.
@@ -137,25 +130,6 @@ public final class GraphApiUtil {
     }
 
     /**
-     * Creates a {@link GraphServiceClient} with a {@link Credential}.
-     *
-     * @param credential
-     *            the credential
-     * @param connectionTimeout
-     *            Connection timeout in milliseconds.
-     * @param readTimeout
-     *            Read timeout in milliseconds.
-     * @return the {@link GraphServiceClient}
-     */
-    public static GraphServiceClient<Request> createClient(final JWTCredential credential,
-            final int connectionTimeout,
-            final int readTimeout) {
-
-        final var authProvider = createAuthenticationProvider(credential);
-        return createClient(authProvider, connectionTimeout, readTimeout);
-    }
-
-    /**
      * Creates a {@link GraphServiceClient} with a {@link IAuthenticationProvider}.
      *
      * @param authProvider
@@ -184,31 +158,6 @@ public final class GraphApiUtil {
                 .proxyAuthenticator(new OkHttpProxyAuthenticator()) // Proxy authentication
                 .addInterceptor(new UserAgentInterceptor()) // Adds user-agent header
                 .build();
-    }
-
-    /**
-     * Creates a {@link IAuthenticationProvider} based on the given
-     * {@link JWTCredential}.
-     *
-     * @param credential
-     *            The credential.
-     * @return the {@link IAuthenticationProvider}
-     */
-    public static IAuthenticationProvider createAuthenticationProvider(final JWTCredential credential) {
-        // as is the nature of monos, this will defer the actual retrieval of the access
-        // token to when it
-        // is fact needed.
-        final var accessTokenMono = Mono.fromCallable(() -> toMsalAccessToken(credential));
-        return new TokenCredentialAuthProvider(ignored -> accessTokenMono);
-    }
-
-    private static AccessToken toMsalAccessToken(final JWTCredential credential) throws IOException {
-        final var accessToken = credential.getAccessToken(); // potentially throws IOE when token cannot be refreshed
-        final var expiration = credential.getExpiresAfter()
-                .map(instant -> OffsetDateTime.ofInstant(instant, ZoneId.of("UTC")))
-                .orElseThrow();
-
-        return new AccessToken(accessToken, expiration);
     }
 
     private static class UserAgentInterceptor implements Interceptor {

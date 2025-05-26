@@ -77,13 +77,13 @@ import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.NoSuchCredentialException;
-import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 import org.knime.filehandling.core.defaultnodesettings.status.StatusMessage;
 import org.knime.filehandling.core.node.table.reader.config.MultiTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
@@ -133,7 +133,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private boolean m_ignoreEvents = false;
 
-    private JWTCredential m_credential;
+    private CredentialPortObjectSpec m_credentialPortSpec;
 
     SharepointListReaderNodeDialog() {
         m_config = SharepointListReaderNodeModel.createConfig();
@@ -209,7 +209,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
     private SharepointListClientAccessor createSharepointListClientAccessor() {
         return new SharepointListClientAccessor(m_config.getReaderSpecificConfig().getSharepointListSettings(),
-                m_credential);
+                m_credentialPortSpec);
     }
 
     private JPanel createSettingsPanel() {
@@ -411,11 +411,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         ignoreEvents(true);
         setPreviewEnabled(false);
 
-        try {
-            m_credential = ((CredentialPortObjectSpec) specs[0]).resolveCredential(JWTCredential.class);
-        } catch (NoSuchCredentialException ex) {
-            throw new NotConfigurableException(ex.getMessage(), ex);
-        }
+        m_credentialPortSpec = (CredentialPortObjectSpec) specs[0];
 
         m_config.loadInDialog(settings, specs);
         if (m_config.hasTableSpecConfig()) {
@@ -426,7 +422,7 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
         // enable/disable spinners
         controlSpinner(m_skipRowsEnabled, m_skipRowsNumber);
         controlSpinner(m_limitRowsEnabled, m_limitRowsNumber);
-        m_listSettingsPanel.settingsLoaded(m_credential);
+        m_listSettingsPanel.settingsLoaded(m_credentialPortSpec);
 
         ignoreEvents(false);
         refreshPreview(true);
@@ -516,14 +512,14 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
         private final SharepointListSettings m_listSettings;
 
-        private final JWTCredential m_credential;
+        private final CredentialPortObjectSpec m_credentialPortSpec;
 
         private SharepointListClient m_client;
 
         private SharepointListClientAccessor(final SharepointListSettings settings,
-                final JWTCredential credential) {
+                final CredentialPortObjectSpec credSpec) {
             m_listSettings = settings;
-            m_credential = credential;
+            m_credentialPortSpec = credSpec;
         }
 
         @Override
@@ -546,14 +542,20 @@ public class SharepointListReaderNodeDialog extends DataAwareNodeDialogPane {
 
         @Override
         public SharepointListClient getRootItem(final Consumer<StatusMessage> statusMessageConsumer)
-                throws IOException, InvalidSettingsException {
-
-            if (m_client == null) {
-                final var timeouts = m_listSettings.getTimeoutSettings();
-                m_client = new SharepointListClient(GraphApiUtil.createClient(m_credential,
-                        timeouts.getConnectionTimeout(), timeouts.getReadTimeout()), m_listSettings);
+                throws IOException {
+            try {
+                if (m_client == null) {
+                    final var timeouts = m_listSettings.getTimeoutSettings();
+                    final var graphClient = GraphApiUtil.createClient(//
+                            GraphCredentialUtil.createAuthenticationProvider(m_credentialPortSpec), //
+                            timeouts.getConnectionTimeout(), //
+                            timeouts.getReadTimeout());
+                    m_client = new SharepointListClient(graphClient, m_listSettings);
+                }
+                return m_client;
+            } catch (final Exception e) {
+                throw ExceptionUtil.wrapAsIOException(e);
             }
-            return m_client;
         }
     }
 }

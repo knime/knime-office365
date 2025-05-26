@@ -49,6 +49,7 @@
 package org.knime.ext.sharepoint.lists.node.reader;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 
 import org.knime.core.data.DataType;
@@ -71,8 +72,9 @@ import org.knime.core.node.streamable.RowOutput;
 import org.knime.core.node.streamable.StreamableOperator;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListReader;
@@ -137,21 +139,20 @@ final class SharepointListReaderNodeModel extends NodeModel {
             return new PortObjectSpec[] { m_config.getTableSpecConfig().getDataTableSpec() };
         }
 
-        var optionalCredentialType = ((CredentialPortObjectSpec) inSpecs[0]).getCredentialType();
-        if (optionalCredentialType.isPresent()) {
-            m_config.getReaderSpecificConfig().getSharepointListSettings()
-                    .validateCredentialType(optionalCredentialType.get());
+        final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
+        if (credSpec != null) {
+            GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
         }
+
         return new PortObjectSpec[1];
     }
 
     @Override
     protected PortObject[] execute(final PortObject[] portObjects, final ExecutionContext exec) throws Exception {
 
-        final var credential = ((CredentialPortObjectSpec) portObjects[0].getSpec())
-                .resolveCredential(JWTCredential.class);
+        final var credSpec = ((CredentialPortObject) portObjects[0]).getSpec();
 
-        final var sourceGroup = createSourceGroup(credential,
+        final var sourceGroup = createSourceGroup(credSpec,
                 m_config.getReaderSpecificConfig().getSharepointListSettings());
         return new PortObject[] { m_tableReader.readTable(sourceGroup, m_config, exec) };
     }
@@ -167,9 +168,8 @@ final class SharepointListReaderNodeModel extends NodeModel {
 
                 final var credentialPortObjectSpec = (CredentialPortObjectSpec) ((PortObjectInput) inputs[0])
                         .getPortObject().getSpec();
-                final var credential = credentialPortObjectSpec.resolveCredential(JWTCredential.class);
 
-                final var sourceGroup = createSourceGroup(credential,
+                final var sourceGroup = createSourceGroup(credentialPortObjectSpec,
                         m_config.getReaderSpecificConfig().getSharepointListSettings());
                 m_tableReader.fillRowOutput(sourceGroup, m_config, (RowOutput) outputs[0], exec);
             }
@@ -177,12 +177,17 @@ final class SharepointListReaderNodeModel extends NodeModel {
     }
 
     private static SourceGroup<SharepointListClient> createSourceGroup(
-            final JWTCredential credential, final SharepointListSettings settings) {
+            final CredentialPortObjectSpec credSpec, final SharepointListSettings settings)
+            throws NoSuchCredentialException, IOException {
+
         final var timeouts = settings.getTimeoutSettings();
+        final var graphClient = GraphApiUtil.createClient(//
+                GraphCredentialUtil.createAuthenticationProvider(credSpec), //,
+                timeouts.getConnectionTimeout(),//
+                timeouts.getReadTimeout());
 
         return new DefaultSourceGroup<>("igraph_service_client_source_group",
-                Collections.singleton(new SharepointListClient(GraphApiUtil.createClient(credential,
-                        timeouts.getConnectionTimeout(), timeouts.getReadTimeout()), settings)));
+                Collections.singleton(new SharepointListClient(graphClient, settings)));
     }
 
     @Override

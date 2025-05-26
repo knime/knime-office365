@@ -61,15 +61,16 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.port.PortObjectSpec;
+import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.NoSuchCredentialException;
-import org.knime.credentials.base.oauth.api.JWTCredential;
-import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 import org.knime.ext.sharepoint.dialog.TimeoutPanel;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.filehandling.core.connections.FSConnection;
 import org.knime.filehandling.core.connections.base.ui.WorkingDirectoryChooser;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
 /**
  * Node dialog for the Sharepoint Connector node.
@@ -87,7 +88,7 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
     private final WorkingDirectoryChooser m_workingDirChooser = new WorkingDirectoryChooser("sharepoint.workingDir",
             this::createFSConnection);
 
-    private JWTCredential m_credential;
+    private CredentialPortObjectSpec m_credentialPortSpec;
 
     /**
      * Creates new instance.
@@ -109,8 +110,14 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
     private FSConnection createFSConnection() throws IOException {
         final SharepointConnectionSettings clonedSettings = m_settings.copy(m_settings);
 
-        return new SharepointFSConnection(clonedSettings
-                .toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(m_credential)));
+        try {
+            final var fsConfig = clonedSettings
+                    .toFSConnectionConfig(GraphCredentialUtil.createAuthenticationProvider(m_credentialPortSpec));
+
+            return new SharepointFSConnection(fsConfig);
+        } catch (Exception ex) {
+            throw ExceptionUtil.wrapAsIOException(ex);
+        }
     }
 
     private JComponent createTimeoutsPanel() {
@@ -149,12 +156,14 @@ final class SharepointConnectionNodeDialog extends NodeDialogPane {
         }
 
         try {
-            m_credential = ((CredentialPortObjectSpec) specs[0]).resolveCredential(JWTCredential.class);
+            m_credentialPortSpec = (CredentialPortObjectSpec) specs[0];
+            // resolve to check that a credential is present (not necessarily compatible)
+            m_credentialPortSpec.resolveCredential(Credential.class);
         } catch (NoSuchCredentialException ex) {
             throw new NotConfigurableException(ex.getMessage(), ex);
         }
 
-        m_sitePanel.settingsLoaded(m_credential);
+        m_sitePanel.settingsLoaded(m_credentialPortSpec);
         settingsLoaded();
     }
 }

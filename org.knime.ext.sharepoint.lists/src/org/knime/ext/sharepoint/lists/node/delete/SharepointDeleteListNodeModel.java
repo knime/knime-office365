@@ -65,8 +65,8 @@ import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
 
@@ -92,9 +92,9 @@ final class SharepointDeleteListNodeModel extends NodeModel {
 
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        var optionalCredentialType = ((CredentialPortObjectSpec) inSpecs[0]).getCredentialType();
-        if (optionalCredentialType.isPresent()) {
-            m_config.getSharepointListSettings().validateCredentialType(optionalCredentialType.get());
+        final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
+        if (credSpec != null) {
+            GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
         }
 
         return new PortObjectSpec[] {};
@@ -102,13 +102,15 @@ final class SharepointDeleteListNodeModel extends NodeModel {
 
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        var credential = ((CredentialPortObjectSpec) inObjects[0].getSpec()).resolveCredential(JWTCredential.class);
 
         CheckUtils.checkSetting(listSettingsEmpty(), "No list selected. Please select a list.");
 
+        final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
         final var timeouts = m_config.getSharepointListSettings().getTimeoutSettings();
-        final GraphServiceClient<Request> client = GraphApiUtil.createClient(credential,
-                timeouts.getConnectionTimeout(), timeouts.getReadTimeout());
+        final var client = GraphApiUtil.createClient(//
+                GraphCredentialUtil.createAuthenticationProvider(credSpec), //
+                timeouts.getConnectionTimeout(), //
+                timeouts.getReadTimeout());
 
         deleteList(client);
 

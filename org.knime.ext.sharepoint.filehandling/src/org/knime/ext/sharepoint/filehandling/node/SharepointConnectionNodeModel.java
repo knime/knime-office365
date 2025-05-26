@@ -63,8 +63,7 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.oauth.api.JWTCredential;
-import org.knime.ext.sharepoint.GraphApiUtil;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSDescriptorProvider;
 import org.knime.filehandling.core.connections.FSConnectionRegistry;
@@ -94,9 +93,12 @@ final class SharepointConnectionNodeModel extends NodeModel {
 
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
-        var jwtCredential = ((CredentialPortObject) inObjects[0]).getSpec().resolveCredential(JWTCredential.class);
-        m_fsConnection = new SharepointFSConnection(
-                m_settings.toFSConnectionConfig(GraphApiUtil.createAuthenticationProvider(jwtCredential)));
+
+        final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
+        final var fsConfig = m_settings
+                .toFSConnectionConfig(GraphCredentialUtil.createAuthenticationProvider(credSpec));
+
+        m_fsConnection = new SharepointFSConnection(fsConfig);
         FSConnectionRegistry.getInstance().register(m_fsId, m_fsConnection);
         return new PortObject[] { new FileSystemPortObject(createSpec()) };
     }
@@ -105,9 +107,9 @@ final class SharepointConnectionNodeModel extends NodeModel {
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
         m_settings.validate();
 
-        var optionalCredentialType = ((CredentialPortObjectSpec) inSpecs[0]).getCredentialType();
-        if (optionalCredentialType.isPresent()) {
-            m_settings.validateCredentialType(optionalCredentialType.get());
+        final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
+        if (credSpec != null) {
+            GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
         }
 
         m_fsId = FSConnectionRegistry.getInstance().getKey();

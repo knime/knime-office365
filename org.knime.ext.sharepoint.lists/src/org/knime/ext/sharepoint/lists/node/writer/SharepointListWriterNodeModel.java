@@ -69,7 +69,7 @@ import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.VariableType;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.ext.sharepoint.GraphCredentialUtil;
 
 /**
  * “SharePoint List Writer” implementation of a {@link NodeModel}.
@@ -118,9 +118,9 @@ final class SharepointListWriterNodeModel extends NodeModel {
         }
         pushListId(listID);
 
-        var optionalCredentialType = ((CredentialPortObjectSpec) inSpecs[0]).getCredentialType();
-        if (optionalCredentialType.isPresent()) {
-            m_config.getSharepointListSettings().validateCredentialType(optionalCredentialType.get());
+        final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
+        if (credSpec != null) {
+            GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
         }
 
         return new PortObjectSpec[] {};
@@ -129,15 +129,13 @@ final class SharepointListWriterNodeModel extends NodeModel {
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
 
-        final var credential = ((CredentialPortObjectSpec) inObjects[0].getSpec())
-                .resolveCredential(JWTCredential.class);
-
+        final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
         final var table = (BufferedDataTable) inObjects[1];
 
         CheckUtils.checkSetting(listSettingsEmpty(),
                 "No list selected or entered. Please select a list or enter a list name.");
 
-        try (final var client = new SharepointListWriterClient(m_config, this::pushListId, table, credential, exec)) {
+        try (final var client = new SharepointListWriterClient(m_config, this::pushListId, table, credSpec, exec)) {
             client.writeList();
         }
 
