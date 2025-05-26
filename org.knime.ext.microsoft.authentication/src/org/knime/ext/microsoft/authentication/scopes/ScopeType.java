@@ -69,6 +69,7 @@ public enum ScopeType {
      * present.
      */
     APPLICATION("application");
+
     private final String m_settingsValue;
 
     ScopeType(final String settingsValue) {

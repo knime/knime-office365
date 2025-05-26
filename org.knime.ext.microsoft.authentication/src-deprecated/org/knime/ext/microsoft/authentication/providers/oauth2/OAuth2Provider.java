@@ -60,7 +60,6 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProvider;
-import org.knime.ext.microsoft.authentication.scopes.Scope;
 
 /**
  * Base class for auth providers implementing OAuth2 authentication using
@@ -80,7 +79,7 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
      * @param defaultScope
      *            the initial scope
      */
-    protected OAuth2Provider(final String key, final Scope defaultScope) {
+    protected OAuth2Provider(final String key, final LegacyScope defaultScope) {
         m_scopes = new SettingsModelStringArray(key, new String[] { defaultScope.getScope() });
     }
 
@@ -94,7 +93,7 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     /**
      * Returns the scopes as a set of strings. This method must be called if you
      * need the proper scope as a string, because it enriches the scope string for
-     * {@link Scope#AZURE_BLOB_STORAGE} with the necessary storage account.
+     * {@link LegacyScope#AZURE_BLOB_STORAGE} with the necessary storage account.
      *
      * @return the scopes as a set of strings.
      */
@@ -103,14 +102,14 @@ public abstract class OAuth2Provider implements MicrosoftAuthProvider {
     /**
      * Returns the scopes as a set of enums. Note that when you need the proper
      * scope as a string, then you should call {@link #getScopesStringSet()},
-     * because it enriches the scope string for {@link Scope#AZURE_BLOB_STORAGE}
+     * because it enriches the scope string for {@link LegacyScope#AZURE_BLOB_STORAGE}
      * with the necessary storage account.
      *
      * @return the scopes as a set of enums.
      */
-    public Set<Scope> getScopesEnumSet() {
-        final List<Scope> scopeList = Arrays.stream(m_scopes.getStringArrayValue()) //
-                .<Scope>map(Scope::fromScope) //
+    public Set<LegacyScope> getScopesEnumSet() {
+        final List<LegacyScope> scopeList = Arrays.stream(m_scopes.getStringArrayValue()) //
+                .<LegacyScope>map(LegacyScope::fromScope) //
                 .collect(Collectors.toList());
 
         return EnumSet.copyOf(scopeList);

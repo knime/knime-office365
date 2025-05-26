@@ -57,7 +57,6 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
-import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 /**
@@ -101,7 +100,7 @@ public abstract class DelegatedPermissionsOAuth2Provider extends OAuth2Provider 
      * Creates new instance.
      */
     protected DelegatedPermissionsOAuth2Provider() {
-        super(KEY_SCOPES, Scope.SITES_READ_WRITE);
+        super(KEY_SCOPES, LegacyScope.SITES_READ_WRITE);
         m_blobStorageAccount = new SettingsModelString(KEY_BLOB_STORAGE_ACCOUNT, "");
         m_blobStorageAccount.setEnabled(false);
         m_otherScopes = new SettingsModelString(KEY_OTHER_SCOPES, "");
@@ -114,7 +113,7 @@ public abstract class DelegatedPermissionsOAuth2Provider extends OAuth2Provider 
 
     /**
      * @return the model for the storage account required for
-     *         {@link Scope#AZURE_BLOB_STORAGE}.
+     *         {@link LegacyScope#AZURE_BLOB_STORAGE}.
      */
     public SettingsModelString getBlobStorageAccountModel() {
         return m_blobStorageAccount;
@@ -184,11 +183,11 @@ public abstract class DelegatedPermissionsOAuth2Provider extends OAuth2Provider 
     @Override
     public Set<String> getScopesStringSet() {
         final Set<String> scopeStrings = new HashSet<>();
-        final Set<Scope> scopes = getScopesEnumSet();
-        for (Scope scope : scopes) {
-            if (scope == Scope.AZURE_BLOB_STORAGE) {
+        final Set<LegacyScope> scopes = getScopesEnumSet();
+        for (LegacyScope scope : scopes) {
+            if (scope == LegacyScope.AZURE_BLOB_STORAGE) {
                 scopeStrings.add(String.format(scope.getScope(), m_blobStorageAccount.getStringValue()));
-            } else if (scope == Scope.OTHERS) {
+            } else if (scope == LegacyScope.OTHERS) {
                 // get the unescaped string and split it into lines
                 m_otherScopes.getJavaUnescapedStringValue() //
                         .lines() //
@@ -229,11 +228,13 @@ public abstract class DelegatedPermissionsOAuth2Provider extends OAuth2Provider 
     public void validate() throws InvalidSettingsException {
         super.validate();
 
-        if (getScopesEnumSet().contains(Scope.AZURE_BLOB_STORAGE) && m_blobStorageAccount.getStringValue().isEmpty()) {
+        if (getScopesEnumSet().contains(LegacyScope.AZURE_BLOB_STORAGE)//
+                && m_blobStorageAccount.getStringValue().isEmpty()) {
+
             throw new InvalidSettingsException("Storage account cannot be empty");
         }
 
-        if (getScopesEnumSet().contains(Scope.OTHERS) && m_otherScopes.getStringValue().isEmpty()) {
+        if (getScopesEnumSet().contains(LegacyScope.OTHERS) && m_otherScopes.getStringValue().isEmpty()) {
             throw new InvalidSettingsException("Other scopes list cannot be empty");
         }
 

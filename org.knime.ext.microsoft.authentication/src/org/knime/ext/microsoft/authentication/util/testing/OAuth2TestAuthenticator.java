@@ -53,6 +53,7 @@ import java.util.Set;
 
 import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.oauth.api.JWTCredential;
+import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
@@ -93,7 +94,7 @@ public final class OAuth2TestAuthenticator {
             var app = MSALUtil.createClientApp(appId, endpoint, null);
             var params = UserNamePasswordParameters.builder(scopes, username, password.toCharArray()).build();
             var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
-            return MSALUtil.createCredential(authResult, app);
+            return JWTCredentialFactory.create(authResult, app);
         } catch (RuntimeException e) {
             throw ExceptionUtil.wrapAsIOException(e);
         }

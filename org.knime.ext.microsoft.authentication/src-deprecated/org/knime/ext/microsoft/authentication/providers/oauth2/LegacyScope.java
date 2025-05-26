@@ -46,20 +46,26 @@
  * History
  *   2020-06-06 (Alexander Bondaletov): created
  */
-package org.knime.ext.microsoft.authentication.scopes;
+package org.knime.ext.microsoft.authentication.providers.oauth2;
 
+import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.knime.ext.microsoft.authentication.scopes.ScopeType;
+
 /**
- * Enum holding different OAuth2 scopes for the Microsoft Authenticator node.
+ * Enum holding different OAuth2 scopes for the deprecated Microsoft
+ * Authenticator node.
  *
- * @author Bjoern Lohrmann, KNIME GmbH
+ * @author Alexander Bondaletov
  */
-public enum Scope {
+public enum LegacyScope {
 
     /**
      * Sites.Read.All scope.
@@ -132,11 +138,21 @@ public enum Scope {
     /**
      * Resource identifier of the Power BI
      */
-    POWER_BI_APP("Power BI", "https://analysis.windows.net/powerbi/api/.default", ScopeType.APPLICATION);
+    POWER_BI_APP("Power BI", "https://analysis.windows.net/powerbi/api/.default", ScopeType.APPLICATION),
 
-    private static final Map<String, Scope> SCOPES = new HashMap<>();
+    /**
+     * Other scope manually entered by the user
+     */
+    OTHER("Other", "<other>", ScopeType.APPLICATION),
+
+    /**
+     * Other scopes manually entered by the user e.g. for Snowflake.
+     */
+    OTHERS("Others (one per line)", "<others>", ScopeType.DELEGATED);
+
+    private static final Map<String, LegacyScope> SCOPES = new HashMap<>();
     static {
-        for (Scope scopeEnum : Scope.values()) {
+        for (LegacyScope scopeEnum : LegacyScope.values()) {
             if (SCOPES.containsKey(scopeEnum.getScope())) {
                 // some sanity checking
                 throw new IllegalStateException("Duplicate scope " + scopeEnum.getScope());
@@ -145,11 +161,61 @@ public enum Scope {
         }
     }
 
-    private final String m_title;
-    private final String m_scope;
-    private final ScopeType m_scopeType;
+    private static final Map<LegacyScope, Set<LegacyScope>> GROUPABLE_SCOPES = new EnumMap<>(LegacyScope.class);
+    static {
+        // An OAuth2 token is limited to the scope of a single resource, hence scopes
+        // for different resources cannot be requested at the same time.
 
-    private Scope(final String title, final String scope, final ScopeType scopeType) {
+        final List<Set<LegacyScope>> scopesByResource = new LinkedList<>();
+
+        // resource: https://graph.microsoft.com
+        scopesByResource.add(Set.of(SITES_READ, //
+                SITES_READ_WRITE, //
+                SITES_MANAGE_ALL, //
+                DIRECTORY_READ, //
+                USER_READ));
+
+        // resource: not known beforehand, but https://%s.blob.core.windows.net
+        scopesByResource.add(Set.of(AZURE_BLOB_STORAGE));
+
+        scopesByResource.add(Set.of(AZURE_DATABRICKS));
+
+        // resource: https://database.windows.net
+        scopesByResource.add(Set.of(AZURE_SQL_DATABASE));
+
+        // resource: https://analysis.windows.net/powerbi/api
+        scopesByResource.add(Set.of(POWER_BI));
+
+        // resource: not known beforehand
+        scopesByResource.add(Set.of(OTHERS));
+
+        scopesByResource.add(Set.of(AZURE_DATABRICKS_APP));
+
+        scopesByResource.add(Set.of(GRAPH_APP));
+
+        scopesByResource.add(Set.of(AZURE_SQL_DATABASE_APP));
+
+        scopesByResource.add(Set.of(POWER_BI_APP));
+
+        scopesByResource.add(Set.of(OTHER));
+
+        for (Set<LegacyScope> resourceScopes : scopesByResource) {
+            for (LegacyScope scope : resourceScopes) {
+                if (GROUPABLE_SCOPES.containsKey(scope)) {
+                    // some sanity checking
+                    throw new IllegalStateException("Each scope can only in one group");
+                } else {
+                    GROUPABLE_SCOPES.put(scope, resourceScopes);
+                }
+            }
+        }
+    }
+
+    private String m_title;
+    private String m_scope;
+    private ScopeType m_scopeType;
+
+    LegacyScope(final String title, final String scope, final ScopeType scopeType) {
         m_title = title;
         m_scope = scope;
         m_scopeType = scopeType;
@@ -179,30 +245,26 @@ public enum Scope {
     /**
      * OAuth2 tokens grants a set of permissions for a *single* resource. A token
      * cannot grant permissions on different resources. This method checks whether
-     * two {@link Scope}s can potentially be requested together for the same token.
-     * This method is more
+     * two {@link LegacyScope}s can potentially be requested together for the same
+     * token. This method is more
      *
      * @param otherScope
      *            The other scope for which to check whether it can be grouped
      *            together with this one.
      * @return true, if
      */
-    public boolean canBeGroupedWith(final Scope otherScope) {
-        // this is temporary until we can differentiate the scopes on the authorization
-        // URL, from those in the token request MSAL4J does not support this yet, which
-        // means the token request will fail for scopes from multiple resources.
-        return ScopeResourceUtil.parseResource(getScope())
-                .equals(ScopeResourceUtil.parseResource(otherScope.getScope()));
+    public boolean canBeGroupedWith(final LegacyScope otherScope) {
+        return GROUPABLE_SCOPES.get(this).contains(otherScope);
     }
 
     /**
-     * Returns the {@link Scope} enum instance for the given scope string.
+     * Returns the {@link LegacyScope} enum instance for the given scope string.
      *
      * @param scope
      *            the string representation of the scope
-     * @return the {@link Scope} enum instance
+     * @return the {@link LegacyScope} enum instance
      */
-    public static Scope fromScope(final String scope) {
+    public static LegacyScope fromScope(final String scope) {
         return SCOPES.get(scope);
     }
 
@@ -213,7 +275,7 @@ public enum Scope {
      *            scope type {@link ScopeType}
      * @return the list of scopes
      */
-    public static List<Scope> listByScopeType(final ScopeType scopeType) {
+    public static List<LegacyScope> listByScopeType(final ScopeType scopeType) {
         return Stream.of(values()).filter(s -> s.getScopeType() == scopeType).collect(Collectors.toList());
     }
 }

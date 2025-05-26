@@ -52,7 +52,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
@@ -85,6 +84,10 @@ import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.ValueRefere
 import org.knime.credentials.base.CredentialCache;
 import org.knime.credentials.base.oauth.api.nodesettings.AbstractTokenCacheKeyPersistor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.CustomOpenBrowserAction;
+import org.knime.ext.microsoft.authentication.scopes.ScopeResourceUtil;
+import org.knime.ext.microsoft.authentication.scopes.ScopeResourceUtil.ScopeList;
+import org.knime.ext.microsoft.authentication.util.AccessTokenWithScopesCredentialFactory;
+import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
@@ -483,16 +486,23 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
             final var app = MSALUtil.createClientApp(settings.getClientId(), settings.getAuthorizationEndpointURL(),
                     httpUserAgent);
 
+            final var scopeList = settings.getScopes();
+
             // Use the InternalOpenBrowserAction, to avoid crashes on ubuntu with gtk3.
             final var params = InteractiveRequestParameters.builder(URI.create(settings.getRedirectURL()))//
-                    .scopes(settings.getScopes())//
+                    .scopes(scopeList.scopes())//
                     .systemBrowserOptions(
                             SystemBrowserOptions.builder().openBrowserAction(new CustomOpenBrowserAction()).build())
                     .build();
 
             try {
                 final var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
-                return CredentialCache.store(MSALUtil.createCredential(authResult, app));
+
+                if (scopeList.isMultiResource()) {
+                    return CredentialCache.store(AccessTokenWithScopesCredentialFactory.create(app));
+                } else {
+                    return CredentialCache.store(JWTCredentialFactory.create(authResult, app));
+                }
             } catch (IOException e) {
                 LOG.error(e.getMessage(), e);
                 throw new WidgetHandlerException(e.getMessage());
@@ -704,10 +714,22 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     }
 
     /**
-     * @return The scopes strings.
+     * Computes a {@link ScopeList} based on the user-supplied scopes in the node.
+     * The {@link ScopeList} specifies for which scopes we should ask consent for.
+     * In case the user requests scopes from multiple resources, the
+     * {@link ScopeList} also indicates that and orders the scopes accordingly.
+     *
+     * @return a {@link ScopeList} to use towards Entra.
      */
-    public Set<String> getScopes() {
-        return m_scopesSettings.getScopesStringSet(m_authenticationType == AuthenticationType.CLIENT_SECRET);
-    }
+    public ScopeList getScopes() {
 
+        final var isApplicationScopes = m_authenticationType == AuthenticationType.CLIENT_SECRET;
+
+        final var requestedScopes = m_scopesSettings.getScopesStringSet(isApplicationScopes);
+        if (isApplicationScopes) {
+            return ScopeResourceUtil.computeApplicationScopeList(requestedScopes);
+        } else {
+            return ScopeResourceUtil.computeDelegatedScopeList(requestedScopes);
+        }
+    }
 }

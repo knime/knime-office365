@@ -157,6 +157,9 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             Choose scopes from a predefined list of standard scopes. These scopes are
             <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
             delegated permissions</a> and define what the resulting access token can be used for.
+            You can leave the list empty. In this case, the scopes required by downstream nodes need to
+            be <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#consent">
+            consented</a> to beforehand, otherwise downstream nodes might fail.
             """)
     @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = HideDelegateScropes.class, type = EffectType.HIDE)
@@ -176,6 +179,9 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             Choose scopes from a predefined list of standard scopes. These scopes are
             <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
             application permissions</a> and define what the resulting access token can be used for.
+            You can leave the list empty. In this case, the scopes required by downstream nodes need to
+            be <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#consent">
+            consented</a> to beforehand, otherwise downstream nodes might fail.
             """)
     @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = ShowAppScopes.class, type = EffectType.SHOW)
@@ -209,7 +215,6 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             @Override
             public List<StringChoice> computeState(final DefaultNodeSettingsContext context) {
                 return Scope.listByScopeType(getScopeType()).stream() //
-                        .filter(s -> s != Scope.OTHER && s != Scope.OTHERS) //
                         .map(s -> new StringChoice(s.name(), stripHtml(s.getTitle()))) //
                         .toList();
             }
@@ -309,6 +314,9 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             These scopes are
             <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#types-of-permissions">
             permissions</a> and define what the resulting access token can be used for.
+            You can leave the list empty. In this case, the scopes required by downstream nodes need to
+            be <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#consent">
+            consented</a> to beforehand, otherwise downstream nodes might fail.
             """)
     @ArrayWidget(addButtonText = "Add scope")
     @Effect(predicate = ScopesSelectionType.IsCustom.class, type = EffectType.SHOW)
@@ -382,19 +390,10 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
      * @throws InvalidSettingsException
      */
     public void validate(final boolean applicationScopes) throws InvalidSettingsException {// NOSONAR
-        var standardScopes = applicationScopes ? m_appScopes : m_delegatedScopes;
-
-        if (m_scopesSelectionType == ScopesSelectionType.STANDARD
-                && (standardScopes == null || standardScopes.length == 0)) {
-            throw new InvalidSettingsException("Please specify at least one scope");
-        }
-
-        if (m_scopesSelectionType == ScopesSelectionType.CUSTOM
-                && (m_customScopes == null || m_customScopes.length == 0)) {
-            throw new InvalidSettingsException("Please specify at least one scope");
-        }
 
         if (m_scopesSelectionType == ScopesSelectionType.STANDARD) {
+            final var standardScopes = applicationScopes ? m_appScopes : m_delegatedScopes;
+
             validateScopesAreNotBlank(standardScopes, StandardScope::getId);
             validateStandardScopesGrouping(standardScopes);
 
@@ -408,6 +407,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
 
     private static void validateStandardScopesGrouping(final StandardScope[] standardScopes)
             throws InvalidSettingsException {
+
         Set<Scope> scopes = EnumSet.noneOf(Scope.class);
         for (StandardScope s : standardScopes) {
             var scopeToCheck = Scope.valueOf(s.getId());

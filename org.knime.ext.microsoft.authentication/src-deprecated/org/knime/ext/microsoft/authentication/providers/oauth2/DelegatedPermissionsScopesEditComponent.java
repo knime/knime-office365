@@ -48,8 +48,8 @@
  */
 package org.knime.ext.microsoft.authentication.providers.oauth2;
 
-import static org.knime.ext.microsoft.authentication.scopes.Scope.AZURE_BLOB_STORAGE;
-import static org.knime.ext.microsoft.authentication.scopes.Scope.OTHERS;
+import static org.knime.ext.microsoft.authentication.providers.oauth2.LegacyScope.AZURE_BLOB_STORAGE;
+import static org.knime.ext.microsoft.authentication.providers.oauth2.LegacyScope.OTHERS;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -68,7 +68,6 @@ import org.knime.core.node.defaultnodesettings.DialogComponentMultiLineString;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.scopes.ScopeType;
 
 
@@ -130,7 +129,7 @@ public class DelegatedPermissionsScopesEditComponent extends ScopesEditComponent
         add(Box.createRigidArea(new Dimension(0, 20)), gbc);
         gbc.gridy += 1;
 
-        for (Scope scope : Scope.listByScopeType(ScopeType.DELEGATED)) {
+        for (LegacyScope scope : LegacyScope.listByScopeType(ScopeType.DELEGATED)) {
 
             add(createCheckbox(scope), gbc);
             gbc.gridy += 1;
@@ -173,7 +172,7 @@ public class DelegatedPermissionsScopesEditComponent extends ScopesEditComponent
 
     private void updateCheckboxes() {
         final var set = scopes();
-        for (Entry<Scope, JCheckBox> entry : m_checkboxes.entrySet()) {
+        for (Entry<LegacyScope, JCheckBox> entry : m_checkboxes.entrySet()) {
             entry.getValue().setSelected(set.contains(entry.getKey().getScope()));
         }
         m_blobStorageAccount.setEnabled(set.contains(AZURE_BLOB_STORAGE.getScope()));

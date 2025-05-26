@@ -65,6 +65,7 @@ import org.knime.credentials.base.Credential;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsOAuth2Provider;
+import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 
@@ -177,7 +178,7 @@ public class UsernamePasswordAuthProvider extends DelegatedPermissionsOAuth2Prov
                     UserNamePasswordParameters.builder(getScopesStringSet(), username, password.toCharArray()).build())
                     .get();
 
-            return MSALUtil.createCredential(result, app);
+            return JWTCredentialFactory.create(result, app);
         } catch (InterruptedException ex) { // NOSONAR we are rethrowing by attaching as cause to an IOE
             throw new IOException(ex);
         } catch (ExecutionException ex) { // NOSONAR this exception is being handled

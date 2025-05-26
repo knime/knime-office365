@@ -66,6 +66,8 @@ import org.knime.ext.microsoft.authentication.credential.AzureStorageSasUrlCrede
 import org.knime.ext.microsoft.authentication.credential.AzureStorageSharedKeyCredential;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.UserAgentSelection;
+import org.knime.ext.microsoft.authentication.util.AccessTokenWithScopesCredentialFactory;
+import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
@@ -160,15 +162,20 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
         final var clientId = settings.getClientId();
         final var authEndpointURL = settings.getAuthorizationEndpointURL();
         final var app = MSALUtil.createClientApp(clientId, authEndpointURL, httpUserAgent);
+        final var scopeList = settings.getScopes();
         final var params = UserNamePasswordParameters
-                .builder(settings.getScopes(), //
+                .builder(scopeList.scopes(), //
                         usernamePassword.getUsername(), //
                         usernamePassword.getPassword().toCharArray())
                 .build();
 
         final var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
 
-        return MSALUtil.createCredential(authResult, app);
+        if (scopeList.isMultiResource()) {
+            return AccessTokenWithScopesCredentialFactory.create(app);
+        } else {
+            return JWTCredentialFactory.create(authResult, app);
+        }
     }
 
     private static Credential fetchCredentialFromClientSecret(final MicrosoftAuthenticatorSettings settings)
@@ -180,12 +187,18 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
         final var httpUserAgent = settings.m_userAgentSelection == UserAgentSelection.CUSTOM
                 ? settings.m_customUserAgent
                 : null;
+        final var scopeList = settings.getScopes();
 
         var app = MSALUtil.createConfidentialApp(clientId, authEndpointURL, clientSecret, httpUserAgent);
-        var params = ClientCredentialParameters.builder(settings.getScopes()).build();
+        var params = ClientCredentialParameters.builder(scopeList.scopes()).build();
+
         var authResult = MSALUtil.doLogin(() -> app.acquireToken(params));
 
-        return MSALUtil.createCredential(authResult, app);
+        if (scopeList.isMultiResource()) {
+            return AccessTokenWithScopesCredentialFactory.create(app);
+        } else {
+            return JWTCredentialFactory.create(authResult, app);
+        }
     }
 
     private static Credential createAzureSharedKeyCredential(final MicrosoftAuthenticatorSettings settings) {

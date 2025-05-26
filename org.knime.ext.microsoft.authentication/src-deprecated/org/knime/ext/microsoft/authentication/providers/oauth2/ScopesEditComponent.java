@@ -58,7 +58,6 @@ import javax.swing.JCheckBox;
 import javax.swing.JPanel;
 
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
-import org.knime.ext.microsoft.authentication.scopes.Scope;
 
 /**
  * Editor component for selecting Microsoft scopes.
@@ -73,7 +72,7 @@ public class ScopesEditComponent extends JPanel {
     protected final SettingsModelStringArray m_scopes; // NOSONAR not intended for serialization
 
     /** check boxes */
-    protected final Map<Scope, JCheckBox> m_checkboxes; // NOSONAR
+    protected final Map<LegacyScope, JCheckBox> m_checkboxes; // NOSONAR
 
     /**
      * Constructor
@@ -82,29 +81,29 @@ public class ScopesEditComponent extends JPanel {
      */
     public ScopesEditComponent(final SettingsModelStringArray scopes) {
         m_scopes = scopes;
-        m_checkboxes = new EnumMap<>(Scope.class);
+        m_checkboxes = new EnumMap<>(LegacyScope.class);
     }
 
     /**
      * @param scope
-     *            {@link Scope}
+     *            {@link LegacyScope}
      * @return created check box from scope
      */
-    protected JCheckBox createCheckbox(final Scope scope) {
+    protected JCheckBox createCheckbox(final LegacyScope scope) {
         var cb = new JCheckBox(scope.getTitle());
         cb.addActionListener(e -> onSelected(scope, cb.isSelected()));
         m_checkboxes.put(scope, cb);
         return cb;
     }
 
-    private void onSelected(final Scope scope, final boolean selected) {
+    private void onSelected(final LegacyScope scope, final boolean selected) {
         final var currentScopes = scopes();
         final var newScopes = new HashSet<String>();
 
         if (selected) {
             newScopes.add(scope.getScope());
             currentScopes.stream() //
-                    .filter(s -> Scope.fromScope(s).canBeGroupedWith(scope)) //
+                    .filter(s -> LegacyScope.fromScope(s).canBeGroupedWith(scope)) //
                     .forEach(newScopes::add);
         } else {
             newScopes.addAll(currentScopes);

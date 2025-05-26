@@ -67,8 +67,9 @@ import org.knime.core.node.workflow.ICredentials;
 import org.knime.credentials.base.Credential;
 import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationNodeDialog;
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
+import org.knime.ext.microsoft.authentication.providers.oauth2.LegacyScope;
 import org.knime.ext.microsoft.authentication.providers.oauth2.OAuth2Provider;
-import org.knime.ext.microsoft.authentication.scopes.Scope;
+import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.ClientCredentialFactory;
@@ -125,7 +126,7 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
      *
      */
     public ApplicationPermissionsOAuth2Provider() {
-        super(KEY_APP_TYPE_SCOPES, Scope.GRAPH_APP);
+        super(KEY_APP_TYPE_SCOPES, LegacyScope.GRAPH_APP);
         m_otherScope = new SettingsModelString(KEY_OTHER_SCOPE, "");
         m_otherScope.setEnabled(false);
 
@@ -212,7 +213,7 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
         try {
             final var authResult = app.acquireToken(ClientCredentialParameters.builder(getScopesStringSet()).build())
                     .get();
-            return MSALUtil.createCredential(authResult, app);
+            return JWTCredentialFactory.create(authResult, app);
         } catch (InterruptedException ex) { // NOSONAR
             throw new IOException("Authentication cancelled/interrupted", ex);
         } catch (ExecutionException ex) {// NOSONAR
@@ -229,9 +230,9 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
     @Override
     public Set<String> getScopesStringSet() {
         final Set<String> scopeStrings = new HashSet<>();
-        final Set<Scope> scopes = getScopesEnumSet();
-        for (Scope scope : scopes) {
-            if (scope == Scope.OTHER) {
+        final Set<LegacyScope> scopes = getScopesEnumSet();
+        for (LegacyScope scope : scopes) {
+            if (scope == LegacyScope.OTHER) {
                 scopeStrings.add(m_otherScope.getStringValue().trim());
             } else {
                 scopeStrings.add(scope.getScope());
@@ -268,7 +269,7 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
     public void validate() throws InvalidSettingsException {
         super.validate();
 
-        if (getScopesEnumSet().contains(Scope.OTHER) && m_otherScope.getStringValue().isEmpty()) {
+        if (getScopesEnumSet().contains(LegacyScope.OTHER) && m_otherScope.getStringValue().isEmpty()) {
             throw new InvalidSettingsException("Other scope cannot be empty");
         }
 

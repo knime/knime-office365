@@ -48,7 +48,7 @@
  */
 package org.knime.ext.microsoft.authentication.providers.oauth2.application;
 
-import static org.knime.ext.microsoft.authentication.scopes.Scope.OTHER;
+import static org.knime.ext.microsoft.authentication.providers.oauth2.LegacyScope.OTHER;
 
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -63,8 +63,8 @@ import javax.swing.JCheckBox;
 import org.knime.core.node.defaultnodesettings.DialogComponentString;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.defaultnodesettings.SettingsModelStringArray;
+import org.knime.ext.microsoft.authentication.providers.oauth2.LegacyScope;
 import org.knime.ext.microsoft.authentication.providers.oauth2.ScopesEditComponent;
-import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.scopes.ScopeType;
 
 /**
@@ -113,7 +113,7 @@ public class ApplicationPermissionsScopesEditComponent extends ScopesEditCompone
         add(Box.createRigidArea(new Dimension(0, 20)), gbc);
         gbc.gridy += 1;
 
-        for (Scope scope : Scope.listByScopeType(ScopeType.APPLICATION)) {
+        for (LegacyScope scope : LegacyScope.listByScopeType(ScopeType.APPLICATION)) {
 
             add(createCheckbox(scope), gbc);
             gbc.gridy += 1;
@@ -133,7 +133,7 @@ public class ApplicationPermissionsScopesEditComponent extends ScopesEditCompone
 
     private void updateCheckboxes() {
         final var set = scopes();
-        for (Entry<Scope, JCheckBox> entry : m_checkboxes.entrySet()) {
+        for (Entry<LegacyScope, JCheckBox> entry : m_checkboxes.entrySet()) {
             entry.getValue().setSelected(set.contains(entry.getKey().getScope()));
         }
         m_manualScope.setEnabled(set.contains(OTHER.getScope()));

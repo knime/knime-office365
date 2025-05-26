@@ -67,6 +67,7 @@ import org.knime.ext.microsoft.authentication.node.auth.MicrosoftAuthenticationN
 import org.knime.ext.microsoft.authentication.providers.MicrosoftAuthProviderEditor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.DelegatedPermissionsOAuth2Provider;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.storage.StorageSettings;
+import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 
 import com.microsoft.aad.msal4j.IAccount;
@@ -186,7 +187,7 @@ public class InteractiveAuthProvider extends DelegatedPermissionsOAuth2Provider 
             IAuthenticationResult result = app
                     .acquireTokenSilently(SilentParameters.builder(getScopesStringSet(), account).build()).get();
 
-            return MSALUtil.createCredential(result, app);
+            return JWTCredentialFactory.create(result, app);
         } catch (InterruptedException e) { // NOSONAR rethrowing as cause of IOE
             throw new IOException("Canceled while acquiring access token", e);
         } catch (ExecutionException ex) {// NOSONAR
