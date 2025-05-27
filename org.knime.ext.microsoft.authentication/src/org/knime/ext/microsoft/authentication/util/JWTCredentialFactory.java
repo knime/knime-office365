@@ -52,14 +52,17 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.text.ParseException;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.knime.core.node.NodeLogger;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 
+import com.microsoft.aad.msal4j.ClientCredentialParameters;
 import com.microsoft.aad.msal4j.ConfidentialClientApplication;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.PublicClientApplication;
@@ -100,7 +103,9 @@ public final class JWTCredentialFactory {
                 .map(Date::toInstant)//
                 .orElse(null);
         var tokenType = "Bearer";
-        var scopes = extractScopes(authResult);
+        var scopes = new HashSet<String>(extractScopes(authResult).stream()//
+                .filter(scope -> !scope.endsWith(".default"))//
+                .toList());
 
         try {
             return new JWTCredential(accessToken, tokenType, expiresAfter, idToken,
@@ -124,12 +129,20 @@ public final class JWTCredentialFactory {
 
         return () -> {// NOSONAR
             try {
-                var params = SilentParameters.builder(scopes).build();
+                var params = SilentParameters.builder(scopes)//
+                        .account(publicApp.getAccounts().get().iterator().next())//
+                        .forceRefresh(true)//
+                        .build();
                 var authResult = MSALUtil.doLogin(() -> publicApp.acquireTokenSilently(params));
                 return create(authResult, publicApp);
             } catch (IOException ex) {
                 LOG.error(ex.getMessage(), ex);
                 throw new UncheckedIOException(ex);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt(); // restore interrupted status
+                throw new UncheckedIOException(new IOException(ex));
+            } catch (ExecutionException ex) { // NOSONAR ExecutionException is just a wrapper
+                throw new UncheckedIOException(new IOException(ex.getCause()));
             }
         };
     }
@@ -143,10 +156,13 @@ public final class JWTCredentialFactory {
      *            The authentication result.
      * @param confidentialApp
      *            The confidential app to use to acquire new access tokens.
+     * @param requestedScopes
+     *            The scopes that were requested during the authentication. These
+     *            are required again when refreshing the access token.
      * @return The {@link JWTCredential}
      */
     public static JWTCredential create(final IAuthenticationResult authResult,
-            final ConfidentialClientApplication confidentialApp) {
+            final ConfidentialClientApplication confidentialApp, final Set<String> requestedScopes) {
 
         var accessToken = authResult.accessToken();
         var idToken = authResult.idToken();
@@ -154,11 +170,10 @@ public final class JWTCredentialFactory {
                 .map(Date::toInstant)//
                 .orElse(null);
         var tokenType = "Bearer";
-        var scopes = extractScopes(authResult);
 
         try {
             return new JWTCredential(accessToken, tokenType, expiresAfter, idToken,
-                    createConfidentialClientRefresher(confidentialApp, scopes));
+                    createConfidentialClientRefresher(confidentialApp, requestedScopes));
         } catch (ParseException ex) {
             throw new IllegalStateException("Failed to parse authentication result");
         }
@@ -169,9 +184,9 @@ public final class JWTCredentialFactory {
 
         return () -> {// NOSONAR
             try {
-                var params = SilentParameters.builder(scopes).build();
-                var authResult = MSALUtil.doLogin(() -> confidentialApp.acquireTokenSilently(params));
-                return create(authResult, confidentialApp);
+                var params = ClientCredentialParameters.builder(scopes).build();
+                var authResult = MSALUtil.doLogin(() -> confidentialApp.acquireToken(params));
+                return create(authResult, confidentialApp, scopes);
             } catch (IOException ex) {
                 LOG.error(ex.getMessage(), ex);
                 throw new UncheckedIOException(ex);

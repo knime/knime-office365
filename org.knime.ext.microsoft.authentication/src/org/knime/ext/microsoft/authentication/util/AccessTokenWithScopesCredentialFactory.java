@@ -119,7 +119,7 @@ public final class AccessTokenWithScopesCredentialFactory {
             try {
                 var params = ClientCredentialParameters.builder(scopes).build();
                 var authResult = MSALUtil.doLogin(() -> confidentialApp.acquireToken(params));
-                return JWTCredentialFactory.create(authResult, confidentialApp);
+                return JWTCredentialFactory.create(authResult, confidentialApp, scopes);
             } catch (IOException ex) {
                 LOG.error(ex.getMessage(), ex);
                 throw new UncheckedIOException(ex);

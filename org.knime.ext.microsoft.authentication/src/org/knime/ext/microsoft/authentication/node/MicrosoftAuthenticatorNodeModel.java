@@ -197,7 +197,7 @@ public class MicrosoftAuthenticatorNodeModel extends AuthenticatorNodeModel<Micr
         if (scopeList.isMultiResource()) {
             return AccessTokenWithScopesCredentialFactory.create(app);
         } else {
-            return JWTCredentialFactory.create(authResult, app);
+            return JWTCredentialFactory.create(authResult, app, scopeList.scopes());
         }
     }
 

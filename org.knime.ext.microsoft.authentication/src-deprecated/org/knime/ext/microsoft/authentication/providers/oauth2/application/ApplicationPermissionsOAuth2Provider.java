@@ -211,9 +211,10 @@ public class ApplicationPermissionsOAuth2Provider extends OAuth2Provider {
         final var app = MSALUtil.createConfidentialApp(clientId, endpoint, credential, null);
 
         try {
-            final var authResult = app.acquireToken(ClientCredentialParameters.builder(getScopesStringSet()).build())
+            final var scopes = getScopesStringSet();
+            final var authResult = app.acquireToken(ClientCredentialParameters.builder(scopes).build())
                     .get();
-            return JWTCredentialFactory.create(authResult, app);
+            return JWTCredentialFactory.create(authResult, app, scopes);
         } catch (InterruptedException ex) { // NOSONAR
             throw new IOException("Authentication cancelled/interrupted", ex);
         } catch (ExecutionException ex) {// NOSONAR
