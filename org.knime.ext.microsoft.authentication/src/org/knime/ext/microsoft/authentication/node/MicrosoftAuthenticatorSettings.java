@@ -65,6 +65,7 @@ import org.knime.core.webui.node.dialog.defaultdialog.layout.Section;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Migrate;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Persistor;
 import org.knime.core.webui.node.dialog.defaultdialog.setting.credentials.Credentials;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.Advanced;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Label;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
@@ -156,19 +157,22 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
 
     }
 
-    @Section(title = "Authorization endpoint", advanced = true)
+    @Section(title = "Authorization endpoint")
+    @Advanced
     @After(ScopesSection.class)
     @Effect(predicate = IsInteractiveOrUsernamePassword.class, type = EffectType.SHOW)
     interface AuthorizationEndpointSection {
     }
 
-    @Section(title = "Client/App configuration", advanced = true)
+    @Section(title = "Client/App configuration")
+    @Advanced
     @After(AuthorizationEndpointSection.class)
     @Effect(predicate = IsInteractiveOrUsernamePassword.class, type = EffectType.SHOW)
     interface ClientApplicationSection {
     }
 
-    @Section(title = "User-Agent", advanced = true)
+    @Section(title = "User-Agent")
+    @Advanced
     @After(ClientApplicationSection.class)
     @Effect(predicate = AuthenticationType.IsOAuth2.class, type = EffectType.SHOW)
     interface UserAgentSection {
