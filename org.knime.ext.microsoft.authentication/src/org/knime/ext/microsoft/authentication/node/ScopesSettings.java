@@ -67,6 +67,7 @@ import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Migrate;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.NodeSettingsPersistor;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Persistor;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ArrayWidget;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.ArrayWidget.ElementLayout;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.ChoicesProvider;
@@ -161,7 +162,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             be <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#consent">
             consented</a> to beforehand, otherwise downstream nodes might fail.
             """)
-    @ArrayWidget(addButtonText = "Add scope")
+    @ArrayWidget(elementLayout = ElementLayout.HORIZONTAL_SINGLE_LINE, addButtonText = "Add scope")
     @Effect(predicate = HideDelegateScropes.class, type = EffectType.HIDE)
     @ValueReference(HasAzureStorageScope.ArrayReference.class)
     @Persistor(DelegatedScopePersistor.class)
@@ -183,7 +184,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             be <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#consent">
             consented</a> to beforehand, otherwise downstream nodes might fail.
             """)
-    @ArrayWidget(addButtonText = "Add scope")
+    @ArrayWidget(elementLayout = ElementLayout.HORIZONTAL_SINGLE_LINE, addButtonText = "Add scope")
     @Effect(predicate = ShowAppScopes.class, type = EffectType.SHOW)
     @Persistor(ApplicationScopePersistor.class)
     ApplicationScope[] m_appScopes = new ApplicationScope[0];
@@ -318,7 +319,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
             be <a href="https://learn.microsoft.com/en-us/entra/identity-platform/permissions-consent-overview#consent">
             consented</a> to beforehand, otherwise downstream nodes might fail.
             """)
-    @ArrayWidget(addButtonText = "Add scope")
+    @ArrayWidget(elementLayout = ElementLayout.HORIZONTAL_SINGLE_LINE, addButtonText = "Add scope")
     @Effect(predicate = ScopesSelectionType.IsCustom.class, type = EffectType.SHOW)
     @Persistor(CustomScopesPersistor.class)
     CustomScope[] m_customScopes = new CustomScope[0];
