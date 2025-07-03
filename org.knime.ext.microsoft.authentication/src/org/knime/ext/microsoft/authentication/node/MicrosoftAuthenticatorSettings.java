@@ -595,7 +595,8 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         }
     }
 
-    private void validate() throws InvalidSettingsException {
+    @Override
+    public void validate() throws InvalidSettingsException {
         switch (m_authenticationType) {
             case INTERACTIVE, USERNAME_PASSWORD:
                 validateScopesSettings();
