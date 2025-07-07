@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: Microsoft authentication extension for KNIME Workbench
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-SymbolicName: org.knime.ext.microsoft.authentication; singleton:=true
-Bundle-Version: 5.5.0.qualifier
+Bundle-Version: 5.6.0.qualifier
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Require-Bundle: org.knime.workbench.repository;bundle-version="[5.5.0,6.0.0)",
  org.knime.core;bundle-version="[5.5.0,6.0.0)",
