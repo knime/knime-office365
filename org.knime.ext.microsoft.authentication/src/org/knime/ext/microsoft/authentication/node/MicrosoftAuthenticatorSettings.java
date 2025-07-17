@@ -58,7 +58,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.button.ButtonChange;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.button.ButtonWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.button.CancelableActionHandler;
@@ -74,6 +73,8 @@ import org.knime.ext.microsoft.authentication.util.AccessTokenWithScopesCredenti
 import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
 import org.knime.node.parameters.Advanced;
+import org.knime.node.parameters.NodeParameters;
+import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.Widget;
 import org.knime.node.parameters.layout.After;
 import org.knime.node.parameters.layout.Layout;
@@ -81,11 +82,11 @@ import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.migration.Migrate;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.updates.Effect;
+import org.knime.node.parameters.updates.Effect.EffectType;
 import org.knime.node.parameters.updates.Predicate;
 import org.knime.node.parameters.updates.PredicateProvider;
 import org.knime.node.parameters.updates.Reference;
 import org.knime.node.parameters.updates.ValueReference;
-import org.knime.node.parameters.updates.Effect.EffectType;
 import org.knime.node.parameters.widget.choices.Label;
 import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 import org.knime.node.parameters.widget.credentials.CredentialsWidget;
@@ -100,7 +101,7 @@ import com.microsoft.aad.msal4j.SystemBrowserOptions;
  * @author Alexander Bondaletov, Redfield SE
  */
 @SuppressWarnings("restriction")
-public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
+public class MicrosoftAuthenticatorSettings implements NodeParameters {
     private static final NodeLogger LOG = NodeLogger.getLogger(MicrosoftAuthenticatorSettings.class);
 
     private static final String DEFAULT_REDIRECT_URL = "http://localhost:51355/";
@@ -475,7 +476,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     static class LoginActionHandler extends CancelableActionHandler<UUID, MicrosoftAuthenticatorSettings> {
 
         @Override
-        protected UUID invoke(final MicrosoftAuthenticatorSettings settings, final DefaultNodeSettingsContext context)
+        protected UUID invoke(final MicrosoftAuthenticatorSettings settings, final NodeParametersInput context)
                 throws WidgetHandlerException {
             try {
                 settings.validate();
@@ -533,7 +534,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         // when the dialog is opened.
         @Override
         public ButtonChange<UUID, States> update(final MicrosoftAuthenticatorSettings settings,
-                final DefaultNodeSettingsContext context) throws WidgetHandlerException {
+                final NodeParametersInput context) throws WidgetHandlerException {
             return new ButtonChange<>(States.READY);
         }
     }

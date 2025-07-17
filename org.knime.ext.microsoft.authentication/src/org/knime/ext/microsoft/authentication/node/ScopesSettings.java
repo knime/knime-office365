@@ -61,7 +61,6 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.CustomScope.CustomScopesPersistor;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.HasAzureStorageScope.IdFieldReference;
@@ -71,6 +70,8 @@ import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.DelegatedScopePersistor;
 import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.scopes.ScopeType;
+import org.knime.node.parameters.NodeParameters;
+import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.Widget;
 import org.knime.node.parameters.WidgetGroup;
 import org.knime.node.parameters.array.ArrayWidget;
@@ -79,11 +80,11 @@ import org.knime.node.parameters.migration.Migrate;
 import org.knime.node.parameters.persistence.NodeSettingsPersistor;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.updates.Effect;
+import org.knime.node.parameters.updates.Effect.EffectType;
 import org.knime.node.parameters.updates.Predicate;
 import org.knime.node.parameters.updates.PredicateProvider;
 import org.knime.node.parameters.updates.Reference;
 import org.knime.node.parameters.updates.ValueReference;
-import org.knime.node.parameters.updates.Effect.EffectType;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.StringChoice;
 import org.knime.node.parameters.widget.choices.StringChoicesProvider;
@@ -95,7 +96,7 @@ import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
  * @author Alexander Bondaletov, Redfield SE
  */
 @SuppressWarnings("restriction")
-public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
+public class ScopesSettings implements WidgetGroup, NodeParameters {
 
     @Widget(title = "Scope type", //
             description = """
@@ -189,7 +190,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
     @Persistor(ApplicationScopePersistor.class)
     ApplicationScope[] m_appScopes = new ApplicationScope[0];
 
-    abstract static class StandardScope implements DefaultNodeSettings {
+    abstract static class StandardScope implements NodeParameters {
         protected abstract String getId();
 
         abstract static class StandardScopesPersistor<S extends StandardScope> implements NodeSettingsPersistor<S[]> {
@@ -214,7 +215,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
 
         abstract static class StandardScopesChoicesProvider implements StringChoicesProvider {
             @Override
-            public List<StringChoice> computeState(final DefaultNodeSettingsContext context) {
+            public List<StringChoice> computeState(final NodeParametersInput context) {
                 return Scope.listByScopeType(getScopeType()).stream() //
                         .map(s -> new StringChoice(s.name(), stripHtml(s.getTitle()))) //
                         .toList();
@@ -324,7 +325,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
     @Persistor(CustomScopesPersistor.class)
     CustomScope[] m_customScopes = new CustomScope[0];
 
-    static class CustomScope implements DefaultNodeSettings {
+    static class CustomScope implements NodeParameters {
         @Widget(title = "Custom scope/permission", description = "")
         String m_scope;
 
