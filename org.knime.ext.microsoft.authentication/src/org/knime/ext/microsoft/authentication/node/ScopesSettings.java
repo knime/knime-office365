@@ -61,24 +61,6 @@ import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
-import org.knime.core.webui.node.dialog.defaultdialog.layout.WidgetGroup;
-import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Migrate;
-import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.NodeSettingsPersistor;
-import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Persistor;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.ArrayWidget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.ArrayWidget.ElementLayout;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.ChoicesProvider;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.StringChoice;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.choices.StringChoicesProvider;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect.EffectType;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Predicate;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.PredicateProvider;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Reference;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.ValueReference;
 import org.knime.ext.microsoft.authentication.node.MicrosoftAuthenticatorSettings.AuthenticationType;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.CustomScope.CustomScopesPersistor;
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.HasAzureStorageScope.IdFieldReference;
@@ -88,6 +70,25 @@ import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.
 import org.knime.ext.microsoft.authentication.node.ScopesSettings.StandardScope.DelegatedScopePersistor;
 import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.scopes.ScopeType;
+import org.knime.node.parameters.NodeParameters;
+import org.knime.node.parameters.NodeParametersInput;
+import org.knime.node.parameters.Widget;
+import org.knime.node.parameters.WidgetGroup;
+import org.knime.node.parameters.array.ArrayWidget;
+import org.knime.node.parameters.array.ArrayWidget.ElementLayout;
+import org.knime.node.parameters.migration.Migrate;
+import org.knime.node.parameters.persistence.NodeParametersPersistor;
+import org.knime.node.parameters.persistence.Persistor;
+import org.knime.node.parameters.updates.Effect;
+import org.knime.node.parameters.updates.Effect.EffectType;
+import org.knime.node.parameters.updates.EffectPredicate;
+import org.knime.node.parameters.updates.EffectPredicateProvider;
+import org.knime.node.parameters.updates.ParameterReference;
+import org.knime.node.parameters.updates.ValueReference;
+import org.knime.node.parameters.widget.choices.ChoicesProvider;
+import org.knime.node.parameters.widget.choices.StringChoice;
+import org.knime.node.parameters.widget.choices.StringChoicesProvider;
+import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 
 /**
  * The scopes settings for the Microsoft Authenticator node.
@@ -95,7 +96,7 @@ import org.knime.ext.microsoft.authentication.scopes.ScopeType;
  * @author Alexander Bondaletov, Redfield SE
  */
 @SuppressWarnings("restriction")
-public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
+public class ScopesSettings implements WidgetGroup, NodeParameters {
 
     @Widget(title = "Scope type", //
             description = """
@@ -112,42 +113,42 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
     enum ScopesSelectionType {
         STANDARD, CUSTOM;
 
-        interface Ref extends Reference<ScopesSelectionType> {
+        interface Ref extends ParameterReference<ScopesSelectionType> {
         }
 
-        static class IsCustom implements PredicateProvider {
+        static class IsCustom implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(CUSTOM);
             }
         }
 
-        static class IsStandard implements PredicateProvider {
+        static class IsStandard implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(STANDARD);
             }
         }
     }
 
-    static class HasAzureStorageScope implements PredicateProvider {
+    static class HasAzureStorageScope implements EffectPredicateProvider {
 
-        interface ArrayReference extends Reference<DelegatedScope[]> {
+        interface ArrayReference extends ParameterReference<DelegatedScope[]> {
         }
 
-        interface IdFieldReference extends Reference<String> {
+        interface IdFieldReference extends ParameterReference<String> {
         }
 
         @Override
-        public Predicate init(final PredicateInitializer i) {
+        public EffectPredicate init(final PredicateInitializer i) {
             return i.getArray(ArrayReference.class).containsElementSatisfying(
                     el -> el.getString(IdFieldReference.class).isEqualTo(Scope.AZURE_BLOB_STORAGE.name()));
         }
     }
 
-    static final class HideDelegateScropes implements PredicateProvider {
+    static final class HideDelegateScropes implements EffectPredicateProvider {
         @Override
-        public Predicate init(final PredicateInitializer i) {
+        public EffectPredicate init(final PredicateInitializer i) {
             return i.getPredicate(ScopesSelectionType.IsCustom.class)
                     .or(i.getPredicate(AuthenticationType.IsClientSecret.class));
         }
@@ -168,9 +169,9 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
     @Persistor(DelegatedScopePersistor.class)
     DelegatedScope[] m_delegatedScopes = new DelegatedScope[0];
 
-    static final class ShowAppScopes implements PredicateProvider {
+    static final class ShowAppScopes implements EffectPredicateProvider {
         @Override
-        public Predicate init(final PredicateInitializer i) {
+        public EffectPredicate init(final PredicateInitializer i) {
             return i.getPredicate(ScopesSelectionType.IsStandard.class)
                     .and(i.getPredicate(AuthenticationType.IsClientSecret.class));
         }
@@ -189,10 +190,10 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
     @Persistor(ApplicationScopePersistor.class)
     ApplicationScope[] m_appScopes = new ApplicationScope[0];
 
-    abstract static class StandardScope implements DefaultNodeSettings {
+    abstract static class StandardScope implements NodeParameters {
         protected abstract String getId();
 
-        abstract static class StandardScopesPersistor<S extends StandardScope> implements NodeSettingsPersistor<S[]> {
+        abstract static class StandardScopesPersistor<S extends StandardScope> implements NodeParametersPersistor<S[]> {
 
             final String m_configKey;
 
@@ -214,7 +215,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
 
         abstract static class StandardScopesChoicesProvider implements StringChoicesProvider {
             @Override
-            public List<StringChoice> computeState(final DefaultNodeSettingsContext context) {
+            public List<StringChoice> computeState(final NodeParametersInput context) {
                 return Scope.listByScopeType(getScopeType()).stream() //
                         .map(s -> new StringChoice(s.name(), stripHtml(s.getTitle()))) //
                         .toList();
@@ -324,7 +325,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
     @Persistor(CustomScopesPersistor.class)
     CustomScope[] m_customScopes = new CustomScope[0];
 
-    static class CustomScope implements DefaultNodeSettings {
+    static class CustomScope implements NodeParameters {
         @Widget(title = "Custom scope/permission", description = "")
         String m_scope;
 
@@ -335,7 +336,7 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         CustomScope() {
         }
 
-        static class CustomScopesPersistor implements NodeSettingsPersistor<CustomScope[]> {
+        static class CustomScopesPersistor implements NodeParametersPersistor<CustomScope[]> {
 
             static final String CONFIG_KEY = "customScopes";
 
@@ -359,9 +360,9 @@ public class ScopesSettings implements WidgetGroup, DefaultNodeSettings {
         }
     }
 
-    static final class RequireAzureStorageAccount implements PredicateProvider {
+    static final class RequireAzureStorageAccount implements EffectPredicateProvider {
         @Override
-        public Predicate init(final PredicateInitializer i) {
+        public EffectPredicate init(final PredicateInitializer i) {
             return i.getPredicate(AuthenticationType.RequiresDelegatedPermissions.class)
                     .and(i.getPredicate(HasAzureStorageScope.class));
         }

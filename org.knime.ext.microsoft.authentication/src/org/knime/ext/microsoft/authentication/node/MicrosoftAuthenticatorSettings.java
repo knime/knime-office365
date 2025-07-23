@@ -58,30 +58,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeSettings;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.button.ButtonChange;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.button.ButtonWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.button.CancelableActionHandler;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.button.CancelableActionHandler.States;
-import org.knime.core.webui.node.dialog.defaultdialog.layout.After;
-import org.knime.core.webui.node.dialog.defaultdialog.layout.Layout;
-import org.knime.core.webui.node.dialog.defaultdialog.layout.Section;
-import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Migrate;
-import org.knime.core.webui.node.dialog.defaultdialog.persistence.api.Persistor;
-import org.knime.core.webui.node.dialog.defaultdialog.setting.credentials.Credentials;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.Advanced;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.Label;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.ValueSwitchWidget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.Widget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.credentials.CredentialsWidget;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.credentials.PasswordWidget;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.handler.WidgetHandlerException;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Effect.EffectType;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Predicate;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.PredicateProvider;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.Reference;
-import org.knime.core.webui.node.dialog.defaultdialog.widget.updates.ValueReference;
 import org.knime.credentials.base.CredentialCache;
 import org.knime.credentials.base.oauth.api.nodesettings.AbstractTokenCacheKeyPersistor;
 import org.knime.ext.microsoft.authentication.providers.oauth2.interactive.CustomOpenBrowserAction;
@@ -90,6 +71,26 @@ import org.knime.ext.microsoft.authentication.scopes.ScopeResourceUtil.ScopeList
 import org.knime.ext.microsoft.authentication.util.AccessTokenWithScopesCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
+import org.knime.node.parameters.Advanced;
+import org.knime.node.parameters.NodeParameters;
+import org.knime.node.parameters.NodeParametersInput;
+import org.knime.node.parameters.Widget;
+import org.knime.node.parameters.layout.After;
+import org.knime.node.parameters.layout.Layout;
+import org.knime.node.parameters.layout.Section;
+import org.knime.node.parameters.migration.Migrate;
+import org.knime.node.parameters.persistence.Persistor;
+import org.knime.node.parameters.updates.Effect;
+import org.knime.node.parameters.updates.Effect.EffectType;
+import org.knime.node.parameters.updates.EffectPredicate;
+import org.knime.node.parameters.updates.EffectPredicateProvider;
+import org.knime.node.parameters.updates.ParameterReference;
+import org.knime.node.parameters.updates.ValueReference;
+import org.knime.node.parameters.widget.choices.Label;
+import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
+import org.knime.node.parameters.widget.credentials.Credentials;
+import org.knime.node.parameters.widget.credentials.CredentialsWidget;
+import org.knime.node.parameters.widget.credentials.PasswordWidget;
 
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
 import com.microsoft.aad.msal4j.SystemBrowserOptions;
@@ -100,7 +101,7 @@ import com.microsoft.aad.msal4j.SystemBrowserOptions;
  * @author Alexander Bondaletov, Redfield SE
  */
 @SuppressWarnings("restriction")
-public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
+public class MicrosoftAuthenticatorSettings implements NodeParameters {
     private static final NodeLogger LOG = NodeLogger.getLogger(MicrosoftAuthenticatorSettings.class);
 
     private static final String DEFAULT_REDIRECT_URL = "http://localhost:51355/";
@@ -128,10 +129,10 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     interface SasUrlSection {
     }
 
-    static final class RequiresScopes implements PredicateProvider {
+    static final class RequiresScopes implements EffectPredicateProvider {
 
         @Override
-        public Predicate init(final PredicateInitializer i) {
+        public EffectPredicate init(final PredicateInitializer i) {
             final var isInteractive = i.getPredicate(AuthenticationType.IsInteractive.class);
             final var isUsernamePassword = i.getPredicate(AuthenticationType.IsUsernamePassword.class);
             final var isClientSecret = i.getPredicate(AuthenticationType.IsClientSecret.class);
@@ -146,10 +147,10 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     interface ScopesSection {
     }
 
-    static final class IsInteractiveOrUsernamePassword implements PredicateProvider {
+    static final class IsInteractiveOrUsernamePassword implements EffectPredicateProvider {
 
         @Override
-        public Predicate init(final PredicateInitializer i) {
+        public EffectPredicate init(final PredicateInitializer i) {
             final var isInteractive = i.getPredicate(AuthenticationType.IsInteractive.class);
             final var isUsernamePassword = i.getPredicate(AuthenticationType.IsUsernamePassword.class);
             return or(isInteractive, isUsernamePassword);
@@ -250,54 +251,54 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         @Label("Azure Storage shared access signature (SAS)")
         AZURE_STORAGE_SAS_URL;
 
-        interface Ref extends Reference<AuthenticationType> {
+        interface Ref extends ParameterReference<AuthenticationType> {
         }
 
-        static class IsInteractive implements PredicateProvider {
+        static class IsInteractive implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(INTERACTIVE);
             }
         }
 
-        static class IsUsernamePassword implements PredicateProvider {
+        static class IsUsernamePassword implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(USERNAME_PASSWORD);
             }
         }
 
-        static class RequiresDelegatedPermissions implements PredicateProvider {
+        static class RequiresDelegatedPermissions implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(INTERACTIVE, USERNAME_PASSWORD);
             }
         }
 
-        static class IsClientSecret implements PredicateProvider {
+        static class IsClientSecret implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(CLIENT_SECRET);
             }
         }
 
-        static class IsOAuth2 implements PredicateProvider {
+        static class IsOAuth2 implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(INTERACTIVE, USERNAME_PASSWORD, CLIENT_SECRET);
             }
         }
 
-        static class IsAzureStorageSharedKey implements PredicateProvider {
+        static class IsAzureStorageSharedKey implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(AZURE_STORAGE_SHARED_KEY);
             }
         }
 
-        static class IsAzureStorageSasUrl implements PredicateProvider {
+        static class IsAzureStorageSasUrl implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(AZURE_STORAGE_SAS_URL);
             }
         }
@@ -334,12 +335,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     enum AuthorizationEndpointSelection {
         DEFAULT, CUSTOM;
 
-        interface Ref extends Reference<AuthorizationEndpointSelection> {
+        interface Ref extends ParameterReference<AuthorizationEndpointSelection> {
         }
 
-        static class IsCustom implements PredicateProvider {
+        static class IsCustom implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(CUSTOM);
             }
         }
@@ -353,12 +354,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     enum UserAgentSelection {
         DEFAULT, CUSTOM;
 
-        interface Ref extends Reference<UserAgentSelection> {
+        interface Ref extends ParameterReference<UserAgentSelection> {
         }
 
-        static class IsCustom implements PredicateProvider {
+        static class IsCustom implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(CUSTOM);
             }
         }
@@ -401,12 +402,12 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     enum ClientSelection {
         DEFAULT, CUSTOM;
 
-        interface Ref extends Reference<ClientSelection> {
+        interface Ref extends ParameterReference<ClientSelection> {
         }
 
-        static class IsCustom implements PredicateProvider {
+        static class IsCustom implements EffectPredicateProvider {
             @Override
-            public Predicate init(final PredicateInitializer i) {
+            public EffectPredicate init(final PredicateInitializer i) {
                 return i.getEnum(Ref.class).isOneOf(CUSTOM);
             }
         }
@@ -434,10 +435,10 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     @Layout(SasUrlSection.class)
     Credentials m_sasUrl = new Credentials();
 
-    static final class ShowRedirectUrl implements PredicateProvider {
+    static final class ShowRedirectUrl implements EffectPredicateProvider {
 
         @Override
-        public Predicate init(final PredicateInitializer i) {
+        public EffectPredicate init(final PredicateInitializer i) {
             return i.getPredicate(AuthenticationType.IsInteractive.class)
                     .and(i.getPredicate(ClientSelection.IsCustom.class));
         }
@@ -475,7 +476,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
     static class LoginActionHandler extends CancelableActionHandler<UUID, MicrosoftAuthenticatorSettings> {
 
         @Override
-        protected UUID invoke(final MicrosoftAuthenticatorSettings settings, final DefaultNodeSettingsContext context)
+        protected UUID invoke(final MicrosoftAuthenticatorSettings settings, final NodeParametersInput context)
                 throws WidgetHandlerException {
             try {
                 settings.validate();
@@ -533,7 +534,7 @@ public class MicrosoftAuthenticatorSettings implements DefaultNodeSettings {
         // when the dialog is opened.
         @Override
         public ButtonChange<UUID, States> update(final MicrosoftAuthenticatorSettings settings,
-                final DefaultNodeSettingsContext context) throws WidgetHandlerException {
+                final NodeParametersInput context) throws WidgetHandlerException {
             return new ButtonChange<>(States.READY);
         }
     }
