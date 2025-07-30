@@ -132,7 +132,14 @@ public enum Scope {
     /**
      * Resource identifier of the Power BI
      */
-    POWER_BI_APP("Power BI", "https://analysis.windows.net/powerbi/api/.default", ScopeType.APPLICATION);
+    POWER_BI_APP("Power BI", "https://analysis.windows.net/powerbi/api/.default", ScopeType.APPLICATION),
+
+    /**
+     * Exchange Online
+     */
+    OUTLOOK("Exchange Online",
+            "https://outlook.office.com/IMAP.AccessAsUser.All " + "https://outlook.office.com/SMTP.Send",
+            ScopeType.DELEGATED);
 
     private static final Map<String, Scope> SCOPES = new HashMap<>();
     static {
