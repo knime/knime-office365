@@ -29,6 +29,7 @@
 		<module>org.knime.features.ext.office365.filehandling</module>
 		<module>org.knime.features.ext.office365.sharepointlist</module>
 		<module>org.knime.update.office365</module>
+		<module>org.knime.ext.microsoft.teams</module>
 	</modules>
 
 	<!-- List all repositories required for compilation here. The variables are defined in knime-maven-parent/pom.xml. -->
