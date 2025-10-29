@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.credentials.base.Credential;
@@ -59,6 +60,7 @@ import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.credentials.base.oauth.api.AccessTokenAccessor;
 import org.knime.credentials.base.oauth.api.AccessTokenWithScopesAccessor;
+import org.knime.credentials.base.oauth.api.IdentityProviderException;
 
 import com.azure.core.credential.AccessToken;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
@@ -75,6 +77,8 @@ import reactor.core.publisher.Mono;
 public final class GraphCredentialUtil {
 
     private static final String GRAPH_API_SCOPE = "https://graph.microsoft.com/.default";
+
+    private static final Pattern ERROR_PREFIX = Pattern.compile("^\\s*AADSTS(\\d+)", Pattern.CASE_INSENSITIVE); // NOSONAR
 
     private GraphCredentialUtil() {
         // Utility class, no instantiation
@@ -129,8 +133,12 @@ public final class GraphCredentialUtil {
         if (credSpec.hasAccessor(AccessTokenAccessor.class)) {
             tokenAccessor = credSpec.toAccessor(AccessTokenAccessor.class);
         } else if (credSpec.hasAccessor(AccessTokenWithScopesAccessor.class)) {
-            tokenAccessor = credSpec.toAccessor(AccessTokenWithScopesAccessor.class)
-                    .getAccessTokenWithScopes(Set.of(GRAPH_API_SCOPE));
+            try {
+                tokenAccessor = credSpec.toAccessor(AccessTokenWithScopesAccessor.class)
+                        .getAccessTokenWithScopes(Set.of(GRAPH_API_SCOPE));
+            } catch (IdentityProviderException e) {
+                throw handleIdentityProviderException(e);
+            }
         } else {
             // this should never happen, as we already validated the
             // credential spec in the configure phase
@@ -162,5 +170,19 @@ public final class GraphCredentialUtil {
                 .map(instant -> OffsetDateTime.ofInstant(instant, ZoneId.of("UTC"))).orElseThrow();
 
         return new AccessToken(accessToken, expiration);
+    }
+
+    private static IOException handleIdentityProviderException(final IdentityProviderException e) {
+        final var matcher = ERROR_PREFIX.matcher(e.getErrorSummary());
+        if (matcher.find()) {
+            final var errorCode = Integer.parseInt(matcher.group(1));
+            // See
+            // https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes#aadsts-error-codes
+            if (errorCode == 65001 || errorCode == 65004) {
+                return new IOException("Consent mssing. Please refer to the node description to find "
+                        + "scopes your or your admin need to consent to.", e);
+            }
+        }
+        return e;
     }
 }
