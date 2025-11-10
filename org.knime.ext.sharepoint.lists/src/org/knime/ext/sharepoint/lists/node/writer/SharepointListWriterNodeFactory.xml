@@ -23,6 +23,15 @@
                         can be also very slow in case a lot of rows need to be deleted.
                     </li>
                     <li>
+                        The default "Title" column of the list (which may have a different display name) is used by this node to store the RowID.
+                        Use a <a href="https://hub.knime.com/n/1Uo48m8MIHW-seLx">RowID</a> node to specify a custom one. If a column with the same
+                        name is already present in the input table, it will be mapped to a (new) column with the same display name.
+                    </li>
+                    <li>
+                        If an input table contains columns whose name are already used by read-only system columns, the node will create new
+                        writable list columns of the same name when creating a new list or overwriting an existing one.
+                    </li>
+                    <li>
                         This node exports the ID of the written list to a flow variable called <tt>sharepoint_list_id</tt>. The ID can be
                         be used in subsequent nodes to control the <tt>list</tt> setting via flow variable.
                     </li>
