@@ -410,7 +410,7 @@ final class ListBatchRequest implements AutoCloseable {
      *
      * @return all results of this and the previous invocations of this method. Each
      *         batch request is an array of its responses. The result contains all
-     *         previous batch requests (i.e. its an array of arrays of reponses).
+     *         previous batch requests (i.e. its an array of arrays of responses).
      * @throws IOException
      *             if the batch requests or one of its sub-requests encountered an
      *             error that could not be retried.

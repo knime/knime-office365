@@ -105,8 +105,8 @@ final class SharepointListWriterNodeModel extends NodeModel {
 
             final String colName = colSpec.getName();
             if (colName.length() > 255) {
-                throw new InvalidSettingsException(
-                        "One or more column names do have a length over 255 characters, which is not allowed. Please reduce the length.");
+                throw new InvalidSettingsException("One or more column names do have a length over 255 characters, "
+                        + "which is not allowed. Please reduce the length.");
             }
         }
 
@@ -132,7 +132,7 @@ final class SharepointListWriterNodeModel extends NodeModel {
         final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
         final var table = (BufferedDataTable) inObjects[1];
 
-        CheckUtils.checkSetting(listSettingsEmpty(),
+        CheckUtils.checkSetting(listSettingsNonEmpty(),
                 "No list selected or entered. Please select a list or enter a list name.");
 
         try (final var client = new SharepointListWriterClient(m_config, this::pushListId, table, credSpec, exec)) {
@@ -142,7 +142,7 @@ final class SharepointListWriterNodeModel extends NodeModel {
         return new PortObject[] {};
     }
 
-    private boolean listSettingsEmpty() {
+    private boolean listSettingsNonEmpty() {
         return !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty()
                 || !m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue().isEmpty();
     }

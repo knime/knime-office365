@@ -103,7 +103,7 @@ final class SharepointDeleteListNodeModel extends NodeModel {
     @Override
     protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
 
-        CheckUtils.checkSetting(listSettingsEmpty(), "No list selected. Please select a list.");
+        CheckUtils.checkSetting(listSettingsNonEmpty(), "No list selected. Please select a list.");
 
         final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
         final var timeouts = m_config.getSharepointListSettings().getTimeoutSettings();
@@ -117,7 +117,7 @@ final class SharepointDeleteListNodeModel extends NodeModel {
         return new PortObject[] {};
     }
 
-    private boolean listSettingsEmpty() {
+    private boolean listSettingsNonEmpty() {
         return !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty()
                 || !m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue().isEmpty();
     }
