@@ -49,13 +49,18 @@
 package org.knime.ext.sharepoint.lists.node.writer;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataType;
@@ -108,6 +113,9 @@ final class KNIMEToSharepointTypeConverter {
     // Min date which is supported by SharePoint
     private static final Instant MIN_INSTANT = Instant.parse("1900-01-01T00:00:00Z");
 
+    // Used for generating new internal names from existing ones
+    private static final Pattern INTERNAL_NAME = Pattern.compile("^(.*?)(\\d*)$"); // NOSONAR
+
     private KNIMEToSharepointTypeConverter() {
         // utility class
     }
@@ -115,18 +123,22 @@ final class KNIMEToSharepointTypeConverter {
     /**
      * Map which holds a Pair of Functions which can convert data values to
      * {@link JsonPrimitive} and creates named {@link ColumnDefinition} based on a
-     * DataType
+     * DataType. The function which creates a new column expects to be given a set
+     * which contains previously given internal names in lower case and will update
+     * that set with a new lowercase name accordingly.
      */
-    static final Map<DataType, Pair<Function<DataCell, JsonElement>, Function<String, ColumnDefinition>>> TYPE_CONVERTER = new HashMap<>();
+    static final Map<DataType, Pair<Function<DataCell, JsonElement>, //
+            BiFunction<Set<String>, String, ColumnDefinition>>> TYPE_CONVERTER = new HashMap<>();
 
     /** If no suitable converter is available */
-    static final Pair<Function<DataCell, JsonElement>, Function<String, ColumnDefinition>> DEFAULT_CONVERTER = Pair
-            .create(KNIMEToSharepointTypeConverter::defaultStringConverter,
+    static final Pair<Function<DataCell, JsonElement>, //
+            BiFunction<Set<String>, String, ColumnDefinition>> DEFAULT_CONVERTER = Pair.create( //
+                    KNIMEToSharepointTypeConverter::defaultStringConverter, //
                     KNIMEToSharepointTypeConverter::createStringColDefiniton);
 
     private static JsonPrimitive defaultStringConverter(final DataCell dataCell) {
-        if (dataCell instanceof StringValue) {
-            return new JsonPrimitive(((StringValue) dataCell).getStringValue());
+        if (dataCell instanceof StringValue strCell) {
+            return new JsonPrimitive(strCell.getStringValue());
         } else {
             // should never happen since we check in configure, just to be sure
             throw new IllegalArgumentException("DataCell does not implement StringValue");
@@ -179,6 +191,10 @@ final class KNIMEToSharepointTypeConverter {
                     "Double values with more than 15 significant digits  are not supported. " + val);
         }
         return new JsonPrimitive(val);
+    }
+
+    private static boolean isASCIIAlphaNumeric(final int i) {
+        return (i >= 'a' && i <= 'z') || (i >= 'A' && i <= 'Z') || (i >= '0' && i <= '9'); // NOSONAR
     }
 
     private static void checkDoubleValues(final double val) {
@@ -236,50 +252,97 @@ final class KNIMEToSharepointTypeConverter {
         }
     }
 
-    private static ColumnDefinition createColDefintion(final String name) {
+    /**
+     * Generate an internal name from a display name. The internal name will only
+     * contain [A-Za-z0-9] and will be append by a number if that name already
+     * exists
+     *
+     * @param existingLowerCase
+     *            a set containing already existing internal, lower-case names. The
+     *            newly generated name will be added to this set.
+     * @param displayName
+     *            the display name from which to generate the internal name
+     * @return the newly generate internal name (case preserved)
+     */
+    private static String generateInternalName(final Set<String> existingLowerCase, final String displayName) {
+        final var desiredName = displayName.chars() //
+                .filter(KNIMEToSharepointTypeConverter::isASCIIAlphaNumeric) //
+                .limit(250) // leave room for numbers
+                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                .toString();
+        // because it's MS, use case insensitive names just to be sure
+        if (existingLowerCase.add(desiredName.toLowerCase(Locale.ROOT))) {
+            return desiredName;
+        }
+
+        final var m = INTERNAL_NAME.matcher(desiredName);
+        m.find();
+
+        final var prefix = m.group(1).isEmpty() ? "Column" : m.group(1);
+        final var prefixLC = prefix.toLowerCase(Locale.ROOT);
+        var num = m.group(2).isEmpty() ? BigInteger.ZERO : new BigInteger(m.group(2));
+
+        while (!existingLowerCase.add(prefixLC + num)) {
+            num = num.add(BigInteger.ONE);
+        }
+
+        final var result = prefix + num;
+        if (result.length() > 255) {
+            // F
+            throw new IllegalArgumentException("Could not generate a sufficiently short internal name. "
+                    + "Please reduce the number of columns and the length of their names.");
+        }
+
+        return result;
+    }
+
+    private static ColumnDefinition createColDefintion(final Set<String> existingLowerCase, final String name) {
         final var colDef = new ColumnDefinition();
-        colDef.name = name;
+        colDef.displayName = name;
+        colDef.name = generateInternalName(existingLowerCase, name);
         return colDef;
     }
 
-    private static ColumnDefinition createStringColDefiniton(final String name) {
-        final ColumnDefinition colDef = createColDefintion(name);
+    private static ColumnDefinition createStringColDefiniton(final Set<String> existingLowerCase, final String name) {
+        final var colDef = createColDefintion(existingLowerCase, name);
         final var textCol = new TextColumn();
         textCol.allowMultipleLines = true;
         colDef.text = textCol;
         return colDef;
     }
 
-    private static ColumnDefinition createBooleanColDefiniton(final String name) {
-        final ColumnDefinition colDef = createColDefintion(name);
+    private static ColumnDefinition createBooleanColDefiniton(final Set<String> existingLowerCase, final String name) {
+        final var colDef = createColDefintion(existingLowerCase, name);
         colDef.msgraphBoolean = new BooleanColumn();
         return colDef;
     }
 
-    private static ColumnDefinition createIntegerNumberColDefiniton(final String name) {
-        final ColumnDefinition colDef = createColDefintion(name);
+    private static ColumnDefinition createIntegerNumberColDefiniton(final Set<String> existingLowerCase,
+            final String name) {
+        final var colDef = createColDefintion(existingLowerCase, name);
         final var numberCol = new NumberColumn();
         numberCol.decimalPlaces = "none";
         colDef.number = numberCol;
         return colDef;
     }
 
-    private static ColumnDefinition createDoubleNumberColDefiniton(final String name) {
-        final ColumnDefinition colDef = createColDefintion(name);
+    private static ColumnDefinition createDoubleNumberColDefiniton(final Set<String> existingLowerCase,
+            final String name) {
+        final var colDef = createColDefintion(existingLowerCase, name);
         colDef.number = new NumberColumn();
         return colDef;
     }
 
-    private static ColumnDefinition createDateTimeDefinition(final String name) {
-        final ColumnDefinition colDef = createColDefintion(name);
+    private static ColumnDefinition createDateTimeDefinition(final Set<String> existingLowerCase, final String name) {
+        final var colDef = createColDefintion(existingLowerCase, name);
         final var dateTimeCol = new DateTimeColumn();
         dateTimeCol.format = "dateTime";
         colDef.dateTime = dateTimeCol;
         return colDef;
     }
 
-    private static ColumnDefinition createDateDefinition(final String name) {
-        final ColumnDefinition colDef = createColDefintion(name);
+    private static ColumnDefinition createDateDefinition(final Set<String> existingLowerCase, final String name) {
+        final var colDef = createColDefintion(existingLowerCase, name);
         final var dateTimeCol = new DateTimeColumn();
         dateTimeCol.format = "dateOnly";
         colDef.dateTime = dateTimeCol;

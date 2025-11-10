@@ -49,11 +49,13 @@
 package org.knime.ext.sharepoint.lists.node;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import com.microsoft.graph.http.GraphServiceException;
+import com.microsoft.graph.models.List;
 import com.microsoft.graph.requests.GraphServiceClient;
 
 import okhttp3.Request;
@@ -66,42 +68,10 @@ import okhttp3.Request;
 public final class SharePointListUtils {
 
     // Pattern of the settings is actually "<displayName> (<internalName>)"
-    private static final Pattern SETTINGS_INTERNAL_LIST_NAME_PATTERN = Pattern.compile(".*\\(([^)]+)\\)");
-
-    // Matches everything until the last "("
-    private static final Pattern SETTINGS_DISPLAY_LIST_NAME_PATTERN = Pattern.compile("(.*(?=\\())");
+    private static final Pattern SETTINGS_INTERNAL_LIST_NAME_PATTERN = Pattern.compile(".* \\(([^)]+)\\)");
 
     private SharePointListUtils() {
         // hide constructor for Utils class
-    }
-
-    /**
-     * Checks whether or not a list name matches the naming pattern.
-     *
-     * @param listSettingsName
-     *            the list name from the settings
-     * @return true or false whether or not a list name the naming pattern
-     */
-    public static boolean matchesSettingsListNamePattern(final String listSettingsName) {
-        return SETTINGS_INTERNAL_LIST_NAME_PATTERN.matcher(listSettingsName).matches();
-    }
-
-    /**
-     * Returns the display name from the list settings name by matching the the
-     * settings pattern.
-     *
-     * @param listSettingsName
-     *            the list name from the settings
-     * @return the display name of the list settings name
-     */
-    public static String getListDisplayName(final String listSettingsName) {
-        if (matchesSettingsListNamePattern(listSettingsName)) {
-            final var m = SETTINGS_DISPLAY_LIST_NAME_PATTERN.matcher(listSettingsName);
-            if (m.find()) {
-                return m.group(1);
-            }
-        }
-        return listSettingsName;
     }
 
     /**
@@ -110,50 +80,123 @@ public final class SharePointListUtils {
      *
      * @param listSettingsName
      *            the list name from the settings
-     * @return the internal name of the list settings name
+     * @return the internal name of the list settings name, or {@code null} if no
+     *         internal name component was found.
      */
     public static String getInternalListName(final String listSettingsName) {
-        if (matchesSettingsListNamePattern(listSettingsName)) {
-            final var m = SETTINGS_INTERNAL_LIST_NAME_PATTERN.matcher(listSettingsName);
-            if (m.find()) {
-                return m.group(1);
-            }
+        final var m = SETTINGS_INTERNAL_LIST_NAME_PATTERN.matcher(listSettingsName);
+        if (m.matches()) {
+            return m.group(1);
         }
-        return listSettingsName;
+        return null;
     }
 
     /**
-     * Get a list by name by checking which list internal name matches the name.
+     * Get a list by name by checking which list internal name matches the given
+     * name.
      *
      * @param client
-     *            the {@link IGraphServiceClient}
+     *            the {@link GraphServiceClient}
      * @param siteId
      *            the ID of the SharePoint site
      * @param listName
-     *            the name of the list
+     *            the name of the list, if it does not match the "display name
+     *            (internal name)" form, the whole string will be assumed to be an
+     *            internal name.
      *
      * @return an {@link Optional} of {@link String} with the list id
      * @throws IOException
+     *             if an error happened during the request
+     *
+     * @apiNote This method exists for backwards compatibility with the questionable
+     *          behavior of the "Delete Sharepoint List" node. Please use
+     *          {@link #getListIdByInternalOrDisplayName(GraphServiceClient, String, String)}
+     *          instead!
      */
-    public static Optional<String> getListIdByName(final GraphServiceClient<Request> client, final String siteId,
-            final String listName) throws IOException {
-        try {
-            var resp = client.sites(siteId).lists().buildRequest().get();
-            final var lists = new ArrayList<>(resp.getCurrentPage());
+    public static Optional<String> getListIdByInternalName(final GraphServiceClient<Request> client, //
+            final String siteId, final String listName) throws IOException {
+        final var name = getInternalListName(listName);
+        final var filter = name == null ? listName : name;
+        // no last resort needed as the internal name may not contain parentheses
+        return getListIdByFilter(client, siteId, l -> l.name.equals(filter), null);
+    }
 
-            var nextRequest = resp.getNextPage();
+    /**
+     * Get a list by name by checking which list internal name matches the given
+     * name if it's in "display name (internal name)" form, otherwise the whole
+     * string will be assumed to be a display name.
+     *
+     * @param client
+     *            the {@link GraphServiceClient}
+     * @param siteId
+     *            the ID of the SharePoint site
+     * @param listName
+     *            the name of the list, if it does not match the "display name
+     *            (internal name)" form, the whole string will be assumed to be a
+     *            display name.
+     *
+     * @return an {@link Optional} of {@link String} with the list id
+     * @throws IOException
+     *             if an error happened during the request
+     */
+    public static Optional<String> getListIdByInternalOrDisplayName(final GraphServiceClient<Request> client, //
+            final String siteId, final String listName) throws IOException {
+        final var name = getInternalListName(listName);
+        if (name != null) {
+            // if the list display name ended with parentheses and thus accidentally matched
+            // the pattern, use the full name as a last resort
+            return getListIdByFilter(client, siteId, l -> l.name.equals(name), l -> l.displayName.equals(listName));
+        } else {
+            return getListIdByFilter(client, siteId, l -> l.displayName.equals(listName), null);
+        }
+    }
+
+    /**
+     * Get a list by name by checking that the given property matches the given
+     * value.
+     *
+     *
+     * @param client
+     *            the {@link GraphServiceClient}
+     * @param siteId
+     *            the ID of the SharePoint site
+     * @param filter
+     *            predicate used to select list whose id to return
+     * @param lastResortFilter
+     *            predicate used to select list whose id to return if no list
+     *            matched the normal filter. May be {@code null}.
+     * @param lastResortValue
+     *            if the given property value does not match any of the lists, try
+     *            to match this value instead. May be null.
+     * @return an {@link Optional} of {@link String} with the list id
+     * @throws IOException
+     *             if an error happened during the request
+     */
+    private static Optional<String> getListIdByFilter(final GraphServiceClient<Request> client, final String siteId,
+            final Predicate<List> filter, final Predicate<List> lastResortFilter)
+            throws IOException {
+        var result = Optional.<String>empty();
+        final var lists = new LinkedList<List>();
+        try {
+            var nextRequest = client.sites(siteId).lists();
+
             while (nextRequest != null) {
-                resp = nextRequest.buildRequest().get();
-                final var listsTmp = resp.getCurrentPage();
-                lists.addAll(listsTmp);
+                final var resp = nextRequest.buildRequest().get();
+                result = resp.getCurrentPage().stream().filter(filter).findFirst().map(l -> l.id);
+                if (result.isPresent()) {
+                    return result;
+                }
+                lists.addAll(resp.getCurrentPage());
                 nextRequest = resp.getNextPage();
             }
 
-            final var name = getInternalListName(listName);
-
-            return lists.stream().filter(l -> l.name.equals(name)).findAny().map(l -> l.id);
+            if (lastResortFilter == null) {
+                return result;
+            } else {
+                return result.or(() -> lists.stream().filter(lastResortFilter).findFirst().map(l -> l.id));
+            }
         } catch (GraphServiceException ex) {
-            throw new IOException("Error during list name retrival: " + ex.getServiceError().message, ex);
+            throw new IOException("Error during list ID retrival: " + ex.getServiceError().message, ex);
         }
     }
 

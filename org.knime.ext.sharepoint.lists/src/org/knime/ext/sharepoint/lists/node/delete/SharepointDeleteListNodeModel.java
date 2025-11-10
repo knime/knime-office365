@@ -150,7 +150,7 @@ final class SharepointDeleteListNodeModel extends NodeModel {
             final var listName = m_config.getSharepointListSettings().getListSettings().getListNameModel()
                     .getStringValue();
 
-            listId = SharePointListUtils.getListIdByName(client, siteId, listName) //
+            listId = SharePointListUtils.getListIdByInternalName(client, siteId, listName) //
                     .orElseThrow(() -> new InvalidSettingsException("Could not find a list with name: " + listName));
         }
 

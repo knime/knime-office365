@@ -104,6 +104,10 @@ final class SharepointListWriterNodeModel extends NodeModel {
             }
 
             final String colName = colSpec.getName();
+            // _In theory_, display names can be longer than that as long as the
+            // internal name is shorter (we make sure it is)
+            // However, the online UI for editing columns does not seem to be
+            // able to handle it so we restrict it here
             if (colName.length() > 255) {
                 throw new InvalidSettingsException("One or more column names do have a length over 255 characters, "
                         + "which is not allowed. Please reduce the length.");
