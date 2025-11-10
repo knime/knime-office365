@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.StreamSupport;
 
@@ -315,6 +316,10 @@ final class ListBatchRequest implements AutoCloseable {
             m_currentWait = Math.max(m_currentWait, UNKNOWN_ERROR_WAIT);
             retryableErrors.add(formatError(response));
             break;
+        case INVALID_REQUEST:
+            // may happen if the types are wrong;
+            // we won't retry that one (for now)
+            // fallthrough
         case NON_RETRYABLE_ERROR:
             nonRetryableErrors.add(formatError(response));
             // fallthrough
@@ -373,7 +378,14 @@ final class ListBatchRequest implements AutoCloseable {
         final var status = obj.get("status").getAsInt();
         final var id = Integer.parseInt(obj.get("id").getAsString());
         final var error = obj.getAsJsonObject("body").getAsJsonObject("error");
-        return String.format("%s (status: %d, code: %s, context: %s)", error.get("message").getAsString(), status,
+        var message = error.get("message").getAsString();
+        // try to provide a more helpful error message for this case, as a user may run
+        // into this by accident
+        if (status == 400
+                && message.toLowerCase(Locale.ROOT).contains("one of the provided arguments is not acceptable")) {
+            message += " (Sharepoint is likely expecting a different type for a column. Please re-check used types.)";
+        }
+        return String.format("%s (status: %d, code: %s, context: %s)", message, status,
                 error.get("code").getAsString(), m_contexts.get(id)); // NOSONAR: max MAX_REQUESTS (20)
     }
 

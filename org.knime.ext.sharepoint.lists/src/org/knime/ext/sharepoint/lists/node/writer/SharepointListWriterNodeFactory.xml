@@ -23,6 +23,14 @@
                         can be also very slow in case a lot of rows need to be deleted.
                     </li>
                     <li>
+                        When appending data to an existing list, the name of the input table columns are matched to the display names of the
+                        respective columns in the Sharepoint list. In this process read-only columns are ignored. If multiple list columns
+                        have the same display name, the first will be chosen. The node will fail if there is no list column matching a specific
+                        table column or if a required list column is not present in the input table. Any list columns which are not present in the
+                        table will be populated with their default value by SharePoint.<br/>
+                        <u>This node will not perform any type checking when appending values.</u>
+                    </li>
+                    <li>
                         The default "Title" column of the list (which may have a different display name) is used by this node to store the RowID.
                         Use a <a href="https://hub.knime.com/n/1Uo48m8MIHW-seLx">RowID</a> node to specify a custom one. If a column with the same
                         name is already present in the input table, it will be mapped to a (new) column with the same display name.
@@ -123,6 +131,10 @@
                 <ul>
                     <li>
                         <i>Overwrite</i> if the list already exists it will get overwritten or a new list will be created.
+                    </li>
+                    <li>
+                        <i>Append</i> if the list already exists, the data will be appended at the bottom of the list. There are limitations
+                        to appending. Please check the note in the node introduction for more information.
                     </li>
                     <li>
                         <i>Fail</i> if the list already exists.

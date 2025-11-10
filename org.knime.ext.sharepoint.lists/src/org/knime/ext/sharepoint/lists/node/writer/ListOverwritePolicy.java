@@ -61,6 +61,11 @@ public enum ListOverwritePolicy implements ButtonGroupEnumInterface {
     OVERWRITE("overwrite"),
 
     /**
+     * Append to an existing list if it already exists and the column specs match.
+     */
+    APPEND("append"),
+
+    /**
      * Fail during execution if list with id or name already exists. Neither
      * overwrite nor append.
      */
