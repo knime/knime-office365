@@ -55,6 +55,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -66,6 +67,7 @@ import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.util.Pair;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
@@ -138,6 +140,8 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private ColumnDefinitionCollectionPage m_createdColumns;
 
+    private Optional<String> m_titleColumnDisplayName = Optional.empty();
+
     private long m_columnsCleared;
 
     private long m_itemsCleared;
@@ -171,13 +175,17 @@ class SharepointListWriterClient implements AutoCloseable {
     void writeList() throws IOException, CanceledExecutionException {
         m_exec.setMessage("Writing rows");
         final String[] colNames = m_tableSpec.getColumnNames();
+        final var overwritePolicy = m_config.getSharepointListSettings().getOverwritePolicy();
         try (final var batch = new ListBatchRequest(m_client, m_exec)) {
-            if (m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.OVERWRITE
-                    && !m_listCreated) {
+            if (overwritePolicy == ListOverwritePolicy.OVERWRITE && !m_listCreated) {
                 prepareOverwrite(batch);
             }
 
             final var colMap = mapColNames();
+
+            if (overwritePolicy == ListOverwritePolicy.APPEND && !m_listCreated) {
+                checkColumnsForAppend(colMap);
+            }
 
             long rowNumber = 0;
             final long noRows = m_table.size();
@@ -194,7 +202,42 @@ class SharepointListWriterClient implements AutoCloseable {
                 }
             }
         }
+    }
 
+    /**
+     * Ensures that all columns in the input table are present in the Sharepoint
+     * list and that any required columns in the list are covered by input columns.
+     *
+     * @param colMap
+     *            a mapping between the display name and the internal name +
+     *            required status of a Sharepoint list column.
+     * @throws IOException
+     *             if the check fails.
+     */
+    private void checkColumnsForAppend(final Map<String, Pair<String, Boolean>> colMap) throws IOException {
+        // Nudge the user in right direction
+        if (m_titleColumnDisplayName.isPresent()) {
+            final var name = m_titleColumnDisplayName.get();
+            if (m_tableSpec.containsName(name) && !colMap.containsKey(name)) {
+                throw new IOException(("Cannot set \"%s\" (%s) list column with a input column as it used "
+                        + "for the RowID. Please edit the content with a RowID node.").formatted(name, COL_TITLE));
+            }
+        }
+        for (final var tableCol : m_tableSpec.getColumnNames()) {
+            if (!colMap.containsKey(tableCol)) {
+                throw new IOException(("Input table specifies column “%s” which is not present in the Sharepoint "
+                        + "list or is read-only.").formatted(tableCol));
+            }
+        }
+
+        for (final var mapping : colMap.entrySet()) {
+            if (mapping.getValue().getSecond().booleanValue() && !mapping.getValue().getFirst().equals(COL_TITLE)
+                    && m_tableSpec.getColumnSpec(mapping.getKey()) == null) {
+                throw new IOException(
+                        "Sharepoint list specifies mandatory column “%s” which is not present in the input table."
+                                .formatted(mapping.getKey()));
+            }
+        }
     }
 
     private GraphServiceClient<Request> createGraphServiceClient(final CredentialPortObjectSpec credSpecl)
@@ -312,7 +355,7 @@ class SharepointListWriterClient implements AutoCloseable {
      *         status)
      * @throws IOException
      */
-    private Map<String, String> mapColNames() throws IOException {
+    private Map<String, Pair<String, Boolean>> mapColNames() throws IOException {
         try {
             var columns = m_createdColumns != null //
                     ? m_createdColumns //
@@ -327,11 +370,13 @@ class SharepointListWriterClient implements AutoCloseable {
                 nextRequest = columns.getNextPage();
             }
 
+            m_titleColumnDisplayName = colDefs.stream() //
+                    .filter(c -> COL_TITLE.equals(c.name)).findAny().map(c -> c.displayName);
             return colDefs.stream() //
                     .filter(c -> !c.readOnly) // we cannot write these anyways
                     .filter(c -> !SPECIAL_COLS.contains(c.name)) // used for row id or only pseudo editable
                     .sorted(Comparator.comparing(c -> c.name)) //
-                    .collect(Collectors.toMap(c -> c.displayName, c -> c.name, //
+                    .collect(Collectors.toMap(c -> c.displayName, c -> Pair.create(c.name, c.required), //
                             (c1, c2) -> c1)); // select first
         } catch (GraphServiceException ex) {
             throw new IOException("Error while mapping of column names: " + ex.getServiceError().message, ex);
@@ -355,7 +400,8 @@ class SharepointListWriterClient implements AutoCloseable {
      *             point due to batching.
      * @throws CanceledExecutionException
      */
-    private void createListItem(final DataRow row, final String[] colNames, final Map<String, String> colMap,
+    private void createListItem(final DataRow row, final String[] colNames,
+            final Map<String, Pair<String, Boolean>> colMap,
             final ListBatchRequest batch) throws IOException, CanceledExecutionException {
         var i = 0;
         final var li = new ListItem();
@@ -364,7 +410,7 @@ class SharepointListWriterClient implements AutoCloseable {
         fvs.additionalDataManager().put(COL_TITLE, new JsonPrimitive(row.getKey().getString()));
 
         for (final var cell : row) {
-            final String colName = colMap.get(colNames[i]);
+            final String colName = colMap.get(colNames[i]).getFirst();
 
             if (!cell.isMissing() && colName != null) {
                 fvs.additionalDataManager().put(colName,
