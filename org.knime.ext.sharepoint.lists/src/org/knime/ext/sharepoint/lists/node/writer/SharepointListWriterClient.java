@@ -247,7 +247,12 @@ class SharepointListWriterClient implements AutoCloseable {
             m_listCreated = true;
             return response.id;
         } catch (GraphServiceException ex) {
-            throw new IOException("Error during list creation: " + ex.getServiceError().message, ex);
+            if (ex.getServiceError().code.equals("nameAlreadyExists")) {
+                throw new IOException("Cannot create list because there already exists a (system) list " //
+                        + "of the same name. Please change the name.");
+            } else {
+                throw new IOException("Error during list creation: " + ex.getServiceError().message, ex);
+            }
         }
     }
 
@@ -365,7 +370,7 @@ class SharepointListWriterClient implements AutoCloseable {
             createColumns(batch);
             batch.tryCompleteAllCurrentRequests();
         }
-        // The following may not so it has to be separated
+        // The following is node independent so it has to be separated
         deleteListItems(batch);
         if (m_processItemsSequential) {
             // Switch to sequential: has to separated

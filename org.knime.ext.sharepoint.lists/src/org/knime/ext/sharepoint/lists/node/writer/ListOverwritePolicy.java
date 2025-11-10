@@ -66,9 +66,10 @@ public enum ListOverwritePolicy implements ButtonGroupEnumInterface {
      */
     FAIL("fail");
 
+
     private final String m_description;
 
-    private ListOverwritePolicy(final String description) {
+    ListOverwritePolicy(final String description) {
         m_description = description;
     }
 
