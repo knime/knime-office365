@@ -596,8 +596,7 @@ public class MicrosoftAuthenticatorSettings implements NodeParameters {
         }
     }
 
-    @Override
-    public void validate() throws InvalidSettingsException {
+    private void validateOnConfigureOrExecute() throws InvalidSettingsException {
         switch (m_authenticationType) {
             case INTERACTIVE, USERNAME_PASSWORD:
                 validateScopesSettings();
@@ -623,7 +622,7 @@ public class MicrosoftAuthenticatorSettings implements NodeParameters {
      * @throws InvalidSettingsException
      */
     public void validateOnConfigure() throws InvalidSettingsException {
-        validate();
+        validateOnConfigureOrExecute();
     }
 
     /**
@@ -633,7 +632,7 @@ public class MicrosoftAuthenticatorSettings implements NodeParameters {
      * @throws InvalidSettingsException
      */
     public void validateOnExecute() throws InvalidSettingsException {
-        validate();
+        validateOnConfigureOrExecute();
 
         switch (m_authenticationType) {
             case USERNAME_PASSWORD:
