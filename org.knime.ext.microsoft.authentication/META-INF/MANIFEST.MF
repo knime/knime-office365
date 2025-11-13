@@ -11,9 +11,6 @@ Require-Bundle: org.knime.workbench.repository;bundle-version="[5.9.0,6.0.0)",
  com.google.gson;bundle-version="[2.13.2,3.0.0)",
  com.squareup.okhttp3.okhttp;bundle-version="[4.10.0,5.0.0)",
  org.eclipse.ui.workbench;bundle-version="[3.128.0,4.0.0)",
- javax.ws.rs.jsr311-api;bundle-version="[1.0.0,2.0.0)",
- com.sun.jersey.core;bundle-version="[1.19.0,2.0.0)",
- com.sun.jersey.client;bundle-version="[1.19.0,2.0.0)",
  com.fasterxml.jackson.core.jackson-databind;bundle-version="2.11.0",
  org.knime.filehandling.core;bundle-version="[5.9.0,6.0.0)",
  org.apache.commons.lang3;bundle-version="[3.9.0,4.0.0)",
@@ -23,7 +20,6 @@ Require-Bundle: org.knime.workbench.repository;bundle-version="[5.9.0,6.0.0)",
  com.fasterxml.jackson.core.jackson-annotations;bundle-version="[2.13.2,3.0.0)"
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
-Bundle-Activator: org.knime.ext.microsoft.authentication.MicrosoftAuthenticationPlugin
 Export-Package: org.knime.ext.microsoft.authentication.credential,
  org.knime.ext.microsoft.authentication.scopes,
  org.knime.ext.microsoft.authentication.util.testing
