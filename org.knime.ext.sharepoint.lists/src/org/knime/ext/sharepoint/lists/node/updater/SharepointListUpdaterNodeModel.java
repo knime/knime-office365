@@ -46,11 +46,10 @@
  * History
  *   14 Feb 2022 (Lars Schweikardt, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.node.updater;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Objects;
 
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.data.StringValue;
@@ -66,7 +65,6 @@ import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.core.node.workflow.VariableType;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
@@ -74,36 +72,51 @@ import org.knime.ext.sharepoint.lists.node.KNIMEToSharepointTypeConverter;
 import org.knime.ext.sharepoint.lists.node.SharepointListChangingClient;
 
 /**
- * “SharePoint List Writer” implementation of a {@link NodeModel}.
+ * SharePoint Online List Updater node implementation of a {@link NodeModel}.
  *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListWriterNodeModel extends NodeModel {
+final class SharepointListUpdaterNodeModel extends NodeModel {
 
-    private static final String LIST_ID_VAR_NAME = "sharepoint_list_id";
+    private final SharepointListUpdaterConfig m_config;
 
-    private final SharepointListWriterConfig m_config;
-
-    private boolean m_raiseVariableOverwriteWarning;
-
-    protected SharepointListWriterNodeModel() {
+    protected SharepointListUpdaterNodeModel() {
         super(new PortType[] { CredentialPortObject.TYPE, BufferedDataTable.TYPE }, new PortType[] {});
-        m_config = new SharepointListWriterConfig();
+        m_config = new SharepointListUpdaterConfig();
     }
 
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+        final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
+        if (credSpec != null) {
+            GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
+        }
+
         final var inputTableSpec = (DataTableSpec) inSpecs[1];
 
-        CheckUtils.checkSetting(listSettingsNonEmpty(),
-                "No list selected or entered. Please select a list or enter a list name.");
+        CheckUtils.checkSetting(listSettingsNonEmpty(), "No list selected. Please select a list.");
+
+        final var colId = m_config.getIdColNameModel();
+
+        if (!colId.useRowID()) {
+            CheckUtils.checkSetting(inputTableSpec.containsName(colId.getColumnName()),
+                    "Please select a column containing the item ID");
+            CheckUtils.checkSetting(
+                    inputTableSpec.getColumnSpec(colId.getColumnName()).getType().isCompatible(StringValue.class),
+                    "Column containing the item ID is not string compatible");
+        }
+
+        final var idColIdx = inputTableSpec.findColumnIndex(colId.getColumnName());
 
         for (var i = 0; i < inputTableSpec.getNumColumns(); i++) {
+            if (i == idColIdx) {
+                continue;
+            }
+
             final var colSpec = inputTableSpec.getColumnSpec(i);
             final var colType = colSpec.getType();
 
-            if (!KNIMEToSharepointTypeConverter.supportsType(colType)
-                    && !colType.isCompatible(StringValue.class)) {
+            if (!KNIMEToSharepointTypeConverter.supportsType(colType) && !colType.isCompatible(StringValue.class)) {
                 throw new InvalidSettingsException(
                         String.format("%s type in column '%s' is not supported", colSpec.getType(), colSpec.getName()));
             }
@@ -119,19 +132,6 @@ final class SharepointListWriterNodeModel extends NodeModel {
             }
         }
 
-        final var listID = m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue();
-        if (getAvailableFlowVariables(VariableType.StringType.INSTANCE).containsKey(LIST_ID_VAR_NAME)) {
-            m_raiseVariableOverwriteWarning = !Objects.equals(peekFlowVariableString(LIST_ID_VAR_NAME), listID);
-        } else {
-            m_raiseVariableOverwriteWarning = false;
-        }
-        pushListId(listID);
-
-        final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
-        if (credSpec != null) {
-            GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
-        }
-
         return new PortObjectSpec[] {};
     }
 
@@ -141,9 +141,9 @@ final class SharepointListWriterNodeModel extends NodeModel {
         final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
         final var table = (BufferedDataTable) inObjects[1];
 
-        try (final var client = new SharepointListChangingClient(m_config.getSharepointListSettings(), true,
-                this::pushListId, table, credSpec, exec)) {
-            client.writeList();
+        try (final var client = new SharepointListChangingClient(m_config.getSharepointListSettings(), false, null,
+                table, credSpec, exec)) {
+            client.updateList(m_config.getIdColName());
         }
 
         return new PortObject[] {};
@@ -152,15 +152,6 @@ final class SharepointListWriterNodeModel extends NodeModel {
     private boolean listSettingsNonEmpty() {
         return !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty()
                 || !m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue().isEmpty();
-    }
-
-    private void pushListId(final String listID) {
-
-        if (m_raiseVariableOverwriteWarning) {
-            setWarningMessage(String.format("Value of existing flow variable '%s' was overwritten!", LIST_ID_VAR_NAME));
-        }
-
-        pushFlowVariableString(LIST_ID_VAR_NAME, listID);
     }
 
     @Override

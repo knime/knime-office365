@@ -44,64 +44,51 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2022-03-04 (lars.schweikardt): created
+ *   14 Feb 2022 (Lars Schweikardt, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.node.updater;
 
-import org.knime.core.node.util.ButtonGroupEnumInterface;
+import org.knime.core.node.NodeDialogPane;
+import org.knime.core.node.NodeFactory;
+import org.knime.core.node.NodeView;
+import org.knime.core.node.context.NodeCreationConfiguration;
 
 /**
- * Policy how to proceed when Sharepoint List exists (overwrite, fail).
+ * SharePoint Online List Updater implementation of a {@link NodeFactory}.
  *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-public enum ListOverwritePolicy implements ButtonGroupEnumInterface {
+public class SharepointListUpdaterNodeFactory extends NodeFactory<SharepointListUpdaterNodeModel> {
 
-    /** Overwrite existing list. */
-    OVERWRITE("overwrite"),
-
-    /**
-     * Append to an existing list if it already exists and the column specs match.
-     */
-    APPEND("append"),
-
-    /**
-     * Fail during execution if list with id or name already exists. Neither
-     * overwrite nor append.
-     */
-    FAIL("fail");
-
-
-    private final String m_description;
-
-    ListOverwritePolicy(final String description) {
-        m_description = description;
+    @Override
+    public SharepointListUpdaterNodeModel createNodeModel() {
+        return new SharepointListUpdaterNodeModel();
     }
 
     @Override
-    public String getText() {
-        return m_description;
+    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration creationConfig) {
+        return new SharepointListUpdaterNodeDialog();
     }
 
     @Override
-    public String getActionCommand() {
-        return name();
+    protected NodeDialogPane createNodeDialogPane() {
+        return new SharepointListUpdaterNodeDialog();
     }
 
     @Override
-    public String getToolTip() {
-        return m_description;
+    protected boolean hasDialog() {
+        return true;
     }
 
     @Override
-    public boolean isDefault() {
-        return this == FAIL;
+    protected int getNrNodeViews() {
+        return 0;
     }
 
-    /**
-     * @return {@link ListOverwritePolicy#FAIL} as default
-     */
-    public static ListOverwritePolicy getDefault() {
-        return FAIL;
+    @Override
+    public NodeView<SharepointListUpdaterNodeModel> createNodeView(final int viewIndex,
+            final SharepointListUpdaterNodeModel nodeModel) {
+        return null;
     }
+
 }

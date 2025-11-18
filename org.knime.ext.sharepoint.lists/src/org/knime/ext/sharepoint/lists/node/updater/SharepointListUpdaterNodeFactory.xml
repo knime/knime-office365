@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<knimeNode icon="./sharepoint-list-updater.png" type="Sink"
+	xmlns="http://knime.org/node/v4.1"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://knime.org/node/v4.1 http://knime.org/node/v4.1.xsd">
+	<name>SharePoint Online List Updater</name>
+
+	<shortDescription>
+		Updates a SharePoint Online list.
+	</shortDescription>
+
+	<fullDescription>
+		<intro>
+			<p>
+			    Updates rows in a SharePoint Online list based on their ID.
+			</p>
+
+            <p>
+                <i>Notes:</i>
+                <ul>
+                    <li>
+                        Updating more than a few hundred items can take long time.
+                    </li>
+                    <li>
+                        When updating a list, the name of the input table columns are matched to the display names of the
+                        respective columns in the SharePoint list. In this process read-only columns are ignored. If multiple list columns
+                        have the same display name, the first will be chosen. The node will fail if there is no list column matching a specific
+                        table column or if a required list column is not present in the input table.<br/>
+                        <u>This node will not perform any type checking when appending values.</u>
+                        Unlike the specific error messages when writing a new row, the SharePoint API only returns a generic <i>400 Invalid Request</i>
+                        code if the types in the existing list do not match the types this node tries to write. Please check the input types if
+                        you receive such an error.
+                    </li>
+                    <li>
+                        Any list columns which are not present in the table will be left as they are. A missing value will clear the respective cell.
+                    </li>
+                </ul>
+			</p>
+			
+			<p>
+            <b>KNIME column type support</b><br/>
+            </p>
+
+            <p>
+			<u>Fully supported KNIME column types:</u>
+            <ul>
+                <li>
+                    <i>String and string-compatible columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Multiple lines of text</i></a>
+                </li>
+                <li>
+                    <i>Integer columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>
+                </li>
+                <li>
+                    <i>Boolean columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Yes/no</i></a>
+                </li>
+            </ul>
+            </p>
+
+            <p>
+            <u>Partially supported KNIME columns types:</u>
+            <ul>
+                <li>
+                    <i>Long columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>.
+                    The node will fail for more than 15 significant digits
+                    (digits which remain after leading and trailing zeros are
+                    removed, i.e. in "401220500000" the digits "4012205" are
+                    significant and in "0.0004050114" the digits "4050114" are
+                    significant).
+                </li>
+                <li>
+                    <i>Double columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>Number</i></a>.
+                    The node will fail for infinity, NaN and values outside of
+                    [1.79E308,-1.79E308], as well as for numbers with more than
+                    15 significant digits.
+                </li>
+                <li>
+                    <i>Local Date and Local Date Time columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7"><i>
+                    Date and Time</i></a>, which stores a UTC timestamp with second-precision. Hence, values from KNIME are mapped to an instant in UTC
+                    and truncated to second-precision. For example, 2022-02-02 08:00:00 is stored as 2022-02-02 08:00:00 UTC. The node will fail for values before 1900-01-01 00:00:00 UTC and
+                    after 8900-12-31 23:59:59 UTC.
+                </li>
+                <li>
+                    <i>Zoned Date Time columns</i> map to <a href="https://support.microsoft.com/en-us/office/list-and-library-column-types-and-options-0d8ddb7b-7dc7-414d-a283-ee9dca891df7">
+                    <i>Date and Time</i></a>, which stores a UTC timestamp with second-precision. Hence, Zoned Date Time values are converted to the UTC timezone and truncated to second-precision.
+                    For example, 2022-02-02 08:00:00 CET is stored as
+                    2022-02-02 07:00:00 UTC. The node will fail for values before 1900-01-01 00:00:00 UTC and after 8900-12-31 23:59:59 UTC.
+                </li>
+
+            </ul>
+            </p>
+
+            <p>
+            <u>Unsupported KNIME column types:</u><br/>
+            All column types that do not belong to the above categories are unsupported and the node cannot be executed, since there is no corresponding type in SharePoint Online.
+            </p>
+		</intro>
+		<tab name="Settings">
+            <option name="SharePoint site">
+                There are three ways to specify SharePoint site:
+                <ul>
+                    <li>
+                        <i>Root site:</i> Connect to the root site of the domain of the current user (see "Microsoft Connection" input port).
+                    </li>
+                    <li>
+                        <i>Web URL:</i> Specify the web URL of a SharePoint site, for example <i>https://mycompany.sharepoint.com</i>.
+                    </li>
+                    <li>
+                        <i>Group site:</i> Connect to the team site of a particular Office 365 group.
+                    </li>
+                </ul>
+            </option>
+            <option name="Subsite">
+                If checked, then connect to a (nested) subsite of the SharePoint site specified above. Use the "Refresh" button to list all available subsites
+                of the chosen SharePoint site. Note that this allows you only to access the document libraries of the subsite, not those of the parent site(s).
+            </option>
+            <option name="SharePoint list">
+                Here you can select the list you want to update. The drop down menu shows the display name of the list and the internal name it in parentheses.
+            </option>
+            <option name="ID column">
+                A string column from the input table that specifies the list item IDs to update. The list item IDs can be retrieved using the
+                <a href="https://hub.knime.com/n/vGN09MfWXdqsgbXo">SharePoint Online List Reader</a>, which outputs a string column called “ID”.
+            </option>
+        </tab>
+        <tab name="Advanced">
+            <option name="Connection timeout in seconds">
+                Timeout in seconds to establish a connection or 0 for an infinite timeout.
+            </option>
+            <option name="Read timeout in seconds">
+                Timeout in seconds to read data from an established connection or 0 for an infinite timeout.
+            </option>
+        </tab>
+
+	</fullDescription>
+	<ports>
+		<inPort index="0" name="Credential (JWT)">
+			A JWT credential as provided by the Microsoft Authenticator node.
+		</inPort>
+		<inPort index="1" name="Table">
+			The table to be written to SharePoint.
+		</inPort>
+	</ports>
+</knimeNode>
+

@@ -53,7 +53,6 @@ import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel.ListSettings;
-import org.knime.ext.sharepoint.lists.node.writer.ListOverwritePolicy;
 import org.knime.ext.sharepoint.settings.AbstractSharePointSettings;
 
 /**
