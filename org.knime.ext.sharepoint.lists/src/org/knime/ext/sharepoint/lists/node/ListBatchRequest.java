@@ -46,9 +46,10 @@
  * History
  *   2022-04-04 (jannik.loescher): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.node;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -64,11 +65,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.CustomRequest;
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.http.HttpMethod;
 import com.microsoft.graph.http.IHttpRequest;
 import com.microsoft.graph.models.Entity;
+import com.microsoft.graph.options.HeaderOption;
 import com.microsoft.graph.requests.GraphServiceClient;
 import com.microsoft.graph.serializer.ISerializer;
 
@@ -80,8 +83,11 @@ import okhttp3.Request;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 final class ListBatchRequest implements AutoCloseable {
-    // Attribute it to the node in the logs
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListWriterNodeModel.class); // NOSONAR
+
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(SharepointListChangingClient.class); // NOSONAR
+
+    /** Name of the JSON field containing the headers */
+    private static final String HEADERS_FIELD = "headers";
 
     private static final int MAX_REQUESTS = 20; // https://learn.microsoft.com/en-us/graph/json-batching,
                                                 // limit is 20 requests.
@@ -121,11 +127,11 @@ final class ListBatchRequest implements AutoCloseable {
 
     private final List<JsonArray> m_results;
 
-    private int m_requestsAccumulated = 0;
+    private int m_requestsAccumulated;
     private JsonObject m_body;
     private JsonArray m_requests;
     private List<String> m_contexts;
-    private boolean m_errored = false;
+    private boolean m_errored;
 
     private long m_currentWait;
 
@@ -149,11 +155,11 @@ final class ListBatchRequest implements AutoCloseable {
         // The current version of the API requires request URLs to be relative to the
         // API root. We get the length of this root by the finding the first part of the
         // custom request.
-        m_absolutePrefixLength = createRequest().getRequestUrl().toString().indexOf("/$batch");
+        m_absolutePrefixLength = m_client.getServiceRoot().length();
     }
 
     private CustomRequest<JsonElement> createRequest() {
-        return m_client.customRequest("/$batch").buildRequest();
+        return new CustomBatchRequest();
     }
 
     private JsonObject prepareRequest(final IHttpRequest collectionRequest, final HttpMethod method) {
@@ -207,7 +213,30 @@ final class ListBatchRequest implements AutoCloseable {
             throws IOException, CanceledExecutionException {
         final var request = prepareRequest(httpRequest, HttpMethod.POST);
         request.add("body", JsonParser.parseString(m_serializer.serializeObject(entity)));
-        request.add("headers", CONTENT_TYPE_CACHE);
+        request.add(HEADERS_FIELD, CONTENT_TYPE_CACHE);
+        postpareRequest(sequential, request);
+    }
+
+    /**
+     * Enqueue a PATCH request.
+     *
+     * @param httpRequest
+     *            the request to enqueue
+     * @param entity
+     *            the entity to patch
+     * @param sequential
+     *            whether this request should be sequential
+     * @throws IOException
+     *             if the batch requests or one of its sub-requests encountered an
+     *             error that could not be retried while sending.
+     * @throws CanceledExecutionException
+     *             if the execution was canceled while sending.
+     */
+    public void patch(final IHttpRequest httpRequest, final Entity entity, final boolean sequential)
+            throws IOException, CanceledExecutionException {
+        final var request = prepareRequest(httpRequest, HttpMethod.PATCH);
+        request.add("body", JsonParser.parseString(m_serializer.serializeObject(entity)));
+        request.add(HEADERS_FIELD, CONTENT_TYPE_CACHE);
         postpareRequest(sequential, request);
     }
 
@@ -297,7 +326,7 @@ final class ListBatchRequest implements AutoCloseable {
     }
 
     private void handleResponse(final JsonArray result, final List<String> nonRetryableErrors,
-            final List<String> retryableErrors, final int responseIndex, final JsonObject response) throws IOException {
+            final List<String> retryableErrors, final int responseIndex, final JsonObject response) {
         final var status = response.get("status").getAsInt();
         switch (ResponseStatus.getFromStatusCode(status)) {
         case SERVICE_UNAVAILABLE:
@@ -390,9 +419,9 @@ final class ListBatchRequest implements AutoCloseable {
     }
 
     private void processRetryAfter(final JsonObject obj) {
-        if (obj.has("headers") && obj.getAsJsonObject("headers").has("Retry-After")) {
+        if (obj.has(HEADERS_FIELD) && obj.getAsJsonObject(HEADERS_FIELD).has("Retry-After")) {
             m_currentWait = Math.max(m_currentWait,
-                    Long.parseLong(obj.getAsJsonObject("headers").get("Retry-After").getAsString()));
+                    Long.parseLong(obj.getAsJsonObject(HEADERS_FIELD).get("Retry-After").getAsString()));
         }
     }
 
@@ -450,6 +479,31 @@ final class ListBatchRequest implements AutoCloseable {
         }
     }
 
+    // Workaround for the following bug/unexpected behaviour:
+    //
+    // Providing a JsonElement to a custom request directly causes that element
+    // to be stripped of any fields having a null value. As we need to set a
+    // field to null to be able to clear a cell when updating, this would cause
+    // the field to remain as-is. We use the client-serializer to serialize the
+    // input objects first before sending them, thus the Json-payload should
+    // always be the same as using the explicit API methods and objects.
+    //
+    // Passing a byte array causes any deserialisation to be skipped and the data
+    // being sent verbatim.
+    private class CustomBatchRequest extends CustomRequest<JsonElement> {
+        private static final List<HeaderOption> HEADERS = List.of(new HeaderOption("Content-Type", "application/json"));
+
+        public CustomBatchRequest() {
+            super(m_client.getServiceRoot() + "/$batch", m_client, HEADERS, JsonElement.class);
+        }
+
+        @Override
+        public JsonElement post(final JsonElement newObject) throws ClientException {
+            return send(HttpMethod.POST, newObject.toString().getBytes(StandardCharsets.UTF_8));
+        }
+
+    }
+
     private enum ResponseStatus {
         THROTTLED, TOKEN_ERROR, SERVICE_UNAVAILABLE, FAILED_DEPENDENCY, //
         INVALID_REQUEST, UNKNOWN_ERROR, NON_RETRYABLE_ERROR, SUCCESS;
@@ -466,6 +520,7 @@ final class ListBatchRequest implements AutoCloseable {
                 return TOKEN_ERROR;
             case 424:
                 return FAILED_DEPENDENCY;
+            case 200: // OK (fallthrough)
             case 201: // CREATED (fallthrough)
             case 204: // NO CONTENT (Deleted)
                 return SUCCESS;
