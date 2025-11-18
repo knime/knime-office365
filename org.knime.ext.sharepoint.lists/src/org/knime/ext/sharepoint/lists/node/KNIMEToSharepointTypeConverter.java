@@ -46,7 +46,7 @@
  * History
  *   2022-03-02 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.node;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -99,7 +99,7 @@ import com.microsoft.graph.models.TextColumn;
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-final class KNIMEToSharepointTypeConverter {
+public final class KNIMEToSharepointTypeConverter {
 
     // Upper threshold for double values
     private static final double DOUBLE_MAX_VALUE = 1.79E308;
@@ -135,6 +135,17 @@ final class KNIMEToSharepointTypeConverter {
             BiFunction<Set<String>, String, ColumnDefinition>> DEFAULT_CONVERTER = Pair.create( //
                     KNIMEToSharepointTypeConverter::defaultStringConverter, //
                     KNIMEToSharepointTypeConverter::createStringColDefiniton);
+
+    /**
+     * Returns whether a given type has a explicit converter
+     *
+     * @param type
+     *            the type to check
+     * @return the presence of an explicit converter
+     */
+    public static boolean supportsType(final DataType type) {
+        return TYPE_CONVERTER.containsKey(type);
+    }
 
     private static JsonPrimitive defaultStringConverter(final DataCell dataCell) {
         if (dataCell instanceof StringValue strCell) {

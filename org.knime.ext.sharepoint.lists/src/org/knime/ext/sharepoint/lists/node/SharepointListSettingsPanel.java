@@ -78,7 +78,6 @@ import org.knime.core.util.SwingWorkerWithContext;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
-import org.knime.ext.sharepoint.lists.node.writer.ListOverwritePolicy;
 import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.ext.sharepoint.settings.SiteSettings;
 import org.knime.filehandling.core.connections.base.ui.LoadedItemsSelector;

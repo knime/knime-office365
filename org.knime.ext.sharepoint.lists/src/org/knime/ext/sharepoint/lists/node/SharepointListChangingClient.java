@@ -46,7 +46,7 @@
  * History
  *   2022-03-02 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.writer;
+package org.knime.ext.sharepoint.lists.node;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -73,8 +73,6 @@ import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
-import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonPrimitive;
@@ -92,12 +90,12 @@ import com.microsoft.graph.requests.ListRequestBuilder;
 import okhttp3.Request;
 
 /**
- * Handles the actual writing process of the SharePoint List Writer node.
+ * Handles operations which change a Sharepoint List (create, write, update, delete).
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-class SharepointListWriterClient implements AutoCloseable {
+public final class SharepointListChangingClient implements AutoCloseable {
 
     /**
      * Internal name of "Title" system column which is used for the RowID
@@ -114,13 +112,21 @@ class SharepointListWriterClient implements AutoCloseable {
      */
     private static final String COL_ATTACHMENTS = "Attachments";
 
+    /**
+     * System columns flagged as writable which are nevertheless treated specially
+     * by Sharepoint
+     */
     private static final Set<String> SPECIAL_COLS = Set.of(COL_TITLE, COL_ATTACHMENTS, COL_CONTENT_TYPE);
+
+    /**
+     * Columns which are writable according to their flags but ignore data written
+     * to them.
+     */
+    private static final Set<String> EFFECTIVELY_RO_COLS = Set.of(COL_ATTACHMENTS, COL_CONTENT_TYPE);
 
     private final GraphServiceClient<Request> m_client;
 
     private static final Object LOCK = new Object();
-
-    private final SharepointListWriterConfig m_config;
 
     private final Consumer<String> m_pushListId;
 
@@ -148,40 +154,71 @@ class SharepointListWriterClient implements AutoCloseable {
 
     private boolean m_processItemsSequential = true; // change this with toggle later
 
-    SharepointListWriterClient(final SharepointListWriterConfig config, //
+    private final boolean m_createMissingList;
+
+    /**
+     * Create the client
+     *
+     * @param settings
+     *            the list settings to use
+     * @param createMissingList
+     *            whether to create a list during initialization if the list from
+     *            the settings wasn't found
+     * @param pushListId
+     *            called with the id of a newly created list or the existing list.
+     *            Can be used to export the id. May be {@code id}.
+     * @param table
+     *            the input table
+     * @param credSpec
+     *            the credential used to authenticate against the Graph API
+     * @param exec
+     *            the {@link ExecutionContext} of the executing node; used to set
+     *            progress information
+     * @throws IOException
+     *             if there was an error accessing the Graph API
+     * @throws InvalidSettingsException
+     *             if the list could not be created due to configuration
+     * @throws NoSuchCredentialException
+     *             the credential was invalid
+     */
+    public SharepointListChangingClient(final SharepointListSettings settings, //
+            final boolean createMissingList, //
             final Consumer<String> pushListId, //
             final BufferedDataTable table, //
             final CredentialPortObjectSpec credSpec, //
             final ExecutionContext exec)
             throws IOException, InvalidSettingsException, NoSuchCredentialException {
 
-        m_config = config;
-        m_sharePointListSettings = config.getSharepointListSettings();
+        m_sharePointListSettings = settings;
         m_table = table;
         m_tableSpec = m_table.getDataTableSpec();
         m_exec = exec;
         m_client = createGraphServiceClient(credSpec);
         m_pushListId = pushListId;
+        m_createMissingList = createMissingList;
         m_siteId = getSiteId();
         m_listId = getListId();
     }
 
     /**
-     * Creates / overwrites a SharePoint list from a KNIME Table.
+     * Creates / overwrites / appends a SharePoint list from a KNIME Table.
      *
      * @throws IOException
+     *             there was an error accessing the API or settings are determined
+     *             invalid by it
      * @throws CanceledExecutionException
+     *             execution was cancelled
      */
-    void writeList() throws IOException, CanceledExecutionException {
+    public void writeList() throws IOException, CanceledExecutionException {
         m_exec.setMessage("Writing rows");
         final String[] colNames = m_tableSpec.getColumnNames();
-        final var overwritePolicy = m_config.getSharepointListSettings().getOverwritePolicy();
+        final var overwritePolicy = m_sharePointListSettings.getOverwritePolicy();
         try (final var batch = new ListBatchRequest(m_client, m_exec)) {
             if (overwritePolicy == ListOverwritePolicy.OVERWRITE && !m_listCreated) {
                 prepareOverwrite(batch);
             }
 
-            final var colMap = mapColNames();
+            final var colMap = mapColNames(false);
 
             if (overwritePolicy == ListOverwritePolicy.APPEND && !m_listCreated) {
                 checkColumnsForAppend(colMap);
@@ -205,6 +242,73 @@ class SharepointListWriterClient implements AutoCloseable {
     }
 
     /**
+     * Updates a SharePoint list from a KNIME Table.
+     *
+     * @param selectionColumnName
+     *            the name of the column which holds the identifier used to select
+     *            list items to edit. If this value is {@code null} the row ID will
+     *            be used instead.
+     *
+     * @throws IOException
+     *             there was an error accessing the API or settings are determined
+     *             invalid by it
+     * @throws CanceledExecutionException
+     *             execution was cancelled
+     */
+    public void updateList(final String selectionColumnName) throws IOException, CanceledExecutionException {
+        m_exec.setMessage("Updating rows");
+        final String[] colNames = m_tableSpec.getColumnNames();
+        final var idColIdx = m_tableSpec.findColumnIndex(selectionColumnName);
+        try (final var batch = new ListBatchRequest(m_client, m_exec)) {
+
+            final var colMap = mapColNames(true);
+
+            checkColumnsForUpdate(colMap, selectionColumnName);
+
+            long rowNumber = 0;
+            final long noRows = m_table.size();
+            try (final var iterator = m_table.iterator()) {
+                while (iterator.hasNext()) {
+                    final var row = iterator.next();
+                    final var id = getId(row, idColIdx, rowNumber);
+                    // update progress
+                    final long rowNumberFinal = rowNumber;
+                    m_exec.setProgress(rowNumber / (double) noRows,
+                            () -> ("Updating item \"" + id + "\" with row " + rowNumberFinal));
+                    m_exec.checkCanceled();
+
+                    updateListItem(row, colNames, id, idColIdx, colMap, batch);
+                    rowNumber++;
+                }
+            }
+        }
+    }
+
+    /**
+     * Extracts an ID cell from a row and checks its content
+     *
+     * @param row
+     *            the row which contains the ID
+     * @param index
+     *            the cell index within the row, may be {@code -1} to use the row ID
+     * @param rowNumber
+     *            the current row number as context
+     * @throws IOException
+     *             if it is not
+     */
+    private static String getId(final DataRow row, final int index, final long rowNumber) throws IOException {
+        if (index < 0) {
+            return row.getKey().toString();
+        } else {
+            final var idCell = row.getCell(index);
+            if (idCell.isMissing()) {
+                throw new IOException("ID value in row " + rowNumber + " is missing");
+            }
+            return idCell.toString();
+        }
+    }
+
+    /**
      * Ensures that all columns in the input table are present in the Sharepoint
      * list and that any required columns in the list are covered by input columns.
      *
@@ -223,12 +327,8 @@ class SharepointListWriterClient implements AutoCloseable {
                         + "for the RowID. Please edit the content with a RowID node.").formatted(name, COL_TITLE));
             }
         }
-        for (final var tableCol : m_tableSpec.getColumnNames()) {
-            if (!colMap.containsKey(tableCol)) {
-                throw new IOException(("Input table specifies column “%s” which is not present in the Sharepoint "
-                        + "list or is read-only.").formatted(tableCol));
-            }
-        }
+
+        checkColumnsForUpdate(colMap, null);
 
         for (final var mapping : colMap.entrySet()) {
             if (mapping.getValue().getSecond().booleanValue() && !mapping.getValue().getFirst().equals(COL_TITLE)
@@ -238,6 +338,31 @@ class SharepointListWriterClient implements AutoCloseable {
                                 .formatted(mapping.getKey()));
             }
         }
+    }
+
+    /**
+     * Ensures that all columns in the input table are present in the Sharepoint
+     * list.
+     *
+     * @param colMap
+     *            a mapping between the display name and the internal name +
+     *            required status of a Sharepoint list column.
+     * @param idCol
+     *            the name of the column holding the ID, will be skipped when
+     *            checking; may be {@code null}.
+     * @throws IOException
+     *             if the check fails.
+     */
+    private void checkColumnsForUpdate(final Map<String, Pair<String, Boolean>> colMap, final String idCol)
+            throws IOException {
+
+        for (final var tableCol : m_tableSpec.getColumnNames()) {
+            if (!tableCol.equals(idCol) && !colMap.containsKey(tableCol)) {
+                throw new IOException(("Input table specifies column “%s” which is not present in the Sharepoint "
+                        + "list or is read-only.").formatted(tableCol));
+            }
+        }
+
     }
 
     private GraphServiceClient<Request> createGraphServiceClient(final CredentialPortObjectSpec credSpecl)
@@ -270,7 +395,9 @@ class SharepointListWriterClient implements AutoCloseable {
      *
      * @return returns the list id
      * @throws IOException
+     *             if there was an error accessing the Graph API
      * @throws InvalidSettingsException
+     *             if the list could not be created due to configuration
      */
     private String getListId() throws IOException, InvalidSettingsException {
         var listId = m_sharePointListSettings.getListSettings().getListModel().getStringValue();
@@ -280,12 +407,22 @@ class SharepointListWriterClient implements AutoCloseable {
             final var optionalListId = SharePointListUtils.getListIdByInternalOrDisplayName(m_client, m_siteId,
                     m_sharePointListSettings.getListSettings().getListNameModel().getStringValue());
             listExists = optionalListId.isPresent();
+            listId = optionalListId.orElse(null);
 
-            listId = listExists ? optionalListId.get() : tryCreateSharepointList();
         }
-        m_pushListId.accept(listId);
 
-        if (listExists && m_config.getSharepointListSettings().getOverwritePolicy() == ListOverwritePolicy.FAIL) {
+        if (m_createMissingList && !listExists) {
+            listId = tryCreateSharepointList();
+        } else if (!listExists) {
+            throw new InvalidSettingsException("Configured list does not exist");
+        }
+
+        if (m_pushListId != null) {
+            m_pushListId.accept(listId);
+        }
+
+        if (listExists && m_createMissingList // overwriting is only a concern if we are not only reading
+                && m_sharePointListSettings.getOverwritePolicy() == ListOverwritePolicy.FAIL) {
             throw new InvalidSettingsException(
                     "The specified list already exists and the node fails due to overwrite settings");
         }
@@ -351,11 +488,14 @@ class SharepointListWriterClient implements AutoCloseable {
     /**
      * Maps the display name to the actual internal name created by SharePoint.
      *
+     * @param allowTitleColumn
+     *            whether the special Title column will be filtered out
+     *
      * @return a {@link Map} which maps display name and (internal name, required
      *         status)
      * @throws IOException
      */
-    private Map<String, Pair<String, Boolean>> mapColNames() throws IOException {
+    private Map<String, Pair<String, Boolean>> mapColNames(final boolean allowTitleColumn) throws IOException {
         try {
             var columns = m_createdColumns != null //
                     ? m_createdColumns //
@@ -372,9 +512,10 @@ class SharepointListWriterClient implements AutoCloseable {
 
             m_titleColumnDisplayName = colDefs.stream() //
                     .filter(c -> COL_TITLE.equals(c.name)).findAny().map(c -> c.displayName);
+            final var ignoredInternalCols = allowTitleColumn ? EFFECTIVELY_RO_COLS : SPECIAL_COLS;
             return colDefs.stream() //
                     .filter(c -> !c.readOnly) // we cannot write these anyways
-                    .filter(c -> !SPECIAL_COLS.contains(c.name)) // used for row id or only pseudo editable
+                    .filter(c -> !ignoredInternalCols.contains(c.name)) // not writable or used by RowID
                     .sorted(Comparator.comparing(c -> c.name)) //
                     .collect(Collectors.toMap(c -> c.displayName, c -> Pair.create(c.name, c.required), //
                             (c1, c2) -> c1)); // select first
@@ -404,7 +545,6 @@ class SharepointListWriterClient implements AutoCloseable {
             final Map<String, Pair<String, Boolean>> colMap,
             final ListBatchRequest batch) throws IOException, CanceledExecutionException {
         var i = 0;
-        final var li = new ListItem();
         final var fvs = new FieldValueSet();
 
         fvs.additionalDataManager().put(COL_TITLE, new JsonPrimitive(row.getKey().getString()));
@@ -422,12 +562,67 @@ class SharepointListWriterClient implements AutoCloseable {
             i++;
         }
 
+        final var li = new ListItem();
         li.fields = fvs;
 
         try {
             batch.post(createListRequestBuilder().items().buildRequest(), li, m_processItemsSequential);
         } catch (GraphServiceException ex) {
             throw new IOException("Error during row creation: " + ex.getServiceError().message, ex);
+        }
+    }
+
+    /**
+     * Creates a {@link ListItem} and sends it to SharePoint.
+     *
+     * @param row
+     *            the current {@link DataRow}
+     * @param colNames
+     *            the column names of the table
+     * @param id
+     *            the ID of the item to update
+     * @param idColIndex
+     *            the index of the column containing the ID value
+     * @param colMap
+     *            the mapping of the column names
+     * @param batch
+     *            {@link ListBatchRequest} used to accumulate and execute batch
+     *            requests
+     * @throws IOException
+     *             if creating the items failed. This may get triggered at a later
+     *             point due to batching.
+     * @throws CanceledExecutionException
+     */
+    private void updateListItem(final DataRow row, final String[] colNames, final String id,
+            final int idColIndex, final Map<String, Pair<String, Boolean>> colMap, final ListBatchRequest batch)
+            throws IOException, CanceledExecutionException {
+        var i = 0;
+        final var fvs = new FieldValueSet();
+
+        for (final var cell : row) {
+            if (i == idColIndex) {
+                continue;
+            }
+            final String colName = colMap.get(colNames[i]).getFirst();
+
+            if (colName != null) {
+                if (!cell.isMissing()) {
+                    fvs.additionalDataManager().put(colName,
+                            KNIMEToSharepointTypeConverter.TYPE_CONVERTER
+                                    .getOrDefault(cell.getType(), KNIMEToSharepointTypeConverter.DEFAULT_CONVERTER)//
+                                    .getFirst()//
+                                    .apply(cell));
+                } else {
+                    fvs.additionalDataManager().put(colName, null);
+                }
+            }
+            i++;
+        }
+
+        try {
+            batch.patch(createListRequestBuilder().items(id).fields().buildRequest(), fvs, m_processItemsSequential);
+        } catch (GraphServiceException ex) {
+            throw new IOException("Error during row update: " + ex.getServiceError().message, ex);
         }
     }
 
@@ -480,8 +675,8 @@ class SharepointListWriterClient implements AutoCloseable {
     /**
      * Parses the responses from the column creation batch request made when
      * preparing a list overwrite. This is done done avoid having to do a second
-     * request in {@link #mapColNames()} and to ensure that the correct column names
-     * are mapped.
+     * request in {@link #mapColNames(boolean)} and to ensure that the correct
+     * column names are mapped.
      *
      * @param batchRequests
      *            the array containing the responses from each batch request; return
