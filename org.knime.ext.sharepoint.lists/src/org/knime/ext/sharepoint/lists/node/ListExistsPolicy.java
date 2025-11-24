@@ -44,41 +44,73 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   14 Feb 2022 (Lars Schweikardt, KNIME GmbH, Konstanz, Germany): created
+ *   2022-03-04 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.lists.node.delete;
+package org.knime.ext.sharepoint.lists.node;
 
-import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.core.node.util.ButtonGroupEnumInterface;
+import org.knime.node.parameters.widget.choices.Label;
 
 /**
- * Delete SharePoint Online List node config.
+ * Policy how to proceed when Sharepoint List exists (overwrite, fail).
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public final class SharepointDeleteListConfig {
+public enum ListExistsPolicy implements ButtonGroupEnumInterface {
 
-    private final SharepointListSettings m_sharepointListSettings;
+    /** Overwrite existing list. */
+    @Label(value = "Overwrite", //
+            description = "Overwrite an existing list by removing all columns and items beforehand.")
+    OVERWRITE("overwrite"),
 
-    SharepointDeleteListConfig() {
-        m_sharepointListSettings = new SharepointListSettings(false, false);
+    /**
+     * Append to an existing list if it already exists and the column specs match.
+     */
+    @Label(value = "Append", description = """
+            If the list already exists, the data will be appended at the bottom of the list.
+            There are limitations to appending. Please check the note in the node introduction
+            for more information.""")
+    APPEND("append"),
+
+    /**
+     * Fail during execution if list with id or name already exists. Neither
+     * overwrite nor append.
+     */
+    @Label(value = "Fail", //
+            description = "Fail node execution if an list already exists.")
+    FAIL("fail");
+
+
+    private final String m_description;
+
+    ListExistsPolicy(final String description) {
+        m_description = description;
     }
 
-    SharepointListSettings getSharepointListSettings() {
-        return m_sharepointListSettings;
+    @Override
+    public String getText() {
+        return m_description;
     }
 
-    void saveSettings(final NodeSettingsWO settings) {
-        m_sharepointListSettings.saveSettingsTo(settings);
+    @Override
+    public String getActionCommand() {
+        return name();
     }
 
-    void loadSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_sharepointListSettings.loadSettingsFrom(settings);
+    @Override
+    public String getToolTip() {
+        return m_description;
     }
 
-    void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_sharepointListSettings.validateSettings(settings);
+    @Override
+    public boolean isDefault() {
+        return this == FAIL;
+    }
+
+    /**
+     * @return {@link ListExistsPolicy#FAIL} as default
+     */
+    public static ListExistsPolicy getDefault() {
+        return FAIL;
     }
 }

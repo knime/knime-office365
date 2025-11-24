@@ -44,64 +44,51 @@
  * ---------------------------------------------------------------------
  *
  * History
- *   2022-03-04 (lars.schweikardt): created
+ *   14 Feb 2022 (Lars Schweikardt, KNIME GmbH, Konstanz, Germany): created
  */
-package org.knime.ext.sharepoint.lists.node;
+package org.knime.ext.sharepoint.lists.node.delete;
 
-import org.knime.core.node.util.ButtonGroupEnumInterface;
+import java.util.Optional;
+
+import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.PersistWithin.PersistEmbedded;
+import org.knime.core.webui.node.dialog.defaultdialog.widget.Modification;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters;
+import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
+import org.knime.ext.sharepoint.parameters.TimeoutParameters;
+import org.knime.node.parameters.NodeParameters;
+import org.knime.node.parameters.updates.ValueReference;
 
 /**
- * Policy how to proceed when Sharepoint List exists (overwrite, fail).
+ * Node parameters for Delete SharePoint Online List.
  *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-public enum ListOverwritePolicy implements ButtonGroupEnumInterface {
+@SuppressWarnings("restriction")
+final class SharepointDeleteListNodeParameters implements NodeParameters {
 
-    /** Overwrite existing list. */
-    OVERWRITE("overwrite"),
+    @ValueReference(SharepointSiteParameters.Ref.class)
+    SharepointSiteParameters m_site = new SharepointSiteParameters();
 
-    /**
-     * Append to an existing list if it already exists and the column specs match.
-     */
-    APPEND("append"),
+    @Modification(ListModification.class)
+    SharepointListParameters.Basic m_list = new SharepointListParameters.Basic();
 
-    /**
-     * Fail during execution if list with id or name already exists. Neither
-     * overwrite nor append.
-     */
-    FAIL("fail");
-
-
-    private final String m_description;
-
-    ListOverwritePolicy(final String description) {
-        m_description = description;
-    }
+    @PersistEmbedded
+    TimeoutParameters m_timeout = new TimeoutParameters();
 
     @Override
-    public String getText() {
-        return m_description;
+    public void validate() throws InvalidSettingsException {
+        m_site.validate();
+        m_list.validate();
+        m_timeout.validate();
     }
 
-    @Override
-    public String getActionCommand() {
-        return name();
-    }
-
-    @Override
-    public String getToolTip() {
-        return m_description;
-    }
-
-    @Override
-    public boolean isDefault() {
-        return this == FAIL;
-    }
-
-    /**
-     * @return {@link ListOverwritePolicy#FAIL} as default
-     */
-    public static ListOverwritePolicy getDefault() {
-        return FAIL;
+    static class ListModification extends SharepointListParameters.SharepointListParametersModification {
+        @Override
+        protected Optional<String> getExistingStringDescriptionPostfix() {
+            return Optional.of("""
+                    <br/>If the ID is set to an empty string using flow variables, the internal
+                    name will be used instead to find the list.""");
+        }
     }
 }

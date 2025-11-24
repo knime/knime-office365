@@ -51,7 +51,6 @@ package org.knime.ext.microsoft.authentication.util.testing;
 import java.io.IOException;
 import java.util.Set;
 
-import org.knime.credentials.base.Credential;
 import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.microsoft.authentication.util.JWTCredentialFactory;
 import org.knime.ext.microsoft.authentication.util.MSALUtil;
