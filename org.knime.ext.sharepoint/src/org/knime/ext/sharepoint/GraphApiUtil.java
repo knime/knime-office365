@@ -112,6 +112,7 @@ public final class GraphApiUtil {
     }
 
     /**
+     * Creates the site id from a provided web URL
      *
      * @param urlString
      *            Web URL that a user entered, which points to a Sharepoint site.
@@ -119,8 +120,12 @@ public final class GraphApiUtil {
      * @throws MalformedURLException
      */
     public static String getSiteIdFromSharepointSiteWebURL(final String urlString) throws MalformedURLException {
-        final var url = new URL(urlString);
+        final var url = new URL(urlString.strip());
         String result = url.getHost();
+
+        if (result.isEmpty()) {
+            throw new MalformedURLException("host missing (e.g. \"company.sharepoint.com\")");
+        }
 
         if (url.getPath() != null && !url.getPath().isEmpty()) {
             result += ":" + url.getPath();
@@ -143,8 +148,7 @@ public final class GraphApiUtil {
     public static GraphServiceClient<Request> createClient(final IAuthenticationProvider authProvider,
             final int connectionTimeout, final int readTimeout) {
         return GraphServiceClient.builder()//
-                .httpClient(createOkHttpClient(authProvider, connectionTimeout, readTimeout))
-                .buildClient();
+                .httpClient(createOkHttpClient(authProvider, connectionTimeout, readTimeout)).buildClient();
     }
 
     private static OkHttpClient createOkHttpClient(final IAuthenticationProvider authProvider,

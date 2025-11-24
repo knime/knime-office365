@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="test">
+    <config key="site">
+        <entry key="mode" type="xstring" value="ROOT"/>
+        <entry key="webUrl" type="xstring" value=""/>
+        <entry key="groupId" type="xstring" value="1c734e4e-2a67-40c2-9ddb-92c25132a6de"/>
+        <entry key="groupName" type="xstring" value="Test team for node sender feature"/>
+        <entry key="connectToSubsite" type="xboolean" value="false"/>
+        <entry key="subsiteId" type="xstring" value=""/>
+        <entry key="subsiteName" type="xstring" value=""/>
+    </config>
+    <config key="list">
+        <entry key="checkExistenceInDialog_Internals" type="xboolean" value="false"/>
+        <entry key="listId" type="xstring" value="9adb4e16-3e1a-419a-bff6-3b5a2777e326"/>
+        <entry key="listInternalName" type="xstring" value="test_AP215410db21d66a24f4a71821ad65b89d0c7a1"/>
+        <entry key="listDisplayName" type="xstring" value="test_AP-21541-0db21d66-a24f-4a71-821a-d65b89d0c7a1"/>
+    </config>
+    <entry key="connectionTimeout" type="xint" value="21"/>
+    <entry key="readTimeout" type="xint" value="21"/>
+</config>

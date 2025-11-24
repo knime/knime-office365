@@ -90,7 +90,7 @@ public final class SharepointListSettings extends AbstractSharePointSettings<Sha
         super();
         m_listSettings = new ListSettings(useSystemListsSettings);
         m_hasOverwriteOptions = hasOverwriteOptions;
-        m_overwritePolicy = new SettingsModelString(CFG_OVERWRITE_POLICY, ListOverwritePolicy.FAIL.name());
+        m_overwritePolicy = new SettingsModelString(CFG_OVERWRITE_POLICY, ListExistsPolicy.FAIL.name());
     }
 
     private SharepointListSettings(final SharepointListSettings toCopy) {
@@ -105,31 +105,31 @@ public final class SharepointListSettings extends AbstractSharePointSettings<Sha
     }
 
     /**
-     * Returns the settings model storing the selected {@link ListOverwritePolicy}.
+     * Returns the settings model storing the selected {@link ListExistsPolicy}.
      *
-     * @return the settings model storing the selected {@link ListOverwritePolicy}
+     * @return the settings model storing the selected {@link ListExistsPolicy}
      */
     public SettingsModelString getOverwritePolicyModel() {
         return m_overwritePolicy;
     }
 
     /**
-     * Sets the {@link ListOverwritePolicy} to the provided value.
+     * Sets the {@link ListExistsPolicy} to the provided value.
      *
      * @param overwritePolicy
-     *            the {@link ListOverwritePolicy} to set
+     *            the {@link ListExistsPolicy} to set
      */
-    public final void setOverwritePolicy(final ListOverwritePolicy overwritePolicy) {
+    public void setOverwritePolicy(final ListExistsPolicy overwritePolicy) {
         m_overwritePolicy.setStringValue(overwritePolicy.name());
     }
 
     /**
-     * Returns the selected {@link ListOverwritePolicy}.
+     * Returns the selected {@link ListExistsPolicy}.
      *
-     * @return the selected {@link ListOverwritePolicy}
+     * @return the selected {@link ListExistsPolicy}
      */
-    public final ListOverwritePolicy getOverwritePolicy() {
-        return ListOverwritePolicy.valueOf(m_overwritePolicy.getStringValue());
+    public ListExistsPolicy getOverwritePolicy() {
+        return ListExistsPolicy.valueOf(m_overwritePolicy.getStringValue());
     }
 
     /**
