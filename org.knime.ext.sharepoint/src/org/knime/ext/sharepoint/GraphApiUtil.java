@@ -112,6 +112,7 @@ public final class GraphApiUtil {
     }
 
     /**
+     * Creates the site id from a provided web URL
      *
      * @param urlString
      *            Web URL that a user entered, which points to a Sharepoint site.
@@ -119,8 +120,12 @@ public final class GraphApiUtil {
      * @throws MalformedURLException
      */
     public static String getSiteIdFromSharepointSiteWebURL(final String urlString) throws MalformedURLException {
-        final var url = new URL(urlString);
+        final var url = new URL(urlString.strip());
         String result = url.getHost();
+
+        if (result.isEmpty()) {
+            throw new MalformedURLException("Please specify a host");
+        }
 
         if (url.getPath() != null && !url.getPath().isEmpty()) {
             result += ":" + url.getPath();
