@@ -171,7 +171,7 @@ public final class SharepointListSettingsPanel extends SiteSettingsPanel {
         m_showSystemLists = new DialogComponentBoolean(m_listSettings.getShowSystemListsModel(), "Show system lists");
 
         m_overwriteOptions = new DialogComponentButtonGroup(listSettings.getOverwritePolicyModel(), null, false,
-                ListOverwritePolicy.values());
+                ListExistsPolicy.values());
 
         if (!m_listSettings.showSystemListSettings()) {
             m_showSystemLists.getComponentPanel().setVisible(false);

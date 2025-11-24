@@ -126,7 +126,7 @@ public final class SharepointSiteResolver {
             req = m_client.sites(ROOT_SITE);
             break;
         case WEB_URL:
-            if (m_webUrl.isEmpty()) {
+            if (m_webUrl.isBlank()) {
                 throw new IllegalStateException("Web URL is not specified.");
             }
             req = m_client.sites(GraphApiUtil.getSiteIdFromSharepointSiteWebURL(m_webUrl));

@@ -48,31 +48,52 @@
  */
 package org.knime.ext.sharepoint.lists.node.delete;
 
+import static org.knime.node.impl.description.PortDescription.fixedPort;
+
+import java.util.List;
+import java.util.Map;
+
+import org.knime.core.node.NodeDescription;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
-import org.knime.core.node.context.NodeCreationConfiguration;
+import org.knime.core.webui.node.dialog.NodeDialog;
+import org.knime.core.webui.node.dialog.NodeDialogFactory;
+import org.knime.core.webui.node.dialog.NodeDialogManager;
+import org.knime.core.webui.node.dialog.SettingsType;
+import org.knime.core.webui.node.dialog.defaultdialog.DefaultKaiNodeInterface;
+import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeDialog;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterface;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
+import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
+import org.knime.node.impl.description.PortDescription;
 
 /**
  * Delete SharePoint Online List implementation of a {@link NodeFactory}.
  *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author AI Migration Pipeline v1.2
  */
-public class SharepointDeleteListNodeFactory extends NodeFactory<SharepointDeleteListNodeModel> {
+@SuppressWarnings("restriction")
+public class SharepointDeleteListNodeFactory extends NodeFactory<SharepointDeleteListNodeModel>
+        implements NodeDialogFactory, KaiNodeInterfaceFactory {
+
+    private static final String NODE_NAME = "Delete SharePoint Online List";
+    private static final String NODE_ICON = "./sharepoint-list-deleter.png";
+    private static final String SHORT_DESCRIPTION = """
+            Deletes a SharePoint Online list.
+            """;
+    private static final String FULL_DESCRIPTION = """
+            <p> This node deletes a SharePoint list. </p>
+            """;
+    private static final List<PortDescription> INPUT_PORTS = List.of(fixedPort("Credential (JWT)", """
+            A JWT credential as provided by the Microsoft Authenticator node.
+            """));
+    private static final List<PortDescription> OUTPUT_PORTS = List.of();
 
     @Override
     public SharepointDeleteListNodeModel createNodeModel() {
         return new SharepointDeleteListNodeModel();
-    }
-
-    @Override
-    protected NodeDialogPane createNodeDialogPane(final NodeCreationConfiguration creationConfig) {
-        return new SharepointDeleteListNodeDialog();
-    }
-
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new SharepointDeleteListNodeDialog();
     }
 
     @Override
@@ -89,6 +110,28 @@ public class SharepointDeleteListNodeFactory extends NodeFactory<SharepointDelet
     public NodeView<SharepointDeleteListNodeModel> createNodeView(final int viewIndex,
             final SharepointDeleteListNodeModel nodeModel) {
         return null;
+    }
+
+    @Override
+    public NodeDialogPane createNodeDialogPane() {
+        return NodeDialogManager.createLegacyFlowVariableNodeDialog(createNodeDialog());
+    }
+
+    @Override
+    public NodeDialog createNodeDialog() {
+        return new DefaultNodeDialog(SettingsType.MODEL, SharepointDeleteListNodeParameters.class);
+    }
+
+    @Override
+    public NodeDescription createNodeDescription() {
+        return DefaultNodeDescriptionUtil.createNodeDescription(NODE_NAME, NODE_ICON, INPUT_PORTS, OUTPUT_PORTS,
+                SHORT_DESCRIPTION, FULL_DESCRIPTION, List.of(), SharepointDeleteListNodeParameters.class, null,
+                NodeType.Other, List.of(), null);
+    }
+
+    @Override
+    public KaiNodeInterface createKaiNodeInterface() {
+        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, SharepointDeleteListNodeParameters.class));
     }
 
 }

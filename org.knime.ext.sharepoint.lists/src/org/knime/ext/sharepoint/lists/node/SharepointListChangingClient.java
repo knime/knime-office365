@@ -216,14 +216,14 @@ public final class SharepointListChangingClient implements AutoCloseable {
 
         final var colMap = mapColNames(false);
 
-        if (overwritePolicy == ListOverwritePolicy.APPEND && !m_listCreated) {
+        if (overwritePolicy == ListExistsPolicy.APPEND && !m_listCreated) {
             checkColumnsForAppend(colMap);
         }
 
         try (final var batch = new ListBatchRequest(m_client, m_exec); //
                 final var iterator = m_table.iterator()) {
 
-            if (overwritePolicy == ListOverwritePolicy.OVERWRITE && !m_listCreated) {
+            if (overwritePolicy == ListExistsPolicy.OVERWRITE && !m_listCreated) {
                 prepareOverwrite(batch);
             }
 
@@ -429,7 +429,7 @@ public final class SharepointListChangingClient implements AutoCloseable {
         }
 
         if (listExists && m_createMissingList // overwriting is only a concern if we are not only reading
-                && m_sharePointListSettings.getOverwritePolicy() == ListOverwritePolicy.FAIL) {
+                && m_sharePointListSettings.getOverwritePolicy() == ListExistsPolicy.FAIL) {
             throw new InvalidSettingsException(
                     "The specified list already exists and the node fails due to overwrite settings");
         }
