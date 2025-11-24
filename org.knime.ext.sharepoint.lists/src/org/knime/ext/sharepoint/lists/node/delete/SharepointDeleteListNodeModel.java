@@ -56,18 +56,15 @@ import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeModel;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.core.webui.node.impl.WebUINodeModel;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
-import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
 
 import com.microsoft.graph.core.ClientException;
@@ -77,21 +74,20 @@ import com.microsoft.graph.requests.GraphServiceClient;
 import okhttp3.Request;
 
 /**
- * Delete SharePoint Online List node implementation of a {@link NodeModel}.
+ * Delete SharePoint Online List node implementation of a WebUI NodeModel.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointDeleteListNodeModel extends NodeModel {
-
-    private final SharepointDeleteListConfig m_config;
+@SuppressWarnings("restriction")
+final class SharepointDeleteListNodeModel extends WebUINodeModel<SharepointDeleteListNodeParameters> {
 
     protected SharepointDeleteListNodeModel() {
-        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[] {});
-        m_config = new SharepointDeleteListConfig();
+        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[0], SharepointDeleteListNodeParameters.class);
     }
 
     @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs,
+            final SharepointDeleteListNodeParameters params) throws InvalidSettingsException {
         final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
         if (credSpec != null) {
             GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
@@ -103,16 +99,16 @@ final class SharepointDeleteListNodeModel extends NodeModel {
     }
 
     @Override
-    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec,
+            final SharepointDeleteListNodeParameters modelSettings) throws Exception {
 
         final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
-        final var timeouts = m_config.getSharepointListSettings().getTimeoutSettings();
         final var client = GraphApiUtil.createClient(//
                 GraphCredentialUtil.createAuthenticationProvider(credSpec), //
-                timeouts.getConnectionTimeout(), //
-                timeouts.getReadTimeout());
+                modelSettings.m_timeoutSettings.getConnectionTimeoutMillis(), //
+                modelSettings.m_timeoutSettings.getReadTimeoutMillis());
 
-        deleteList(client);
+        deleteList(client, modelSettings);
 
         return new PortObject[] {};
     }
@@ -125,15 +121,17 @@ final class SharepointDeleteListNodeModel extends NodeModel {
     /**
      * Deletes a list from SharePoint.
      *
-     * @param client
+     * @param client the Graph client
+     * @param modelSettings the node settings
      * @throws ClientException
      * @throws IOException
      * @throws InvalidSettingsException
      */
-    private void deleteList(final GraphServiceClient<Request> client)
+    private void deleteList(final GraphServiceClient<Request> client,
+            final SharepointDeleteListNodeParameters modelSettings)
             throws ClientException, IOException, InvalidSettingsException {
-        final var siteId = getSiteId(client);
-        final var listId = getListId(client, siteId);
+        final var siteId = getSiteId(client, modelSettings);
+        final var listId = getListId(client, siteId, modelSettings);
 
         try {
             client.sites(siteId).lists(listId).buildRequest().delete();
@@ -142,13 +140,13 @@ final class SharepointDeleteListNodeModel extends NodeModel {
         }
     }
 
-    private String getListId(final GraphServiceClient<Request> client, final String siteId)
+    private String getListId(final GraphServiceClient<Request> client, final String siteId,
+            final SharepointDeleteListNodeParameters modelSettings)
             throws IOException, InvalidSettingsException {
 
-        var listId = m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue();
+        var listId = modelSettings.m_list.id();
         if (StringUtils.isBlank(listId)) {
-            final var listName = m_config.getSharepointListSettings().getListSettings().getListNameModel()
-                    .getStringValue();
+            final var listName = modelSettings.m_list.text();
 
             listId = SharePointListUtils.getListIdByInternalName(client, siteId, listName) //
                     .orElseThrow(() -> new InvalidSettingsException("Could not find a list with name: " + listName));
@@ -160,32 +158,14 @@ final class SharepointDeleteListNodeModel extends NodeModel {
     /**
      * Returns the site id.
      *
-     * @param client
+     * @param client the Graph client
+     * @param modelSettings the node settings
      * @return returns the site id
      * @throws IOException
      */
-    private String getSiteId(final GraphServiceClient<Request> client) throws IOException {
-        final var settings = m_config.getSharepointListSettings().getSiteSettings();
-        final var siteResolver = new SharepointSiteResolver(client, settings.getMode(),
-                settings.getSubsiteModel().getStringValue(), settings.getWebURLModel().getStringValue(),
-                settings.getGroupModel().getStringValue());
-
-        return siteResolver.getTargetSiteId();
-    }
-
-    @Override
-    protected void saveSettingsTo(final NodeSettingsWO settings) {
-        m_config.saveSettings(settings);
-    }
-
-    @Override
-    protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.validateSettings(settings);
-    }
-
-    @Override
-    protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.loadSettings(settings);
+    private String getSiteId(final GraphServiceClient<Request> client,
+            final SharepointDeleteListNodeParameters modelSettings) throws IOException {
+        return modelSettings.m_siteSettings.getTargetSiteId(client);
     }
 
     @Override
