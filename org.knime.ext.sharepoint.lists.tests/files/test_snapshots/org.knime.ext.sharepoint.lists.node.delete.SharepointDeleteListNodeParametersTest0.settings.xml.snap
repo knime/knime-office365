@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="test">
+    <config key="site">
+        <entry key="mode" type="xstring" value="ROOT"/>
+        <entry key="webUrl" type="xstring" value=""/>
+        <entry key="groupId" type="xstring" value=""/>
+        <entry key="groupName" type="xstring" value=""/>
+        <entry key="connectToSubsite" type="xboolean" value="false"/>
+        <entry key="subsiteId" type="xstring" value=""/>
+        <entry key="subsiteName" type="xstring" value=""/>
+    </config>
+    <config key="list">
+        <entry key="listId" type="xstring" value="d83794e5-c869-44ff-916c-88258cbac1fe"/>
+        <entry key="listInternalName" type="xstring" value="Events"/>
+        <entry key="listDisplayName" type="xstring" value="Events"/>
+        <config key="list_Internals">
+            <entry key="_doExistsCheck" type="xboolean" value="true"/>
+        </config>
+    </config>
+    <entry key="connectionTimeout" type="xint" value="621"/>
+    <entry key="readTimeout" type="xint" value="926"/>
+</config>

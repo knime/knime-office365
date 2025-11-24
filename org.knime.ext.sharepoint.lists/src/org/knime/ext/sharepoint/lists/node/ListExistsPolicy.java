@@ -49,32 +49,41 @@
 package org.knime.ext.sharepoint.lists.node;
 
 import org.knime.core.node.util.ButtonGroupEnumInterface;
+import org.knime.node.parameters.widget.choices.Label;
 
 /**
  * Policy how to proceed when Sharepoint List exists (overwrite, fail).
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public enum ListOverwritePolicy implements ButtonGroupEnumInterface {
+public enum ListExistsPolicy implements ButtonGroupEnumInterface {
 
     /** Overwrite existing list. */
+    @Label(value = "Overwrite", //
+            description = "Overwrite an existing list by removing all columns and items beforehand.")
     OVERWRITE("overwrite"),
 
     /**
      * Append to an existing list if it already exists and the column specs match.
      */
+    @Label(value = "Append", description = """
+            If the list already exists, the data will be appended at the bottom of the list.
+            There are limitations to appending. Please check the note in the node introduction
+            for more information.""")
     APPEND("append"),
 
     /**
      * Fail during execution if list with id or name already exists. Neither
      * overwrite nor append.
      */
+    @Label(value = "Fail", //
+            description = "Fail node execution if an list already exists.")
     FAIL("fail");
 
 
     private final String m_description;
 
-    ListOverwritePolicy(final String description) {
+    ListExistsPolicy(final String description) {
         m_description = description;
     }
 
@@ -99,9 +108,9 @@ public enum ListOverwritePolicy implements ButtonGroupEnumInterface {
     }
 
     /**
-     * @return {@link ListOverwritePolicy#FAIL} as default
+     * @return {@link ListExistsPolicy#FAIL} as default
      */
-    public static ListOverwritePolicy getDefault() {
+    public static ListExistsPolicy getDefault() {
         return FAIL;
     }
 }
