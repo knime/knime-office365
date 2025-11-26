@@ -49,6 +49,7 @@
 package org.knime.ext.sharepoint.settings;
 
 import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
+import org.knime.node.parameters.widget.choices.Label;
 
 /**
  * {@link Enum} for the Site mode for Sharepoint nodes which make use of the
@@ -60,19 +61,27 @@ public enum SiteMode { //
     /**
      * Root site
      */
+    @Label(value = "Root site", //
+            description = "Connect to the root site of the domain of the current user")
     ROOT("Root site"), //
+
     /**
      * Web URL
      */
+    @Label(value = "Web URL", //
+            description = "Specify the web URL of a SharePoint site.")
     WEB_URL("Web URL"), //
+
     /**
      * Group site
      */
+    @Label(value = "Group site", //
+            description = "Connect to the team site of a particular Office 365 group.")
     GROUP("Group site");
 
     private String m_selectorLabel;
 
-    private SiteMode(final String selectorLable) {
+    SiteMode(final String selectorLable) {
         m_selectorLabel = selectorLable;
     }
 

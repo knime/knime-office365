@@ -71,15 +71,10 @@ import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.persistence.NodeParametersPersistor;
 import org.knime.node.parameters.updates.Effect;
 import org.knime.node.parameters.updates.Effect.EffectType;
-import org.knime.node.parameters.updates.ParameterReference;
 import org.knime.node.parameters.updates.StateProvider;
-import org.knime.node.parameters.updates.StateProvider.StateProviderInitializer;
-import org.knime.node.parameters.widget.CheckboxWidget;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.ChoicesStateProvider;
 import org.knime.node.parameters.widget.choices.EnumChoicesProvider;
-import org.knime.node.parameters.widget.choices.IdAndText;
-import org.knime.node.parameters.widget.choices.Label;
 import org.knime.node.parameters.widget.choices.RadioButtonsWidget;
 
 import com.microsoft.graph.options.Option;
@@ -136,6 +131,7 @@ public class SharepointListParameters implements NodeParameters {
         m_siteParametersSupplier = siteParametersSupplier;
     }
     
+    /*
     @Layout(ListSelectionLayout.class)
     interface ListSelectionLayout {
     }
@@ -240,7 +236,7 @@ public class SharepointListParameters implements NodeParameters {
     
     /**
      * Custom persistor for SharePoint list parameters.
-     */
+     * /
     public static final class ListParametersPersistor implements NodeParametersPersistor<SharepointListParameters> {
         
         @Override
@@ -292,4 +288,5 @@ public class SharepointListParameters implements NodeParameters {
             return new String[]{"list", "listName", "showSystemLists", "if_list_exists"};
         }
     }
+    */
 }

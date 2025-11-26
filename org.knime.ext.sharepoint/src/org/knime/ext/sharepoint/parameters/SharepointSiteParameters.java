@@ -53,366 +53,368 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.util.string.KnimeStringUtils;
+import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.PersistWithin;
+import org.knime.core.webui.node.dialog.defaultdialog.util.updates.StateComputationFailureException;
 import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
+import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.settings.SiteMode;
+import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.Widget;
-import org.knime.node.parameters.WidgetGroup;
-import org.knime.node.parameters.layout.HorizontalLayout;
 import org.knime.node.parameters.layout.Layout;
+import org.knime.node.parameters.layout.Section;
+import org.knime.node.parameters.migration.LoadDefaultsForAbsentFields;
 import org.knime.node.parameters.persistence.NodeParametersPersistor;
+import org.knime.node.parameters.persistence.Persist;
+import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.updates.Effect;
 import org.knime.node.parameters.updates.Effect.EffectType;
+import org.knime.node.parameters.updates.EffectPredicate;
+import org.knime.node.parameters.updates.EffectPredicateProvider;
 import org.knime.node.parameters.updates.ParameterReference;
 import org.knime.node.parameters.updates.StateProvider;
-import org.knime.node.parameters.updates.StateProvider.StateProviderInitializer;
-import org.knime.node.parameters.updates.TriggerInitialUpdate;
+import org.knime.node.parameters.updates.ValueProvider;
 import org.knime.node.parameters.updates.ValueReference;
 import org.knime.node.parameters.widget.OptionalWidget;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
-import org.knime.node.parameters.widget.choices.ChoicesStateProvider;
-import org.knime.node.parameters.widget.choices.IdAndText;
-import org.knime.node.parameters.widget.choices.Label;
-import org.knime.node.parameters.widget.choices.RadioButtonsWidget;
+import org.knime.node.parameters.widget.choices.StringChoice;
+import org.knime.node.parameters.widget.choices.StringChoicesProvider;
+import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
 import org.knime.node.parameters.widget.text.TextInputWidget;
 
 import com.microsoft.graph.models.DirectoryObject;
 import com.microsoft.graph.models.Group;
-import com.microsoft.graph.models.Site;
-import com.microsoft.graph.requests.DirectoryObjectCollectionWithReferencesPage;
 import com.microsoft.graph.requests.GraphServiceClient;
-import com.microsoft.graph.requests.SiteCollectionPage;
 
 import okhttp3.Request;
 
 /**
- * Reusable SharePoint Site parameters component.
+ * SharePoint Site parameters component containing the Sharepoint site.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-@SuppressWarnings("restriction")
-public class SharepointSiteParameters implements NodeParameters {
-    
+@LoadDefaultsForAbsentFields
+@SuppressWarnings({"javadoc", "restriction"})
+public final class SharepointSiteParameters implements NodeParameters {
+
+    // The separator used in the id fields to store multiple data points in it
+    // to be able to store both of them (required to be backwards compatibility)
+    private static final Pattern SEP = Pattern.compile("\0");
+
     private static final int DIALOG_CLIENT_TIMEOUT_MILLIS = 30000;
-    
-    /**
-     * Site mode selection enum.
-     */
-    public enum SiteModeOption {
-        @Label("Root site")
-        ROOT,
-        @Label("Web URL")
-        WEB_URL,
-        @Label("Group site")
-        GROUP
+
+    @Section(title = "SharePoint Site")
+    interface SiteSection {
     }
-    
-    @Layout(SiteModeLayout.class)
-    interface SiteModeLayout {
-    }
-    
-    @Layout(SiteSelectionLayout.class)
-    interface SiteSelectionLayout {
-    }
-    
-    @Layout(SubsiteLayout.class)
-    interface SubsiteLayout {
-    }
-    
-    @Widget(title = "SharePoint site", description = """
-            Select how to specify the SharePoint site:
-            <ul>
-                <li><i>Root site:</i> Connect to the root site of the domain of the current user.</li>
-                <li><i>Web URL:</i> Specify the web URL of a SharePoint site.</li>
-                <li><i>Group site:</i> Connect to the team site of a particular Office 365 group.</li>
-            </ul>
-            """)
-    @RadioButtonsWidget(horizontal = true)
+
+    @Widget(title = "SharePoint site", description = "Select how to specify the SharePoint site.")
+    @ValueSwitchWidget
     @ValueReference(SiteModeRef.class)
-    @Layout(SiteModeLayout.class)
-    @TriggerInitialUpdate
-    SiteModeOption m_siteMode = SiteModeOption.ROOT;
-    
-    static final class SiteModeRef extends ParameterReference<SiteModeOption> {
-    }
-    
-    @Widget(title = "URL", description = "Enter the web URL of the SharePoint site, for example https://mycompany.sharepoint.com")
+    @Layout(SiteSection.class)
+    @PersistWithin({"site"})
+    public SiteMode m_mode = SiteMode.ROOT;
+
+    @Widget(title = "URL", //
+            description = "Enter the web URL of the SharePoint site, for example https://mycompany.sharepoint.com")
     @TextInputWidget
-    @Layout(SiteSelectionLayout.class)
+    @Layout(SiteSection.class)
     @Effect(predicate = SiteModeIsWebUrl.class, type = EffectType.SHOW)
     @ValueReference(WebUrlRef.class)
-    String m_webURL = "";
-    
-    static final class WebUrlRef extends ParameterReference<String> {
-    }
-    
-    static final class SiteModeIsWebUrl implements StateProvider<Boolean> {
-        
-        private Supplier<SiteModeOption> m_siteModeSupplier;
-        
-        @Override
-        public void init(final StateProviderInitializer initializer) {
-            m_siteModeSupplier = initializer.computeFromValueSupplier(SiteModeRef.class);
-        }
-        
-        @Override
-        public Boolean computeState(final NodeParametersInput context) {
-            return m_siteModeSupplier.get() == SiteModeOption.WEB_URL;
-        }
-    }
-    
-    @Widget(title = "Group", description = "Select the Office 365 group whose team site to connect to")
+    @PersistWithin({"site"})
+    @Persist(configKey = "site")
+    public String m_webURL = "";
+
+    @Widget(title = "Group", //
+            description = "Select the Office 365 group whose team site to connect to")
     @ChoicesProvider(GroupChoicesProvider.class)
-    @Layout(SiteSelectionLayout.class)
+    @Layout(SiteSection.class)
     @Effect(predicate = SiteModeIsGroup.class, type = EffectType.SHOW)
     @ValueReference(GroupRef.class)
-    IdAndText m_group = new IdAndText("", "");
-    
-    static final class GroupRef extends ParameterReference<IdAndText> {
+    @Persistor(GroupPersistor.class)
+    String m_group;
+
+    @Persistor(SubsitePersistor.class)
+    Subsite m_subsite = new Subsite();
+
+    static class Subsite implements NodeParameters {
+        @Widget(title = "Subsite", description = """
+                Select a (nested) subsite of the SharePoint site specified above to connect to.
+                """)
+        @ChoicesProvider(SubsiteChoicesProvider.class)
+        @Layout(SiteSection.class)
+        @ValueReference(SubsiteRef.class)
+        @OptionalWidget(defaultProvider = SubsiteDefault.class)
+        Optional<String> m_displayedSubsite = Optional.empty();
+
+        @ValueProvider(SubsiteProvider.class)
+        @ValueReference(LastSubsiteRef.class)
+        String m_subsite = "";
     }
-    
-    static final class SiteModeIsGroup implements StateProvider<Boolean> {
-        
-        private Supplier<SiteModeOption> m_siteModeSupplier;
-        
-        @Override
-        public void init(final StateProviderInitializer initializer) {
-            m_siteModeSupplier = initializer.computeFromValueSupplier(SiteModeRef.class);
-        }
-        
-        @Override
-        public Boolean computeState(final NodeParametersInput context) {
-            return m_siteModeSupplier.get() == SiteModeOption.GROUP;
-        }
+
+    public String getSiteId(final GraphServiceClient<Request> client) throws IOException {
+        return new SharepointSiteResolver(client, m_mode, getSubSite(), m_webURL, getGroupSite()).getTargetSiteId();
     }
-    
-    static final class GroupChoicesProvider implements ChoicesStateProvider<IdAndText> {
-        
+
+    /**
+     * @return the group id
+     */
+    public String getGroupSite() {
+        return getId(m_group);
+    }
+
+    /**
+     * @return the subsite id
+     */
+    public String getSubSite() {
+        return m_subsite.m_displayedSubsite.map(SharepointSiteParameters::getId).orElse("");
+    }
+
+    private static String getId(final String internalValue) {
+        return internalValue == null ? "" : internalValue.substring(0, Math.max(0, internalValue.indexOf('\0')));
+    }
+
+    static final class GroupChoicesProvider implements StringChoicesProvider {
+
         @Override
-        public List<IdAndText> choices(final NodeParametersInput context) {
+        public List<StringChoice> computeState(final NodeParametersInput context) {
             try {
                 final var client = createClient(context);
-                final List<IdAndText> groups = new ArrayList<>();
-                
-                DirectoryObjectCollectionWithReferencesPage resp = client.me().transitiveMemberOf().buildRequest().get();
-                for (DirectoryObject obj : resp.getCurrentPage()) {
-                    if (GraphApiUtil.GROUP_DATA_TYPE.equals(obj.oDataType)) {
-                        final Group g = (Group) obj;
-                        groups.add(new IdAndText(g.id, Optional.ofNullable(g.displayName).orElse(g.id)));
-                    }
+                final var dirObjects = new ArrayList<DirectoryObject>();
+
+                var nextRequest = client.me().transitiveMemberOf();
+                while (nextRequest != null) {
+                    final var resp = nextRequest.buildRequest().get();
+                    dirObjects.addAll(resp.getCurrentPage());
+                    nextRequest = resp.getNextPage();
                 }
-                
-                while (resp.getNextPage() != null) {
-                    resp = resp.getNextPage().buildRequest().get();
-                    for (DirectoryObject obj : resp.getCurrentPage()) {
-                        if (GraphApiUtil.GROUP_DATA_TYPE.equals(obj.oDataType)) {
-                            final Group g = (Group) obj;
-                            groups.add(new IdAndText(g.id, Optional.ofNullable(g.displayName).orElse(g.id)));
-                        }
-                    }
-                }
-                
-                return groups;
-            } catch (Exception e) {
-                throw new IllegalStateException("Failed to fetch groups: " + e.getMessage(), e);
+                return dirObjects.stream().filter(o -> GraphApiUtil.GROUP_DATA_TYPE.equals(o.oDataType))
+                        .map(Group.class::cast)
+                        .map(g -> new StringChoice( //
+                                String.join("\0", g.id, Optional.ofNullable(g.displayName).orElse("")), //
+                                Optional.ofNullable(g.displayName).orElse(g.id)))
+                        .toList();
+            } catch (IOException ignored) { // NOSONAR avoid log spam in dialog
+                return List.of();
             }
         }
     }
-    
-    @Widget(title = "Subsite", description = """
-            If checked, connect to a (nested) subsite of the SharePoint site specified above. 
-            Note that this allows you only to access the list of the subsite, not those of the parent site(s).
-            """)
-    @OptionalWidget
-    @ChoicesProvider(SubsiteChoicesProvider.class)
-    @Layout(SubsiteLayout.class)
-    @ValueReference(SubsiteRef.class)
-    IdAndText m_subsite = null;
-    
-    static final class SubsiteRef extends ParameterReference<IdAndText> {
-    }
-    
-    static final class SubsiteChoicesProvider implements ChoicesStateProvider<IdAndText> {
-        
-        private Supplier<SiteModeOption> m_siteModeSupplier;
+
+    static final class SubsiteChoicesProvider implements StringChoicesProvider {
+
+        private Supplier<SiteMode> m_siteModeSupplier;
         private Supplier<String> m_webUrlSupplier;
-        private Supplier<IdAndText> m_groupSupplier;
-        
+        private Supplier<String> m_groupSupplier;
+
         @Override
         public void init(final StateProviderInitializer initializer) {
+            initializer.computeAfterOpenDialog();
             m_siteModeSupplier = initializer.computeFromValueSupplier(SiteModeRef.class);
             m_webUrlSupplier = initializer.computeFromValueSupplier(WebUrlRef.class);
             m_groupSupplier = initializer.computeFromValueSupplier(GroupRef.class);
         }
-        
+
         @Override
-        public List<IdAndText> choices(final NodeParametersInput context) {
+        public List<StringChoice> computeState(final NodeParametersInput context) {
             try {
                 final var client = createClient(context);
-                final String parentSiteId = getParentSiteId(client, 
-                    m_siteModeSupplier.get(), 
-                    m_webUrlSupplier.get(), 
-                    m_groupSupplier.get());
-                return listSubsites(client, parentSiteId, "");
-            } catch (Exception e) {
-                throw new IllegalStateException("Failed to fetch subsites: " + e.getMessage(), e);
+                final var resolver = new SharepointSiteResolver(client, m_siteModeSupplier.get(), null,
+                        m_webUrlSupplier.get(), getId(m_groupSupplier.get()));
+                return listSubsites(client, resolver.getParentSiteId(), "");
+            } catch (IOException | IllegalStateException ignored) { // NOSONAR avoid log spam in dialog
+                return List.of();
             }
         }
-        
-        private List<IdAndText> listSubsites(final GraphServiceClient<?> client, final String siteId, final String prefix) {
-            final List<IdAndText> result = new ArrayList<>();
-            
-            SiteCollectionPage resp = client.sites(siteId).sites().buildRequest().get();
-            for (Site site : resp.getCurrentPage()) {
-                final String name = prefix + site.name;
-                result.add(new IdAndText(site.id, name));
-                result.addAll(listSubsites(client, site.id, name + " > "));
-            }
-            
-            while (resp.getNextPage() != null) {
-                resp = resp.getNextPage().buildRequest().get();
-                for (Site site : resp.getCurrentPage()) {
-                    final String name = prefix + site.name;
-                    result.add(new IdAndText(site.id, name));
+
+        private static List<StringChoice> listSubsites(final GraphServiceClient<?> client, final String siteId,
+                final String prefix) {
+            final List<StringChoice> result = new ArrayList<>();
+
+            var nextRequest = client.sites(siteId).sites();
+
+            while (nextRequest != null) {
+                final var resp = nextRequest.buildRequest().get();
+                for (final var site : resp.getCurrentPage()) {
+                    final var name = prefix + site.name;
+                    result.add(new StringChoice(String.join("\0", site.id, name), name));
                     result.addAll(listSubsites(client, site.id, name + " > "));
                 }
+                nextRequest = resp.getNextPage();
             }
-            
+
             return result;
         }
     }
-    
+
     private static GraphServiceClient<Request> createClient(final NodeParametersInput context) throws IOException {
         final var credSpec = (CredentialPortObjectSpec) context.getInPortSpec(0)
-            .orElseThrow(() -> new IOException("Credential port not connected"));
-        
+                .orElseThrow(() -> new IOException("Credential port not connected"));
+
         try {
             final var authProvider = GraphCredentialUtil.createAuthenticationProvider(credSpec);
             return GraphApiUtil.createClient(authProvider, DIALOG_CLIENT_TIMEOUT_MILLIS, DIALOG_CLIENT_TIMEOUT_MILLIS);
-        } catch (Exception ex) {
-            throw new IOException("Failed to create client: " + ex.getMessage(), ex);
+        } catch (NoSuchCredentialException | IOException ex) {
+            throw ExceptionUtil.wrapAsIOException(ex);
         }
     }
-    
-    private static String getParentSiteId(final GraphServiceClient<Request> client, 
-            final SiteModeOption mode, final String webUrl, final IdAndText group) throws IOException {
-        try {
-            switch (mode) {
-                case ROOT:
-                    return client.sites().root().buildRequest().get().id;
-                case WEB_URL:
-                    if (webUrl.isEmpty()) {
-                        throw new IOException("Web URL is not specified");
-                    }
-                    return GraphApiUtil.resolveSiteId(client, webUrl);
-                case GROUP:
-                    if (group == null || group.id().isEmpty()) {
-                        throw new IOException("Group is not selected");
-                    }
-                    return client.groups(group.id()).sites("root").buildRequest().get().id;
-                default:
-                    throw new IOException("Unknown site mode: " + mode);
-            }
-        } catch (Exception e) {
-            throw new IOException("Failed to resolve site ID: " + e.getMessage(), e);
-        }
-    }
-    
-    /**
-     * Get the target site ID based on current settings.
-     * 
-     * @param client the Graph client
-     * @return the site ID
-     * @throws IOException if resolution fails
-     */
-    public String getTargetSiteId(final GraphServiceClient<Request> client) throws IOException {
-        final String parentSiteId = getParentSiteId(client, m_siteMode, m_webURL, m_group);
-        if (m_subsite != null && m_subsite.id() != null && !m_subsite.id().isEmpty()) {
-            return m_subsite.id();
-        }
-        return parentSiteId;
-    }
-    
-    /**
-     * Custom persistor for SharePoint site parameters.
-     */
-    public static final class SiteParametersPersistor implements NodeParametersPersistor<SharepointSiteParameters> {
-        
+
+    static final class GroupPersistor implements NodeParametersPersistor<String> {
+
         @Override
-        public SharepointSiteParameters load(final NodeSettingsRO settings) throws InvalidSettingsException {
-            final var params = new SharepointSiteParameters();
-            final NodeSettingsRO siteSettings = settings.getNodeSettings("site");
-            
-            // Load site mode
-            final String modeStr = siteSettings.getString("mode", SiteMode.ROOT.name());
-            try {
-                final SiteMode oldMode = SiteMode.valueOf(modeStr);
-                params.m_siteMode = switch(oldMode) {
-                    case ROOT -> SiteModeOption.ROOT;
-                    case WEB_URL -> SiteModeOption.WEB_URL;
-                    case GROUP -> SiteModeOption.GROUP;
-                };
-            } catch (IllegalArgumentException e) {
-                params.m_siteMode = SiteModeOption.ROOT;
-            }
-            
-            // Load web URL
-            params.m_webURL = siteSettings.getString("site", "");
-            
-            // Load group
-            final String groupId = siteSettings.getString("group", "");
-            final String groupName = siteSettings.getString("groupName", "");
-            params.m_group = new IdAndText(groupId, groupName.isEmpty() ? groupId : groupName);
-            
-            // Load subsite
-            final boolean connectToSubsite = siteSettings.getBoolean("connectToSubsite", false);
-            if (connectToSubsite) {
-                final String subsiteId = siteSettings.getString("subsite", "");
-                final String subsiteName = siteSettings.getString("subsiteName", "");
-                params.m_subsite = new IdAndText(subsiteId, subsiteName.isEmpty() ? subsiteId : subsiteName);
-            } else {
-                params.m_subsite = null;
-            }
-            
-            return params;
+        public String load(final NodeSettingsRO settings) throws InvalidSettingsException {
+            final var site = settings.getNodeSettings("site");
+
+            final var fields = KnimeStringUtils.toEmpty( //
+                    site.getString("group", null), //
+                    site.getString("groupName", null));
+            return String.join("\0", fields);
         }
-        
+
         @Override
-        public void save(final SharepointSiteParameters obj, final NodeSettingsWO settings) {
-            final NodeSettingsWO siteSettings = settings.addNodeSettings("site");
-            
-            // Save site mode
-            final SiteMode oldMode = switch(obj.m_siteMode) {
-                case ROOT -> SiteMode.ROOT;
-                case WEB_URL -> SiteMode.WEB_URL;
-                case GROUP -> SiteMode.GROUP;
+        public void save(final String params, final NodeSettingsWO settings) {
+            final var fields = SEP.split(params == null ? "" : params, 2);
+
+            final var site = settings.addNodeSettings("site");
+            site.addString("group", fields[0]);
+            site.addString("groupName", fields.length > 1 ? fields[1] : "");
+        }
+
+        @Override
+        public String[][] getConfigPaths() {
+            return new String[][] { //
+                    { "site", "group" }, //
+                    { "site", "groupName" }, //
             };
-            siteSettings.addString("mode", oldMode.name());
-            
-            // Save web URL
-            siteSettings.addString("site", obj.m_webURL);
-            
-            // Save group
-            siteSettings.addString("group", obj.m_group != null ? obj.m_group.id() : "");
-            siteSettings.addString("groupName", obj.m_group != null ? obj.m_group.text() : "");
-            
-            // Save subsite
-            final boolean connectToSubsite = obj.m_subsite != null;
-            siteSettings.addBoolean("connectToSubsite", connectToSubsite);
-            siteSettings.addString("subsite", connectToSubsite ? obj.m_subsite.id() : "");
-            siteSettings.addString("subsiteName", connectToSubsite ? obj.m_subsite.text() : "");
-        }
-        
-        @Override
-        public String[] getConfigPaths() {
-            return new String[]{"site"};
         }
     }
+
+    static final class SubsitePersistor implements NodeParametersPersistor<Subsite> {
+
+        @Override
+        public Subsite load(final NodeSettingsRO settings) throws InvalidSettingsException {
+            final var site = settings.getNodeSettings("site");
+
+            final var result = new Subsite();
+
+            final var fields = KnimeStringUtils.toEmpty( //
+                    site.getString("subsite", null), //
+                    site.getString("subsiteName", null));
+
+            if (fields[0].isEmpty()) {
+                result.m_subsite = "";
+            } else {
+                result.m_subsite = String.join("\0", fields);
+            }
+
+            result.m_displayedSubsite = Optional.of(result.m_subsite)
+                    .filter(b -> site.getBoolean("connectToSubsite", false));
+
+            return result;
+        }
+
+        @Override
+        public void save(final Subsite params, final NodeSettingsWO settings) {
+            final var site = settings.addNodeSettings("site");
+            final var fields = SEP.split(params.m_subsite, 2);
+            site.addBoolean("connectToSubsite", params.m_displayedSubsite.isPresent());
+
+            site.addString("subsite", fields[0]);
+            site.addString("subsiteName", fields.length > 1 ? fields[1] : "");
+        }
+
+        @Override
+        public String[][] getConfigPaths() {
+            return new String[][] { //
+                    { "site", "subsite" }, //
+                    { "site", "subsiteName" }, //
+                    { "site", "connectToSubsite" }, //
+            };
+        }
+    }
+
+    static final class SiteModeRef implements ParameterReference<SiteMode> {
+    }
+
+    static final class WebUrlRef implements ParameterReference<String> {
+    }
+
+    static final class SiteModeIsWebUrl implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(SiteModeRef.class).isOneOf(SiteMode.WEB_URL);
+        }
+    }
+
+    static final class GroupRef implements ParameterReference<String> {
+    }
+
+    // Use this provider to keep the actual subsite value of to date with the
+    // displayed value
+    // We have to use this split for two reasons:
+    // * The value isn't lost if the user deselects the checkbox and selects it
+    // again
+    // * The value can be persisted even if the checkbox is not selected (backwards
+    // compatible)
+    static final class SubsiteProvider implements StateProvider<String> {
+
+        private Supplier<Optional<String>> m_subsite;
+        private Supplier<String> m_lastSupplier;
+
+        @Override
+        public void init(final StateProviderInitializer initializer) {
+            initializer.computeAfterOpenDialog();
+            m_subsite = initializer.computeFromValueSupplier(SubsiteRef.class);
+            m_lastSupplier = initializer.getValueSupplier(LastSubsiteRef.class);
+        }
+
+        @Override
+        public String computeState(final NodeParametersInput parametersInput) throws StateComputationFailureException {
+            return m_subsite.get().orElseGet(m_lastSupplier);
+        }
+
+    }
+
+    // Set the default so that the value is restored
+    static final class SubsiteDefault implements OptionalWidget.DefaultValueProvider<String> {
+
+        private Supplier<String> m_lastSubsite;
+
+        @Override
+        public void init(final StateProviderInitializer initializer) {
+            initializer.computeAfterOpenDialog();
+            m_lastSubsite = initializer.computeFromValueSupplier(LastSubsiteRef.class);
+        }
+
+        @Override
+        public String computeState(final NodeParametersInput parametersInput) throws StateComputationFailureException {
+            return m_lastSubsite.get();
+        }
+
+    }
+
+    static final class SiteModeIsGroup implements EffectPredicateProvider {
+        @Override
+        public EffectPredicate init(final PredicateInitializer i) {
+            return i.getEnum(SiteModeRef.class).isOneOf(SiteMode.GROUP);
+        }
+    }
+
+    static final class SubsiteRef implements ParameterReference<Optional<String>> {
+    }
+
+    static final class LastSubsiteRef implements ParameterReference<String> {
+    }
+
+    public static final class Ref implements ParameterReference<SharepointSiteParameters> {
+    }
+
 }

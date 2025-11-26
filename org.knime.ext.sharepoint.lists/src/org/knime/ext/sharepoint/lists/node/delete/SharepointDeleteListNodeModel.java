@@ -113,9 +113,8 @@ final class SharepointDeleteListNodeModel extends WebUINodeModel<SharepointDelet
         return new PortObject[] {};
     }
 
-    private boolean listSettingsNonEmpty() {
-        return !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty()
-                || !m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue().isEmpty();
+    private boolean listSettingsNonEmpty(final SharepointDeleteListNodeParameters params) {
+        return params.m_list != null && !params.m_list.isEmpty();
     }
 
     /**
@@ -144,9 +143,9 @@ final class SharepointDeleteListNodeModel extends WebUINodeModel<SharepointDelet
             final SharepointDeleteListNodeParameters modelSettings)
             throws IOException, InvalidSettingsException {
 
-        var listId = modelSettings.m_list.id();
+        var listId = modelSettings.m_list;
         if (StringUtils.isBlank(listId)) {
-            final var listName = modelSettings.m_list.text();
+            final var listName = modelSettings.m_list; // TODO
 
             listId = SharePointListUtils.getListIdByInternalName(client, siteId, listName) //
                     .orElseThrow(() -> new InvalidSettingsException("Could not find a list with name: " + listName));
@@ -165,7 +164,7 @@ final class SharepointDeleteListNodeModel extends WebUINodeModel<SharepointDelet
      */
     private String getSiteId(final GraphServiceClient<Request> client,
             final SharepointDeleteListNodeParameters modelSettings) throws IOException {
-        return modelSettings.m_siteSettings.getTargetSiteId(client);
+        return modelSettings.m_siteSettings.getSiteId(client);
     }
 
     @Override

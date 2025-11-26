@@ -67,58 +67,58 @@ import org.knime.node.parameters.widget.number.NumberInputWidgetValidation.MinVa
  */
 @SuppressWarnings("restriction")
 public class TimeoutParameters implements NodeParameters {
-    
+
     /**
      * Max timeout value to prevent overflow since the timeout needs to be set in
      * milliseconds and this requires a multiplication by 1000 later
      */
     private static final int MAX_TIMEOUT = Integer.MAX_VALUE / 1000;
-    
+
     private static final int DEFAULT_TIMEOUT = 20;
-    
+
     @Layout(ConnectionTimeoutLayout.class)
     interface ConnectionTimeoutLayout {
     }
-    
+
     @Layout(ReadTimeoutLayout.class)
     interface ReadTimeoutLayout {
     }
-    
-    @Widget(title = "Connection timeout in seconds", 
+
+    @Widget(title = "Connection timeout in seconds",
             description = "Timeout in seconds to establish a connection or 0 for an infinite timeout.")
-    @NumberInputWidget(min = 0, minValidation = IsNonNegativeValidation.class)
+    @NumberInputWidget(minValidation = IsNonNegativeValidation.class)
     @Layout(ConnectionTimeoutLayout.class)
     int m_connectionTimeout = DEFAULT_TIMEOUT;
-    
-    @Widget(title = "Read timeout in seconds", 
+
+    @Widget(title = "Read timeout in seconds",
             description = "Timeout in seconds to read data from an established connection or 0 for an infinite timeout.")
-    @NumberInputWidget(min = 0, minValidation = IsNonNegativeValidation.class)
+    @NumberInputWidget(minValidation = IsNonNegativeValidation.class)
     @Layout(ReadTimeoutLayout.class)
     int m_readTimeout = DEFAULT_TIMEOUT;
-    
+
     /**
      * Get the connection timeout in milliseconds.
-     * 
+     *
      * @return the connection timeout in milliseconds
      */
     public int getConnectionTimeoutMillis() {
         return Math.toIntExact(Duration.ofSeconds(m_connectionTimeout).toMillis());
     }
-    
+
     /**
      * Get the read timeout in milliseconds.
-     * 
+     *
      * @return the read timeout in milliseconds
      */
     public int getReadTimeoutMillis() {
         return Math.toIntExact(Duration.ofSeconds(m_readTimeout).toMillis());
     }
-    
+
     /**
      * Custom persistor for timeout parameters.
      */
     public static final class TimeoutParametersPersistor implements NodeParametersPersistor<TimeoutParameters> {
-        
+
         @Override
         public TimeoutParameters load(final NodeSettingsRO settings) throws InvalidSettingsException {
             final var params = new TimeoutParameters();
@@ -126,16 +126,16 @@ public class TimeoutParameters implements NodeParameters {
             params.m_readTimeout = settings.getInt("readTimeout", DEFAULT_TIMEOUT);
             return params;
         }
-        
+
         @Override
         public void save(final TimeoutParameters obj, final NodeSettingsWO settings) {
             settings.addInt("connectionTimeout", obj.m_connectionTimeout);
             settings.addInt("readTimeout", obj.m_readTimeout);
         }
-        
+
         @Override
-        public String[] getConfigPaths() {
-            return new String[]{"connectionTimeout", "readTimeout"};
+        public String[][] getConfigPaths() {
+            return new String[][] { { "connectionTimeout" }, { "readTimeout" } };
         }
     }
 }

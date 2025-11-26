@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.knime.core.node.util.CheckUtils;
+import org.knime.credentials.base.oauth.api.JWTCredential;
 import org.knime.ext.microsoft.authentication.scopes.Scope;
 import org.knime.ext.microsoft.authentication.util.testing.OAuth2TestAuthenticator;
 import org.knime.ext.sharepoint.GraphCredentialUtil;

@@ -51,11 +51,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
@@ -68,8 +70,8 @@ import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.migration.LoadDefaultsForAbsentFields;
 import org.knime.node.parameters.persistence.NodeParametersPersistor;
-import org.knime.node.parameters.persistence.Persist;
 import org.knime.node.parameters.persistence.Persistor;
+import org.knime.node.parameters.updates.ValueReference;
 import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.StringChoice;
 import org.knime.node.parameters.widget.choices.StringChoicesProvider;
@@ -95,24 +97,16 @@ class SharepointDeleteListNodeParameters implements NodeParameters {
     private static final List<Option> OPTIONS_ITEMS = Collections
             .singletonList(new QueryOption("select", "system,id,displayName,name"));
 
-    @Section(title = "SharePoint Site")
-    @Layout(SharepointSiteSection.class)
-    interface SharepointSiteSection {
-    }
-
     @Section(title = "SharePoint List")
-    @Layout(SharepointListSection.class)
     interface SharepointListSection {
     }
 
     @Section(title = "Timeouts")
     @Advanced
-    @Layout(AdvancedSection.class)
-    interface AdvancedSection {
+    interface TimeoutsSection {
     }
 
-    @Layout(SharepointSiteSection.class)
-    @Persistor(SharepointSiteParameters.SiteParametersPersistor.class)
+    @ValueReference(SharepointSiteParameters.Ref.class)
     SharepointSiteParameters m_siteSettings = new SharepointSiteParameters();
 
     @Widget(title = "List", description = """
@@ -128,11 +122,10 @@ class SharepointDeleteListNodeParameters implements NodeParameters {
             """)
     @ChoicesProvider(ListChoicesProvider.class)
     @Layout(SharepointListSection.class)
-    @Persist(configKey = "list")
     @Persistor(ListPersistor.class)
-    StringChoice m_list = StringChoice.fromId("");
+    String m_list;
 
-    @Layout(AdvancedSection.class)
+    @Layout(TimeoutsSection.class)
     @Persistor(TimeoutParameters.TimeoutParametersPersistor.class)
     TimeoutParameters m_timeoutSettings = new TimeoutParameters();
 
@@ -141,30 +134,32 @@ class SharepointDeleteListNodeParameters implements NodeParameters {
      */
     static final class ListChoicesProvider implements StringChoicesProvider {
 
+        private Supplier<SharepointSiteParameters> m_siteParams;
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void init(final StateProviderInitializer initializer) {
+            initializer.computeAfterOpenDialog();
+            m_siteParams = initializer.computeFromValueSupplier(SharepointSiteParameters.Ref.class);
+        }
+
         @Override
         public List<StringChoice> computeState(final NodeParametersInput context) {
             try {
 
-                // Get site settings from the current parameters
-                // Note: This is a workaround - ideally we'd use a ValueReference to the site settings
-                // but that requires the site settings to be in the same NodeParameters class
-                final var params = context.getInPortSpec(0);
-                if (params.isEmpty()) {
-                    return List.of();
-                }
-
-                // For now, default to root site
-                // In a full implementation, this would read the actual site settings
+                final var site = m_siteParams.get();
                 final var client = createClient(context);
-                final String siteId = client.sites().root().buildRequest().get().id;
+                final var siteId = site.getSiteId(client);
 
                 return listLists(client, siteId, false);
-            } catch (Exception e) {
-                throw new IllegalStateException("Failed to fetch lists: " + e.getMessage(), e);
+            } catch (IOException | IllegalStateException ignored) { // NOSONAR avoid log spam in dialog
+                return List.of();
             }
         }
 
-        private List<StringChoice> listLists(final GraphServiceClient<Request> client, final String siteId,
+        private static List<StringChoice> listLists(final GraphServiceClient<Request> client, final String siteId,
                 final boolean showSystemLists) {
             final List<StringChoice> result = new ArrayList<>();
 
@@ -197,7 +192,7 @@ class SharepointDeleteListNodeParameters implements NodeParameters {
                 final var authProvider = GraphCredentialUtil.createAuthenticationProvider(credSpec);
                 return GraphApiUtil.createClient(authProvider, DIALOG_CLIENT_TIMEOUT_MILLIS,
                         DIALOG_CLIENT_TIMEOUT_MILLIS);
-            } catch (Exception ex) {
+            } catch (NoSuchCredentialException | IOException ex) {
                 throw new IOException("Failed to create client: " + ex.getMessage(), ex);
             }
         }
@@ -206,19 +201,18 @@ class SharepointDeleteListNodeParameters implements NodeParameters {
     /**
      * Custom persistor for list selection.
      */
-    static final class ListPersistor implements NodeParametersPersistor<StringChoice> {
+    static final class ListPersistor implements NodeParametersPersistor<String> {
 
         @Override
-        public StringChoice load(final NodeSettingsRO settings) throws InvalidSettingsException {
+        public String load(final NodeSettingsRO settings) throws InvalidSettingsException {
             final String listId = settings.getString("list", "");
             final String listName = settings.getString("listName", "");
-            return new StringChoice(listId, listName.isEmpty() ? listId : listName);
+            return listId;
         }
 
         @Override
-        public void save(final StringChoice obj, final NodeSettingsWO settings) {
-            settings.addString("list", obj != null ? obj.id() : "");
-            settings.addString("listName", obj != null ? obj.text() : "");
+        public void save(final String obj, final NodeSettingsWO settings) {
+            settings.addString("list", obj != null ? obj : "");
         }
 
         @Override
