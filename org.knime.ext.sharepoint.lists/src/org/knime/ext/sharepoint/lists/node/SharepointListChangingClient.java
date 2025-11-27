@@ -604,6 +604,7 @@ public final class SharepointListChangingClient implements AutoCloseable {
 
         for (final var cell : row) {
             if (i == idColIndex) {
+                i++;
                 continue;
             }
             final var listColNameInternal = colMap.get(colNames[i]).getFirst();
