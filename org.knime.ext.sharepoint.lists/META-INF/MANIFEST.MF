@@ -2,17 +2,17 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Sharepoint extension for KNIME Workbench
 Bundle-SymbolicName: org.knime.ext.sharepoint.lists; singleton:=true
-Bundle-Version: 5.9.0.qualifier
+Bundle-Version: 5.10.0.qualifier
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Require-Bundle: org.knime.workbench.repository;bundle-version="[5.9.0,6.0.0)",
- org.knime.core;bundle-version="[5.9.0,6.0.0)",
- org.knime.filehandling.core;bundle-version="[5.9.0,6.0.0)",
+ org.knime.core;bundle-version="[5.10.0,6.0.0)",
+ org.knime.filehandling.core;bundle-version="[5.10.0,6.0.0)",
  com.microsoft.aad.msal4j;bundle-version="[1.8.1,2.0.0)",
  com.microsoft.graph.microsoft-graph;bundle-version="[5.49.0,6.0.0)",
  com.microsoft.graph.microsoft-graph-core;bundle-version="[2.0.0,3.0.0)",
  com.google.gson;bundle-version="[2.13.2,3.0.0)",
  com.google.guava;bundle-version="[19.0.0,20.0.0)",
- org.knime.time;bundle-version="[5.9.0,6.0.0)",
+ org.knime.time;bundle-version="[5.10.0,6.0.0)",
  org.knime.ext.microsoft.authentication;bundle-version="[5.9.0,6.0.0)",
  org.knime.ext.sharepoint;bundle-version="[5.9.0,6.0.0)",
  com.squareup.okhttp3.okhttp;bundle-version="[4.0.0,5.0.0)",
