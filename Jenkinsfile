@@ -21,6 +21,7 @@ try {
         dependencies: [
             repositories:  [
                 'knime-credentials-base',
+                'knime-base-expressions',
                 'knime-gateway',
                 'knime-js-base',
                 'knime-kerberos',
