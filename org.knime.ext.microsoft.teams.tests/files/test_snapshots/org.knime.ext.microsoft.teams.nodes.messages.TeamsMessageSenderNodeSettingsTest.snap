@@ -1,0 +1,343 @@
+{
+  "data" : {
+    "model" : {
+      "destination" : "CHAT",
+      "selectedChat" : "__not_selected__",
+      "selectedTeam" : "__not_selected__",
+      "selectedChannel" : "__not_selected__",
+      "contentType" : "TEXT",
+      "messageText" : "",
+      "messageHtml" : "",
+      "message" : ""
+    }
+  },
+  "schema" : {
+    "type" : "object",
+    "properties" : {
+      "model" : {
+        "type" : "object",
+        "properties" : {
+          "channelValidationMessage" : {
+            "type" : "object"
+          },
+          "chatValidationMessage" : {
+            "type" : "object"
+          },
+          "contentType" : {
+            "oneOf" : [ {
+              "const" : "TEXT",
+              "title" : "Text"
+            }, {
+              "const" : "HTML",
+              "title" : "HTML"
+            } ],
+            "title" : "Content type",
+            "description" : "Message body content type",
+            "default" : "TEXT"
+          },
+          "destination" : {
+            "oneOf" : [ {
+              "const" : "CHAT",
+              "title" : "Chat"
+            }, {
+              "const" : "CHANNEL",
+              "title" : "Channel"
+            } ],
+            "title" : "Destination",
+            "description" : "Choose Chat or Channel",
+            "default" : "CHAT"
+          },
+          "message" : {
+            "type" : "string",
+            "default" : ""
+          },
+          "messageHtml" : {
+            "type" : "string",
+            "title" : "Message (HTML)",
+            "description" : "HTML message body (rich text editor)",
+            "default" : ""
+          },
+          "messageText" : {
+            "type" : "string",
+            "title" : "Message (Text)",
+            "description" : "Plain text message body",
+            "default" : ""
+          },
+          "selectedChannel" : {
+            "type" : "string",
+            "title" : "Channel",
+            "description" : "Select a channel within the team",
+            "default" : "__not_selected__"
+          },
+          "selectedChat" : {
+            "type" : "string",
+            "title" : "Chat",
+            "description" : "Select a chat to send message to",
+            "default" : "__not_selected__"
+          },
+          "selectedTeam" : {
+            "type" : "string",
+            "title" : "Team",
+            "description" : "Select a team containing the target channel",
+            "default" : "__not_selected__"
+          },
+          "teamValidationMessage" : {
+            "type" : "object"
+          }
+        }
+      }
+    }
+  },
+  "ui_schema" : {
+    "elements" : [ {
+      "type" : "Control",
+      "scope" : "#/properties/model/properties/destination",
+      "options" : {
+        "format" : "valueSwitch"
+      }
+    }, {
+      "type" : "Control",
+      "scope" : "#/properties/model/properties/selectedChat",
+      "options" : {
+        "format" : "dropDown"
+      },
+      "providedOptions" : [ "possibleValues" ],
+      "rule" : {
+        "effect" : "SHOW",
+        "condition" : {
+          "scope" : "#/properties/model/properties/destination",
+          "schema" : {
+            "oneOf" : [ {
+              "const" : "CHAT"
+            } ]
+          }
+        }
+      }
+    }, {
+      "type" : "Control",
+      "id" : "#/properties/model/properties/chatValidationMessage",
+      "options" : {
+        "format" : "textMessage"
+      },
+      "providedOptions" : [ "message" ],
+      "rule" : {
+        "effect" : "SHOW",
+        "condition" : {
+          "scope" : "#/properties/model/properties/destination",
+          "schema" : {
+            "oneOf" : [ {
+              "const" : "CHAT"
+            } ]
+          }
+        }
+      }
+    }, {
+      "type" : "Control",
+      "scope" : "#/properties/model/properties/selectedTeam",
+      "options" : {
+        "format" : "dropDown"
+      },
+      "providedOptions" : [ "possibleValues" ],
+      "rule" : {
+        "effect" : "SHOW",
+        "condition" : {
+          "scope" : "#/properties/model/properties/destination",
+          "schema" : {
+            "oneOf" : [ {
+              "const" : "CHANNEL"
+            } ]
+          }
+        }
+      }
+    }, {
+      "type" : "Control",
+      "id" : "#/properties/model/properties/teamValidationMessage",
+      "options" : {
+        "format" : "textMessage"
+      },
+      "providedOptions" : [ "message" ],
+      "rule" : {
+        "effect" : "SHOW",
+        "condition" : {
+          "scope" : "#/properties/model/properties/destination",
+          "schema" : {
+            "oneOf" : [ {
+              "const" : "CHANNEL"
+            } ]
+          }
+        }
+      }
+    }, {
+      "type" : "Control",
+      "scope" : "#/properties/model/properties/selectedChannel",
+      "options" : {
+        "format" : "dropDown"
+      },
+      "providedOptions" : [ "possibleValues" ],
+      "rule" : {
+        "effect" : "SHOW",
+        "condition" : {
+          "scope" : "#/properties/model/properties/destination",
+          "schema" : {
+            "oneOf" : [ {
+              "const" : "CHANNEL"
+            } ]
+          }
+        }
+      }
+    }, {
+      "type" : "Control",
+      "id" : "#/properties/model/properties/channelValidationMessage",
+      "options" : {
+        "format" : "textMessage"
+      },
+      "providedOptions" : [ "message" ],
+      "rule" : {
+        "effect" : "SHOW",
+        "condition" : {
+          "scope" : "#/properties/model/properties/destination",
+          "schema" : {
+            "oneOf" : [ {
+              "const" : "CHANNEL"
+            } ]
+          }
+        }
+      }
+    }, {
+      "type" : "Control",
+      "scope" : "#/properties/model/properties/contentType",
+      "options" : {
+        "format" : "valueSwitch"
+      }
+    }, {
+      "type" : "Control",
+      "scope" : "#/properties/model/properties/messageText",
+      "options" : {
+        "rows" : 4,
+        "format" : "textArea"
+      },
+      "rule" : {
+        "effect" : "SHOW",
+        "condition" : {
+          "scope" : "#/properties/model/properties/contentType",
+          "schema" : {
+            "oneOf" : [ {
+              "const" : "TEXT"
+            } ]
+          }
+        }
+      }
+    }, {
+      "type" : "Control",
+      "scope" : "#/properties/model/properties/messageHtml",
+      "options" : {
+        "format" : "richTextInput"
+      },
+      "rule" : {
+        "effect" : "SHOW",
+        "condition" : {
+          "scope" : "#/properties/model/properties/contentType",
+          "schema" : {
+            "oneOf" : [ {
+              "const" : "HTML"
+            } ]
+          }
+        }
+      }
+    } ]
+  },
+  "persist" : {
+    "type" : "object",
+    "properties" : {
+      "model" : {
+        "type" : "object",
+        "properties" : {
+          "destination" : { },
+          "selectedChat" : { },
+          "chatValidationMessage" : { },
+          "selectedTeam" : { },
+          "teamValidationMessage" : { },
+          "selectedChannel" : { },
+          "channelValidationMessage" : { },
+          "contentType" : { },
+          "messageText" : { },
+          "messageHtml" : { },
+          "message" : { }
+        }
+      }
+    }
+  },
+  "initialUpdates" : [ {
+    "scope" : "#/properties/model/properties/selectedChat",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "id" : "__not_selected__",
+        "text" : "Connect Microsoft Authenticator node first"
+      } ]
+    } ]
+  }, {
+    "scope" : "#/properties/model/properties/selectedTeam",
+    "providedOptionName" : "possibleValues",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : [ {
+        "id" : "__not_selected__",
+        "text" : "Connect Microsoft Authenticator node first"
+      } ]
+    } ]
+  }, {
+    "id" : "#/properties/model/properties/channelValidationMessage",
+    "providedOptionName" : "message",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : null
+    } ]
+  }, {
+    "id" : "#/properties/model/properties/chatValidationMessage",
+    "providedOptionName" : "message",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : {
+        "title" : "Please select a chat",
+        "description" : "Connect the Microsoft Authenticator node first, then select a chat from the dropdown",
+        "type" : "INFO"
+      }
+    } ]
+  }, {
+    "id" : "#/properties/model/properties/teamValidationMessage",
+    "providedOptionName" : "message",
+    "values" : [ {
+      "indices" : [ ],
+      "value" : null
+    } ]
+  } ],
+  "globalUpdates" : [ {
+    "trigger" : {
+      "id" : "after-open-dialog"
+    },
+    "triggerInitially" : true,
+    "dependencies" : [ "#/properties/model/properties/selectedTeam" ]
+  }, {
+    "trigger" : {
+      "scope" : "#/properties/model/properties/destination"
+    },
+    "dependencies" : [ "#/properties/model/properties/destination", "#/properties/model/properties/selectedChannel", "#/properties/model/properties/selectedChat", "#/properties/model/properties/selectedTeam" ]
+  }, {
+    "trigger" : {
+      "scope" : "#/properties/model/properties/selectedChannel"
+    },
+    "dependencies" : [ "#/properties/model/properties/destination", "#/properties/model/properties/selectedChannel", "#/properties/model/properties/selectedTeam" ]
+  }, {
+    "trigger" : {
+      "scope" : "#/properties/model/properties/selectedChat"
+    },
+    "dependencies" : [ "#/properties/model/properties/destination", "#/properties/model/properties/selectedChat" ]
+  }, {
+    "trigger" : {
+      "scope" : "#/properties/model/properties/selectedTeam"
+    },
+    "dependencies" : [ "#/properties/model/properties/destination", "#/properties/model/properties/selectedChannel", "#/properties/model/properties/selectedTeam" ]
+  } ]
+}
