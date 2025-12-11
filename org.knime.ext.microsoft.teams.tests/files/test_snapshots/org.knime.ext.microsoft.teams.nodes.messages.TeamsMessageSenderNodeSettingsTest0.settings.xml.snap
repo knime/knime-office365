@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="test">
+    <entry key="destination" type="xstring" value="CHAT"/>
+    <entry key="selectedChat" type="xstring" value="19:9f40fd3a8dc14774910dea51b365f8d5@thread.v2"/>
+    <entry key="selectedTeam" type="xstring" value="1c734e4e-2a67-40c2-9ddb-92c25132a6de"/>
+    <entry key="selectedChannel" type="xstring" value="19:foJCfOmIBBh5DzcO56wfzjzrD_ZkErrnayWT2K_GPHY1@thread.tacv2"/>
+    <entry key="contentType" type="xstring" value="TEXT"/>
+    <entry key="messageText" type="xstring" value="for testflows"/>
+    <entry key="messageHtml" type="xstring" value="&lt;p&gt;fortestbuild&lt;/p&gt;"/>
+    <entry key="message" type="xstring" value=""/>
+</config>

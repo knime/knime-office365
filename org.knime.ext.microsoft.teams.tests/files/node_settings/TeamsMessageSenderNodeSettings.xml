@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="settings.xml">
+    <entry key="node_file" type="xstring" value="settings.xml"/>
+    <config key="flow_stack"/>
+    <config key="internal_node_subsettings">
+        <entry key="memory_policy" type="xstring" value="CacheSmallInMemory"/>
+    </config>
+    <config key="model">
+        <entry key="destination" type="xstring" value="CHAT"/>
+        <entry key="selectedChat" type="xstring" value="19:9f40fd3a8dc14774910dea51b365f8d5@thread.v2"/>
+        <entry key="selectedTeam" type="xstring" value="1c734e4e-2a67-40c2-9ddb-92c25132a6de"/>
+        <entry key="selectedChannel" type="xstring" value="19:foJCfOmIBBh5DzcO56wfzjzrD_ZkErrnayWT2K_GPHY1@thread.tacv2"/>
+        <entry key="contentType" type="xstring" value="TEXT"/>
+        <entry key="messageText" type="xstring" value="for testflows"/>
+        <entry key="messageHtml" type="xstring" value="&lt;p&gt;fortestbuild&lt;/p&gt;"/>
+        <entry key="message" type="xstring" value=""/>
+    </config>
+    <config key="variables"/>
+    <entry key="customDescription" type="xstring" isnull="true" value=""/>
+    <entry key="state" type="xstring" value="EXECUTED"/>
+    <entry key="factory" type="xstring" value="org.knime.ext.microsoft.teams.nodes.messages.TeamsMessageSenderNodeFactory"/>
+    <entry key="node-name" type="xstring" value="Microsoft Teams Message Sender"/>
+    <entry key="node-bundle-name" type="xstring" value="Microsoft Teams extension for KNIME Workbench"/>
+    <entry key="node-bundle-symbolic-name" type="xstring" value="org.knime.ext.microsoft.teams"/>
+    <entry key="node-bundle-vendor" type="xstring" value="KNIME AG, Zurich, Switzerland"/>
+    <entry key="node-bundle-version" type="xstring" value="5.9.0.qualifier"/>
+    <entry key="node-feature-name" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-symbolic-name" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-vendor" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-version" type="xstring" value="0.0.0"/>
+    <config key="factory_settings"/>
+    <entry key="name" type="xstring" value="Microsoft Teams Message Sender"/>
+    <entry key="hasContent" type="xboolean" value="true"/>
+    <entry key="isInactive" type="xboolean" value="false"/>
+    <config key="ports"/>
+    <config key="filestores">
+        <entry key="file_store_location" type="xstring" isnull="true" value=""/>
+        <entry key="file_store_id" type="xstring" value="8b3279be-36db-4f91-8bca-b36c1d9dd77c"/>
+    </config>
+</config>

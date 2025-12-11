@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+    <!-- Declaring dependency on KNIME base expressions feature group -->
+    <requires>
+        <import plugin="org.knime.features.base.expressions.feature.group"/>
+    </requires>
+</plugin>
