@@ -93,8 +93,7 @@ final class SharepointDeleteListNodeModel extends WebUINodeModel<SharepointDelet
             GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
         }
 
-        params.validate();
-        if (params.m_list.dialogNeverOpened()) {
+        if (params.m_list.isLegacyAndWebUIDialogNeverOpened()) {
             // do manual checking because of legacy mode
             CheckUtils.checkSetting(legacyListSettingsNonEmpty(params.m_list),
                     "No list selected. Please select a list.");
@@ -146,7 +145,7 @@ final class SharepointDeleteListNodeModel extends WebUINodeModel<SharepointDelet
             final String listName;
             if (internalName != null) {
                 listName = internalName;
-            } else if (listParameters.dialogNeverOpened() && displayName != null) {
+            } else if (listParameters.isLegacyAndWebUIDialogNeverOpened() && displayName != null) {
                 // backwards compatibility:
                 // if the dialog was never opened and legacy combined settings were loaded
                 // the display name is filled with the complete settings string if the legacy

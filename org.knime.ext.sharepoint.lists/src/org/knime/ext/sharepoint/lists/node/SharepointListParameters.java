@@ -75,6 +75,12 @@ import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters.CreateListParameters.ListModeRef;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters.CreateListParameters.NewListCheckRef;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters.CreateListParameters.NewListRef;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters.ListParameters.ExistingListWRef;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters.ShowSystemLists.ReplaceListChoicesToShowSystemLists;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters.ShowSystemLists.ShowSystemListsRef;
 import org.knime.ext.sharepoint.parameters.DebouncedChoicesProvider;
 import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
 import org.knime.node.parameters.Advanced;
@@ -86,9 +92,11 @@ import org.knime.node.parameters.layout.Inside;
 import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.migration.ConfigMigration;
+import org.knime.node.parameters.migration.DefaultProvider;
 import org.knime.node.parameters.migration.Migration;
 import org.knime.node.parameters.migration.NodeParametersMigration;
 import org.knime.node.parameters.persistence.NodeParametersPersistor;
+import org.knime.node.parameters.persistence.Persist;
 import org.knime.node.parameters.persistence.Persistor;
 import org.knime.node.parameters.updates.Effect;
 import org.knime.node.parameters.updates.Effect.EffectType;
@@ -191,7 +199,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
     public static final class Basic extends SharepointListParameters {
 
         @PersistEmbedded
-        @Migration(BaseListMigration.class)
+        @Migration(ListMigration.class)
         ListParameters m_list = new ListParameters();
 
         @ValueReference(ShowSystemListsRef.class)
@@ -218,7 +226,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
     public static final class WithSystemLists extends SharepointListParameters {
 
         @PersistEmbedded
-        @Migration(BaseListMigration.class)
+        @Migration(ListMigration.class)
         ListParameters m_list = new ListParameters();
 
         @PersistEmbedded
@@ -248,9 +256,6 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         CreateListParameters m_list = new CreateListParameters();
 
         @PersistEmbedded
-        DontShowSystemLists m_unused = new DontShowSystemLists();
-
-        @PersistEmbedded
         IfListExists m_listExists = new IfListExists();
 
         @Override
@@ -274,6 +279,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
         @PersistEmbedded
         @Migration(CreateListMigration.class)
+        @Modification(ReplaceListChoicesToShowSystemLists.class)
         CreateListParameters m_list = new CreateListParameters();
 
         @PersistEmbedded
@@ -294,7 +300,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
     }
 
     @Layout(SharepointListSection.Tail.class)
-    private static sealed class ListParameters implements NodeParameters {
+    static sealed class ListParameters implements NodeParameters {
 
         private static final String EXISTING_LIST_DESCRIPTION = """
                 An existing SharePoint list. The drop down menu shows lists in the format &lt;display-name&gt;
@@ -304,8 +310,9 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
                 """;
 
         @ValueProvider(SetTrueIfOpenedInDialog.class)
-        @Persistor(CheckInDialogPeristor.class)
-        boolean m_dialogWasOpened;
+        @Persist(configKey = "_checkExistenceInDialog")
+        @Migration(LoadFalseIfNotPresent.class)
+        boolean m_checkExistenceInDialog = true;
 
         @Widget(title = "List", description = EXISTING_LIST_DESCRIPTION)
         @Effect(predicate = CreateListSelected.class, type = EffectType.HIDE)
@@ -315,23 +322,43 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Persistor(ExistingListPersistor.class)
         String m_existingList = "";
 
-        ListMode getListMode() {
-            return null;
+        static final class ExistingListWRef implements Modification.Reference {
         }
 
-        @SuppressWarnings("unused")
-        void setListMode(final ListMode mode) {
-            // creating lists not supported
+        static final class ExistingListRef implements ParameterReference<String> {
         }
 
-        String getNewListName() {
-            return null;
+        @Override
+        public void validate() throws InvalidSettingsException {
+            if (m_checkExistenceInDialog) {
+                CheckUtils.checkSetting(getExistingListId() != null || getExistingListDisplayName() != null,
+                        "Please select a list.");
+            }
         }
 
-        @SuppressWarnings("unused")
-        void setNewListName(final String name) {
-            // creating lists not supported
+        private String getExistingListField(final int index) {
+            if (m_existingList == null || m_existingList.isEmpty()) {
+                return null;
+            }
+            final var result = SEP.split(m_existingList, 3);
+            if (result.length <= index) {
+                return null;
+            }
+            return (result[index].isEmpty()) ? null : result[index];
         }
+
+        String getExistingListId() {
+            return getExistingListField(0);
+        }
+
+        String getExistingListInternalName() {
+            return getExistingListField(1);
+        }
+
+        String getExistingListDisplayName() {
+            return getExistingListField(2);
+        }
+
     }
 
     @Layout(SharepointListSection.Tail.class)
@@ -345,6 +372,9 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Layout(SharepointListSection.Head.class)
         ListMode m_listMode = ListMode.SELECT;
 
+        static final class ListModeRef implements ParameterReference<ListMode> {
+        }
+
         @Widget(title = "New list name", description = """
                 The display name of the list to create. If a list was previously created with
                 this node and the dialog is reopened, the created list must be selected from the existing lists instead.
@@ -357,6 +387,9 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @CustomValidation(ListNameValidator.class)
         String m_newListName = "";
 
+        static final class NewListRef implements ParameterReference<String> {
+        }
+
         /**
          * This field is used to be able to prevent applying the settings when the name
          * already exists. It is not persisted if there is no error.
@@ -366,28 +399,32 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Persistor(ListNameValidationPersistor.class)
         String m_lastNameValidationInternal;
 
-        @Override
+        static final class NewListCheckRef implements ParameterReference<String> {
+        }
+
         public ListMode getListMode() {
             return m_listMode;
         }
 
-        @Override
         public void setListMode(final ListMode mode) {
             m_listMode = mode;
         }
 
-        @Override
         public String getNewListName() {
             return m_newListName;
         }
 
-        @Override
         public void setNewListName(final String name) {
             m_newListName = name;
         }
 
         @Override
         public void validate() throws InvalidSettingsException {
+            if (ListMode.CREATE == m_listMode) {
+                CheckUtils.checkSetting(!m_newListName.isEmpty(), "Please specify a name for the list.");
+            } else {
+                super.validate();
+            }
             if (m_lastNameValidationInternal != null) {
                 throw new InvalidSettingsException(m_lastNameValidationInternal);
             }
@@ -403,12 +440,16 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Layout(SharepointListSection.Tail.class)
         @ValueReference(ShowSystemListsRef.class)
         boolean m_showSystemLists;
-    }
 
-    static final class DontShowSystemLists implements NodeParameters {
-        @ValueReference(ShowSystemListsRef.class)
-        @Persistor(DoNotPersistBoolean.class)
-        boolean m_unused;
+        static final class ShowSystemListsRef implements ParameterReference<Boolean> {
+        }
+
+        static final class ReplaceListChoicesToShowSystemLists extends ReplaceListChoicesModifier {
+            ReplaceListChoicesToShowSystemLists() {
+                super(ListWithSystemListsChoicesProvider.class);
+            }
+        }
+
     }
 
     static final class IfListExists implements NodeParameters {
@@ -422,46 +463,37 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
     @Override
     public void validate() throws InvalidSettingsException {
-        final var list = getListParameters();
-        if (list.getListMode() != ListMode.CREATE) {
-            if (list.m_dialogWasOpened) {
-                CheckUtils.checkSetting(getExistingListId() != null || getExistingListDisplayName() != null,
-                        "Please select a list.");
-            }
-        } else {
-            CheckUtils.checkSetting(!getListParameters().getNewListName().isEmpty(),
-                    "Please specify a name for the list.");
-            list.validate();
-        }
+        getListParameters().validate();
     }
 
     /**
      * @return the internal ID of the specified list, may be null
      */
     public String getExistingListId() {
-        return getExistingListField(0);
+        return getListParameters().getExistingListField(0);
     }
 
     /**
      * @return the internal name of the specified list, may be null
      */
     public String getExistingListInternalName() {
-        return getExistingListField(1);
+        return getListParameters().getExistingListField(1);
     }
 
     /**
      * @return the internal name of the specified list, may be null
      */
     public String getExistingListDisplayName() {
-        return getExistingListField(2);
+        return getListParameters().getExistingListField(2);
     }
 
     /**
-     * @return whether the dialog was never opened. If so the existing list was not
-     *         checked to be non-empty and this has to be checked manually.
+     * @return whether the node was created with a legacy dialog and the webui
+     *         dialog was never opened. If so the existing list was not checked to
+     *         be non-empty and this has to be checked manually.
      */
-    public boolean dialogNeverOpened() {
-        return !getListParameters().m_dialogWasOpened;
+    public boolean isLegacyAndWebUIDialogNeverOpened() {
+        return !getListParameters().m_checkExistenceInDialog;
     }
 
     /**
@@ -469,7 +501,11 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
      *         create a new one, if supported by these settings
      */
     public Optional<ListMode> getListMode() {
-        return Optional.ofNullable(getListParameters().getListMode());
+        final var listParams = getListParameters();
+        if (listParams instanceof CreateListParameters scl) {
+            return Optional.ofNullable(scl.getListMode());
+        }
+        return Optional.empty();
     }
 
     /**
@@ -485,23 +521,10 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
      */
     public Optional<String> getListNameToCreate() {
         final var list = getListParameters();
-        if (list.getListMode() == null) {
-            return Optional.empty();
-        } else {
-            return Optional.ofNullable(list.getNewListName());
+        if (list instanceof CreateListParameters scl) {
+            return Optional.ofNullable(scl.getNewListName());
         }
-    }
-
-    private String getExistingListField(final int index) {
-        final var list = getListParameters().m_existingList;
-        if (list == null || list.isEmpty()) {
-            return null;
-        }
-        final var result = SEP.split(list, 3);
-        if (result.length <= index) {
-            return null;
-        }
-        return (result[index].isEmpty()) ? null : result[index];
+        return Optional.empty();
     }
 
     @SuppressWarnings("javadoc")
@@ -513,21 +536,6 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Label(value = "Create", //
                 description = "Create a new list with a specified display name.")
         CREATE
-    }
-
-    static final class ListModeRef implements ParameterReference<ListMode> {
-    }
-
-    static final class ExistingListRef implements ParameterReference<String> {
-    }
-
-    static final class NewListRef implements ParameterReference<String> {
-    }
-
-    static final class NewListCheckRef implements ParameterReference<String> {
-    }
-
-    static final class ShowSystemListsRef implements ParameterReference<Boolean> {
     }
 
     static final class CreateListSelected implements EffectPredicateProvider {
@@ -544,15 +552,13 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
     /**
      * Choices provider for SharePoint lists.
      */
-    static final class ListChoicesProvider extends DebouncedChoicesProvider<List<StringChoice>>
+    static class ListChoicesProvider extends DebouncedChoicesProvider<List<StringChoice>>
             implements StringChoicesProvider {
 
         private static final AtomicReference<Thread> DEBOUNCE_LOCK = new AtomicReference<>();
         private static final AtomicLong LAST_TIME_CALLED = new AtomicLong();
 
         private Supplier<SharepointSiteParameters> m_siteParams;
-
-        private Supplier<Boolean> m_showSystemLists;
 
         ListChoicesProvider() {
             super(DEBOUNCE_TIME, DEBOUNCE_LOCK, LAST_TIME_CALLED);
@@ -562,7 +568,10 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         public void init(final StateProviderInitializer initializer) {
             initializer.computeAfterOpenDialog();
             m_siteParams = initializer.computeFromValueSupplier(SharepointSiteParameters.Ref.class);
-            m_showSystemLists = initializer.computeFromValueSupplier(ShowSystemListsRef.class);
+        }
+
+        protected boolean showSystemLists() {
+            return false;
         }
 
         @Override
@@ -572,7 +581,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
                 final var client = createClient(context);
                 final var siteId = site.getSiteId(client);
 
-                return listLists(client, siteId, m_showSystemLists.get());
+                return listLists(client, siteId, showSystemLists());
             } catch (IOException | IllegalStateException | GraphServiceException ignored) { // NOSONAR
                 // avoid log spam in dialog
                 return List.of();
@@ -605,6 +614,38 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
             result.sort(Comparator.comparing(StringChoice::text));
             return result;
         }
+    }
+
+    static final class ListWithSystemListsChoicesProvider extends ListChoicesProvider {
+        private Supplier<Boolean> m_showSystemLists;
+
+        @Override
+        public void init(final StateProviderInitializer initializer) {
+            m_showSystemLists = initializer.computeFromValueSupplier(ShowSystemListsRef.class);
+            super.init(initializer);
+        }
+
+        @Override
+        protected boolean showSystemLists() {
+            return m_showSystemLists.get();
+        }
+    }
+
+    static class ReplaceListChoicesModifier implements Modification.Modifier {
+
+        private final Class<? extends ListChoicesProvider> m_providerClass;
+
+        ReplaceListChoicesModifier(final Class<? extends ListChoicesProvider> providerClass) {
+            m_providerClass = providerClass;
+
+        }
+
+        @Override
+        public void modify(final WidgetGroupModifier group) {
+            group.find(ExistingListWRef.class).modifyAnnotation(ChoicesProvider.class).withValue(m_providerClass)
+                    .modify();
+        }
+
     }
 
     private static GraphServiceClient<Request> createClient(final NodeParametersInput context) throws IOException {
@@ -715,59 +756,50 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         }
 
         private T loadCombinedSettings(final NodeSettingsRO settings) {
-            final var result = create();
-
             final var id = settings.getString("list", "");
             final var dispAndInternName = settings.getString("listName", "");
-
-            result.setListMode(supportsCreateList() ? ListMode.SELECT : null);
-
-            if (!id.isEmpty() || !supportsCreateList()) { // nothing selected or no custom name possible
-                final var pair = SharePointListUtils.getDisplayAndInternalListName(dispAndInternName);
-
-                if (pair != null) {
-                    result.m_existingList = String.join("\0", id, pair.getSecond(), pair.getFirst());
-                } else {
-                    // should not happen; set display name to everything
-                    result.m_existingList = String.join("\0", id, "", dispAndInternName);
-                }
-                result.setNewListName("");
-            } else {
-                result.setListMode(ListMode.CREATE);
-                result.m_existingList = "";
-                result.setNewListName(dispAndInternName);
-            }
-            return result;
+            return loadCombinedSettings(id, dispAndInternName);
         }
 
-        protected abstract boolean supportsCreateList();
+        abstract protected T loadCombinedSettings(final String id, final String dispAndInternName);
 
-        protected abstract T create();
+        static void loadExistingList(final ListParameters result, final String id, final String dispAndInternName) {
+            final var pair = SharePointListUtils.getDisplayAndInternalListName(dispAndInternName);
+
+            if (pair != null) {
+                result.m_existingList = String.join("\0", id, pair.getSecond(), pair.getFirst());
+            } else {
+                // should not happen; set display name to everything
+                result.m_existingList = String.join("\0", id, "", dispAndInternName);
+            }
+        }
+
     }
 
-    static final class BaseListMigration extends AbstractListMigration<ListParameters> {
+    static final class ListMigration extends AbstractListMigration<ListParameters> {
 
         @Override
-        protected ListParameters create() {
-            return new ListParameters();
-        }
-
-        @Override
-        protected boolean supportsCreateList() {
-            return false;
+        protected ListParameters loadCombinedSettings(final String id, final String dispAndInternName) {
+            final var result = new ListParameters();
+            loadExistingList(result, id, dispAndInternName);
+            return result;
         }
     }
 
     static final class CreateListMigration extends AbstractListMigration<CreateListParameters> {
 
         @Override
-        protected CreateListParameters create() {
-            return new CreateListParameters();
-        }
+        protected CreateListParameters loadCombinedSettings(final String id, final String dispAndInternName) {
+            final var result = new CreateListParameters();
+            if (id.isEmpty()) { // empty id means that the list was not selected from existing lists
+                result.setListMode(ListMode.CREATE);
+                result.m_existingList = "";
+                result.setNewListName(dispAndInternName);
+            } else {
+                loadExistingList(result, id, dispAndInternName);
+            }
+            return result;
 
-        @Override
-        protected boolean supportsCreateList() {
-            return true;
         }
     }
 
@@ -832,28 +864,6 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         }
     }
 
-    static class CheckInDialogPeristor implements NodeParametersPersistor<Boolean> {
-
-        @Override
-        public Boolean load(final NodeSettingsRO settings) throws InvalidSettingsException {
-            if (settings.containsKey(LIST_INTERNALS_KEY)) {
-                return settings.getConfig(LIST_INTERNALS_KEY).getBoolean("_checkExistenceInDialog", false);
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public void save(final Boolean param, final NodeSettingsWO settings) {
-            settings.addConfig(LIST_INTERNALS_KEY).addBoolean("_checkExistenceInDialog", param);
-        }
-
-        @Override
-        public String[][] getConfigPaths() {
-            return new String[0][];
-        }
-    }
-
     static final class IfListExistsMigration implements NodeParametersMigration<ListExistsPolicy> {
 
         @Override
@@ -894,6 +904,14 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
     }
 
+    static final class LoadFalseIfNotPresent implements DefaultProvider<Boolean> {
+
+        @Override
+        public Boolean getDefault() {
+            return false;
+        }
+    }
+
     /**
      * Can be used to change some widgets of this component by overwriting the
      * relevant methods and providing own values.
@@ -922,6 +940,4 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         }
     }
 
-    static final class ExistingListWRef implements Modification.Reference {
-    }
 }
