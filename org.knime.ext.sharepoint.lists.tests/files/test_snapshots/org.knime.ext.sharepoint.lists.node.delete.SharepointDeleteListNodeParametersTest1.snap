@@ -4,7 +4,7 @@
       "site" : {
         "mode" : "ROOT",
         "webUrl" : "",
-        "group" : "",
+        "group" : "1c734e4e-2a67-40c2-9ddb-92c25132a6de\u0000Test team for node sender feature",
         "subsite" : {
           "displayedSubsite" : null,
           "subsite" : ""
@@ -12,14 +12,14 @@
       },
       "list" : {
         "list" : {
-          "dialogWasOpened" : true,
-          "existingList" : "cf428432-1afe-47d5-b5c7-fb41c495a9c5\u0000test_AP215411496917714664a8189ca7e17a0cd4f90\u0000test_AP-21541-14969177-1466-4a81-89ca-7e17a0cd4f90"
+          "checkExistenceInDialog" : false,
+          "existingList" : "9adb4e16-3e1a-419a-bff6-3b5a2777e326\u0000test_AP215410db21d66a24f4a71821ad65b89d0c7a1\u0000test_AP-21541-0db21d66-a24f-4a71-821a-d65b89d0c7a1"
         },
         "unused" : false
       },
       "timeout" : {
-        "connectionTimeout" : 621,
-        "readTimeout" : 926
+        "connectionTimeout" : 21,
+        "readTimeout" : 21
       }
     }
   },
@@ -35,9 +35,9 @@
               "list" : {
                 "type" : "object",
                 "properties" : {
-                  "dialogWasOpened" : {
+                  "checkExistenceInDialog" : {
                     "type" : "boolean",
-                    "default" : false
+                    "default" : true
                   },
                   "existingList" : {
                     "type" : "string",
@@ -47,7 +47,7 @@
                   }
                 },
                 "default" : {
-                  "dialogWasOpened" : false,
+                  "checkExistenceInDialog" : true,
                   "existingList" : ""
                 }
               },
@@ -58,7 +58,7 @@
             },
             "default" : {
               "list" : {
-                "dialogWasOpened" : false,
+                "checkExistenceInDialog" : true,
                 "existingList" : ""
               },
               "unused" : false
@@ -316,7 +316,7 @@
               "list" : {
                 "type" : "object",
                 "properties" : {
-                  "dialogWasOpened" : {
+                  "checkExistenceInDialog" : {
                     "configPaths" : [ ]
                   },
                   "existingList" : {
@@ -346,7 +346,7 @@
     }
   },
   "initialUpdates" : [ {
-    "scope" : "#/properties/model/properties/list/properties/list/properties/dialogWasOpened",
+    "scope" : "#/properties/model/properties/list/properties/list/properties/checkExistenceInDialog",
     "values" : [ {
       "indices" : [ ],
       "value" : true
@@ -382,17 +382,12 @@
       "id" : "after-open-dialog"
     },
     "triggerInitially" : true,
-    "dependencies" : [ "#/properties/model/properties/list/properties/unused", "#/properties/model/properties/site", "#/properties/model/properties/site/properties/group", "#/properties/model/properties/site/properties/mode", "#/properties/model/properties/site/properties/webUrl" ]
-  }, {
-    "trigger" : {
-      "scope" : "#/properties/model/properties/list/properties/unused"
-    },
-    "dependencies" : [ "#/properties/model/properties/list/properties/unused", "#/properties/model/properties/site" ]
+    "dependencies" : [ "#/properties/model/properties/site", "#/properties/model/properties/site/properties/group", "#/properties/model/properties/site/properties/mode", "#/properties/model/properties/site/properties/webUrl" ]
   }, {
     "trigger" : {
       "scope" : "#/properties/model/properties/site"
     },
-    "dependencies" : [ "#/properties/model/properties/list/properties/unused", "#/properties/model/properties/site" ]
+    "dependencies" : [ "#/properties/model/properties/site" ]
   }, {
     "trigger" : {
       "scope" : "#/properties/model/properties/site/properties/group"

@@ -92,7 +92,6 @@ import org.knime.node.parameters.layout.Inside;
 import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.migration.ConfigMigration;
-import org.knime.node.parameters.migration.DefaultProvider;
 import org.knime.node.parameters.migration.Migration;
 import org.knime.node.parameters.migration.NodeParametersMigration;
 import org.knime.node.parameters.persistence.NodeParametersPersistor;
@@ -310,8 +309,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
                 """;
 
         @ValueProvider(SetTrueIfOpenedInDialog.class)
-        @Persist(configKey = "_checkExistenceInDialog")
-        @Migration(LoadFalseIfNotPresent.class)
+        @Persist(hidden = true)
         boolean m_checkExistenceInDialog = true;
 
         @Widget(title = "List", description = EXISTING_LIST_DESCRIPTION)
@@ -781,6 +779,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Override
         protected ListParameters loadCombinedSettings(final String id, final String dispAndInternName) {
             final var result = new ListParameters();
+            result.m_checkExistenceInDialog = false; // we want legacy behavior
             loadExistingList(result, id, dispAndInternName);
             return result;
         }
@@ -791,6 +790,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Override
         protected CreateListParameters loadCombinedSettings(final String id, final String dispAndInternName) {
             final var result = new CreateListParameters();
+            result.m_checkExistenceInDialog = false; // we want legacy behavior
             if (id.isEmpty()) { // empty id means that the list was not selected from existing lists
                 result.setListMode(ListMode.CREATE);
                 result.m_existingList = "";
@@ -902,14 +902,6 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
             return true;
         }
 
-    }
-
-    static final class LoadFalseIfNotPresent implements DefaultProvider<Boolean> {
-
-        @Override
-        public Boolean getDefault() {
-            return false;
-        }
     }
 
     /**

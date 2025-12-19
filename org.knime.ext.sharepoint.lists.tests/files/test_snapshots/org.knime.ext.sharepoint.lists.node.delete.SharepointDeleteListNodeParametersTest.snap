@@ -11,7 +11,7 @@
       },
       "list" : {
         "list" : {
-          "dialogWasOpened" : false,
+          "checkExistenceInDialog" : true,
           "existingList" : ""
         },
         "unused" : false
@@ -34,9 +34,9 @@
               "list" : {
                 "type" : "object",
                 "properties" : {
-                  "dialogWasOpened" : {
+                  "checkExistenceInDialog" : {
                     "type" : "boolean",
-                    "default" : false
+                    "default" : true
                   },
                   "existingList" : {
                     "type" : "string",
@@ -46,7 +46,7 @@
                   }
                 },
                 "default" : {
-                  "dialogWasOpened" : false,
+                  "checkExistenceInDialog" : true,
                   "existingList" : ""
                 }
               },
@@ -57,7 +57,7 @@
             },
             "default" : {
               "list" : {
-                "dialogWasOpened" : false,
+                "checkExistenceInDialog" : true,
                 "existingList" : ""
               },
               "unused" : false
@@ -315,7 +315,7 @@
               "list" : {
                 "type" : "object",
                 "properties" : {
-                  "dialogWasOpened" : {
+                  "checkExistenceInDialog" : {
                     "configPaths" : [ ]
                   },
                   "existingList" : {
@@ -345,7 +345,7 @@
     }
   },
   "initialUpdates" : [ {
-    "scope" : "#/properties/model/properties/list/properties/list/properties/dialogWasOpened",
+    "scope" : "#/properties/model/properties/list/properties/list/properties/checkExistenceInDialog",
     "values" : [ {
       "indices" : [ ],
       "value" : true
@@ -381,17 +381,12 @@
       "id" : "after-open-dialog"
     },
     "triggerInitially" : true,
-    "dependencies" : [ "#/properties/model/properties/list/properties/unused", "#/properties/model/properties/site", "#/properties/model/properties/site/properties/group", "#/properties/model/properties/site/properties/mode", "#/properties/model/properties/site/properties/webUrl" ]
-  }, {
-    "trigger" : {
-      "scope" : "#/properties/model/properties/list/properties/unused"
-    },
-    "dependencies" : [ "#/properties/model/properties/list/properties/unused", "#/properties/model/properties/site" ]
+    "dependencies" : [ "#/properties/model/properties/site", "#/properties/model/properties/site/properties/group", "#/properties/model/properties/site/properties/mode", "#/properties/model/properties/site/properties/webUrl" ]
   }, {
     "trigger" : {
       "scope" : "#/properties/model/properties/site"
     },
-    "dependencies" : [ "#/properties/model/properties/list/properties/unused", "#/properties/model/properties/site" ]
+    "dependencies" : [ "#/properties/model/properties/site" ]
   }, {
     "trigger" : {
       "scope" : "#/properties/model/properties/site/properties/group"
