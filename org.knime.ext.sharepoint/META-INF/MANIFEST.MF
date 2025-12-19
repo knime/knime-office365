@@ -16,11 +16,13 @@ Require-Bundle: org.knime.core;bundle-version="[5.9.0,6.0.0)",
  com.azure.core;bundle-version="[1.35.0,2.0.0)",
  io.projectreactor.reactor-core;bundle-version="[3.0.0,4.0.0)",
  org.knime.credentials.base;bundle-version="[5.9.0,6.0.0)",
- org.knime.credentials.base.oauth;bundle-version="[5.9.0,6.0.0)"
+ org.knime.credentials.base.oauth;bundle-version="[5.9.0,6.0.0)",
+ org.knime.core.ui;bundle-version="[5.9.0,6.0.0)"
 Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Automatic-Module-Name: org.knime.ext.sharepoint
 Export-Package: org.knime.ext.sharepoint,
  org.knime.ext.sharepoint.dialog,
+ org.knime.ext.sharepoint.parameters,
  org.knime.ext.sharepoint.settings
 

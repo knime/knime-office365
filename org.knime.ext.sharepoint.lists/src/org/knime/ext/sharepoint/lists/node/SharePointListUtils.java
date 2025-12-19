@@ -54,6 +54,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+import org.knime.core.util.Pair;
+
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.List;
 import com.microsoft.graph.requests.GraphServiceClient;
@@ -68,25 +70,42 @@ import okhttp3.Request;
 public final class SharePointListUtils {
 
     // Pattern of the settings is actually "<displayName> (<internalName>)"
-    private static final Pattern SETTINGS_INTERNAL_LIST_NAME_PATTERN = Pattern.compile(".* \\(([^)]+)\\)");
+    private static final Pattern SETTINGS_INTERNAL_LIST_NAME_PATTERN = Pattern.compile("(.+) \\(([^)]+)\\)");
 
     private SharePointListUtils() {
         // hide constructor for Utils class
     }
 
     /**
-     * Returns the internal name from the list settings name by matching the the
+     * Returns the internal name from the legacy list settings name by matching the
      * settings pattern.
      *
      * @param listSettingsName
-     *            the list name from the settings
+     *            the list name from the legacy settings
      * @return the internal name of the list settings name, or {@code null} if no
      *         internal name component was found.
      */
     public static String getInternalListName(final String listSettingsName) {
         final var m = SETTINGS_INTERNAL_LIST_NAME_PATTERN.matcher(listSettingsName);
         if (m.matches()) {
-            return m.group(1);
+            return m.group(2);
+        }
+        return null;
+    }
+
+    /**
+     * Returns the display and internal name from the legacy list settings name by
+     * matching the settings pattern.
+     *
+     * @param listSettingsName
+     *            the list name from the legacy settings
+     * @return the display and internal name of the list settings name, or
+     *         {@code null} if the string was not in legacy settings pattern.
+     */
+    public static Pair<String, String> getDisplayAndInternalListName(final String listSettingsName) {
+        final var m = SETTINGS_INTERNAL_LIST_NAME_PATTERN.matcher(listSettingsName);
+        if (m.matches()) {
+            return Pair.create(m.group(1), m.group(2));
         }
         return null;
     }
@@ -99,10 +118,8 @@ public final class SharePointListUtils {
      *            the {@link GraphServiceClient}
      * @param siteId
      *            the ID of the SharePoint site
-     * @param listName
-     *            the name of the list, if it does not match the "display name
-     *            (internal name)" form, the whole string will be assumed to be an
-     *            internal name.
+     * @param internalName
+     *            the internal name of the list
      *
      * @return an {@link Optional} of {@link String} with the list id
      * @throws IOException
@@ -114,11 +131,9 @@ public final class SharePointListUtils {
      *          instead!
      */
     public static Optional<String> getListIdByInternalName(final GraphServiceClient<Request> client, //
-            final String siteId, final String listName) throws IOException {
-        final var name = getInternalListName(listName);
-        final var filter = name == null ? listName : name;
+            final String siteId, final String internalName) throws IOException {
         // no last resort needed as the internal name may not contain parentheses
-        return getListIdByFilter(client, siteId, l -> l.name.equals(filter), null);
+        return getListIdByFilter(client, siteId, l -> l.name.equals(internalName), null);
     }
 
     /**
@@ -199,5 +214,4 @@ public final class SharePointListUtils {
             throw new IOException("Error during list ID retrival: " + ex.getServiceError().message, ex);
         }
     }
-
 }

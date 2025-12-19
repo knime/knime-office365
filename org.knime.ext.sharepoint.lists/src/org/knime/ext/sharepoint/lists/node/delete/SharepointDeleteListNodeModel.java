@@ -51,24 +51,21 @@ package org.knime.ext.sharepoint.lists.node.delete;
 import java.io.File;
 import java.io.IOException;
 
-import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeModel;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.core.webui.node.impl.WebUINodeModel;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
-import org.knime.ext.sharepoint.SharepointSiteResolver;
 import org.knime.ext.sharepoint.lists.node.SharePointListUtils;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.http.GraphServiceException;
@@ -77,63 +74,59 @@ import com.microsoft.graph.requests.GraphServiceClient;
 import okhttp3.Request;
 
 /**
- * Delete SharePoint Online List node implementation of a {@link NodeModel}.
+ * Delete SharePoint Online List node implementation of a WebUI NodeModel.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointDeleteListNodeModel extends NodeModel {
-
-    private final SharepointDeleteListConfig m_config;
+@SuppressWarnings({ "restriction", "deprecation" })
+final class SharepointDeleteListNodeModel extends WebUINodeModel<SharepointDeleteListNodeParameters> {
 
     protected SharepointDeleteListNodeModel() {
-        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[] {});
-        m_config = new SharepointDeleteListConfig();
+        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[0], SharepointDeleteListNodeParameters.class);
     }
 
     @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs,
+            final SharepointDeleteListNodeParameters params) throws InvalidSettingsException {
         final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
         if (credSpec != null) {
             GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
         }
 
-        CheckUtils.checkSetting(listSettingsNonEmpty(), "No list selected. Please select a list.");
+        if (params.m_list.isLegacyAndWebUIDialogNeverOpened()) {
+            // do manual checking because of legacy mode
+            CheckUtils.checkSetting(legacyListSettingsNonEmpty(params.m_list),
+                    "No list selected. Please select a list.");
+        }
 
         return new PortObjectSpec[] {};
     }
 
     @Override
-    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec,
+            final SharepointDeleteListNodeParameters modelSettings) throws Exception {
 
         final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
-        final var timeouts = m_config.getSharepointListSettings().getTimeoutSettings();
         final var client = GraphApiUtil.createClient(//
                 GraphCredentialUtil.createAuthenticationProvider(credSpec), //
-                timeouts.getConnectionTimeout(), //
-                timeouts.getReadTimeout());
+                modelSettings.m_timeout.getConnectionTimeoutMillis(), //
+                modelSettings.m_timeout.getReadTimeoutMillis());
 
-        deleteList(client);
+        deleteList(client, modelSettings);
 
         return new PortObject[] {};
     }
 
-    private boolean listSettingsNonEmpty() {
-        return !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty()
-                || !m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue().isEmpty();
+    private static boolean legacyListSettingsNonEmpty(final SharepointListParameters list) {
+        return list.getExistingListId() != null || list.getExistingListInternalName() != null
+                || list.getExistingListDisplayName() != null;
     }
 
-    /**
-     * Deletes a list from SharePoint.
-     *
-     * @param client
-     * @throws ClientException
-     * @throws IOException
-     * @throws InvalidSettingsException
-     */
-    private void deleteList(final GraphServiceClient<Request> client)
+    private static void deleteList(final GraphServiceClient<Request> client,
+            final SharepointDeleteListNodeParameters modelSettings)
             throws ClientException, IOException, InvalidSettingsException {
-        final var siteId = getSiteId(client);
-        final var listId = getListId(client, siteId);
+        final var siteId = getSiteId(client, modelSettings);
+        final var listId = getListId(client, siteId, modelSettings.m_list);
 
         try {
             client.sites(siteId).lists(listId).buildRequest().delete();
@@ -142,56 +135,43 @@ final class SharepointDeleteListNodeModel extends NodeModel {
         }
     }
 
-    private String getListId(final GraphServiceClient<Request> client, final String siteId)
-            throws IOException, InvalidSettingsException {
+    private static String getListId(final GraphServiceClient<Request> client, final String siteId,
+            final SharepointListParameters listParameters) throws IOException, InvalidSettingsException {
 
-        var listId = m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue();
-        if (StringUtils.isBlank(listId)) {
-            final var listName = m_config.getSharepointListSettings().getListSettings().getListNameModel()
-                    .getStringValue();
+        var listId = listParameters.getExistingListId();
+        if (listId == null) {
+            final var displayName = listParameters.getExistingListDisplayName();
+            final var internalName = listParameters.getExistingListInternalName();
+            final String listName;
+            if (internalName != null) {
+                listName = internalName;
+            } else if (listParameters.isLegacyAndWebUIDialogNeverOpened() && displayName != null) {
+                // backwards compatibility:
+                // if the dialog was never opened and legacy combined settings were loaded
+                // the display name is filled with the complete settings string if the legacy
+                // settings pattern did not match
+                listName = displayName;
+            } else {
+                throw new InvalidSettingsException("Neither list id nor internal name specified.");
+            }
 
             listId = SharePointListUtils.getListIdByInternalName(client, siteId, listName) //
-                    .orElseThrow(() -> new InvalidSettingsException("Could not find a list with name: " + listName));
+                    .orElseThrow(() -> new InvalidSettingsException(
+                            "Could not find a list with internal name: " + listName));
         }
 
         return listId;
     }
 
-    /**
-     * Returns the site id.
-     *
-     * @param client
-     * @return returns the site id
-     * @throws IOException
-     */
-    private String getSiteId(final GraphServiceClient<Request> client) throws IOException {
-        final var settings = m_config.getSharepointListSettings().getSiteSettings();
-        final var siteResolver = new SharepointSiteResolver(client, settings.getMode(),
-                settings.getSubsiteModel().getStringValue(), settings.getWebURLModel().getStringValue(),
-                settings.getGroupModel().getStringValue());
-
-        return siteResolver.getTargetSiteId();
-    }
-
-    @Override
-    protected void saveSettingsTo(final NodeSettingsWO settings) {
-        m_config.saveSettings(settings);
-    }
-
-    @Override
-    protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.validateSettings(settings);
-    }
-
-    @Override
-    protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.loadSettings(settings);
+    private static String getSiteId(final GraphServiceClient<Request> client,
+            final SharepointDeleteListNodeParameters modelSettings) throws IOException {
+        return modelSettings.m_site.getSiteId(client);
     }
 
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
-        setWarningMessage("Sharepoint connection no longer available. Please re-execute the node.");
+        setWarningMessage("SharePoint connection no longer available. Please re-execute the node.");
     }
 
     @Override
