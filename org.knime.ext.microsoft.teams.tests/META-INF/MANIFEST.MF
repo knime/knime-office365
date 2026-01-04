@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Tests for org.knime.ext.microsoft.teams
 Bundle-SymbolicName: org.knime.ext.microsoft.teams.tests;singleton:=true
-Bundle-Version: 5.9.0.qualifier
+Bundle-Version: 5.10.0.qualifier
 Bundle-Vendor: KNIME AG, Zurich, Switzerland
 Fragment-Host: org.knime.ext.microsoft.teams;bundle-version="[5.9.0,6.0.0)"
 Export-Package: org.knime.ext.microsoft.teams.nodes.messages

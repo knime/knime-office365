@@ -66,75 +66,47 @@ import okhttp3.Request;
  *
  * Behaviour:
  * <ul>
- *   <li>If Team is selected -> list that team's channels (value = channelId),
- *       plus a "Select a channel…" placeholder at the top.</li>
- *   <li>If Team is NOT selected -> show a single entry "Select a team first".</li>
+ *   <li>If Team is selected -> list that team's channels (value = channelId).</li>
+ *   <li>If Team is NOT selected -> return an empty list.</li>
  * </ul>
+ *
+ * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
  */
-public final class ChannelChoicesProvider extends AbstractTeamsChoicesProvider
-        implements StringChoicesProvider {
+public final class ChannelChoicesProvider extends AbstractTeamsChoicesProvider {
 
     private Supplier<String> m_teamSupplier;
-
-    /** Public no-arg constructor required by KNIME reflection. */
-    public ChannelChoicesProvider() {
-        // no-op
-    }
+    private Supplier<String> m_channelSupplier;
 
     @Override
     public void init(final StateProviderInitializer initializer) {
         initializer.computeAfterOpenDialog();
         m_teamSupplier =
                 initializer.computeFromValueSupplier(TeamsMessageSenderNodeSettings.TeamRef.class);
+        m_channelSupplier =
+            initializer.computeFromValueSupplier(TeamsMessageSenderNodeSettings.ChannelRef.class);
     }
 
     @Override
     public List<StringChoice> computeState(final NodeParametersInput context) {
         try {
-            final String selectedTeamId = m_teamSupplier != null ? m_teamSupplier.get() : null;
-
-            if (selectedTeamId == null || selectedTeamId.isBlank()
-                    || "__not_selected__".equals(selectedTeamId)) {
-                return List.of(new StringChoice("__not_selected__", "Select a team first"));
+            final String selectedTeamId = m_teamSupplier.get();
+            if (selectedTeamId == null || selectedTeamId.isBlank()) {
+                return List.of();
             }
 
-            if (shouldSkipApiCall()) {
-                return List.of(new StringChoice("__not_selected__",
-                        "Network connectivity issue - check your connection and try again"));
-            }
-
-            final GraphServiceClient<Request> graphClient = getGraphClient();
-            if (graphClient == null) {
-                return List.of(new StringChoice("__not_selected__",
-                        "Connect Microsoft Authenticator node first"));
-            }
-
-            var channels =
-                    graphClient.teams().byId(selectedTeamId).channels().buildRequest().get();
+            final GraphServiceClient<Request> graphClient = getGraphClient(context);
+            var channels = graphClient.teams().byId(selectedTeamId).channels().buildRequest().get();
 
             final var choices = new ArrayList<StringChoice>();
-            choices.add(new StringChoice("__not_selected__", "Select a channel…"));
-
             for (var channel : channels.getCurrentPage()) {
-                final String channelId = channel.id;
-                final String displayName = channel.displayName != null
-                        ? channel.displayName
-                        : "Unnamed Channel";
-                choices.add(new StringChoice(channelId, displayName));
+                choices.add(new StringChoice(channel.id, channel.displayName));
             }
-
             return choices;
-
         } catch (Exception e) {
-            if (e.getMessage() != null && (e.getMessage().contains("Connect timed out")
-                    || e.getMessage().contains("SocketTimeoutException")
-                    || e.getMessage().contains("Error executing the request"))) {
-                markNetworkError();
-                return List.of(new StringChoice("__not_selected__",
-                        "Network timeout - check proxy/firewall"));
-            }
-            return List.of(new StringChoice("__not_selected__",
-                    "Error loading channels: " + e.getMessage()));
+            final var current = m_channelSupplier != null ? m_channelSupplier.get() : null;
+            return (current == null || current.isBlank())
+                    ? List.of()
+                    : List.of(new StringChoice(current, current));
         }
     }
 }

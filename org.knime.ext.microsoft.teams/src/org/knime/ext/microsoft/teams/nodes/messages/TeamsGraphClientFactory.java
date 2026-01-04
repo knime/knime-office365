@@ -49,137 +49,103 @@
 
 /**
  *
- * @author halilyerlikaya
+ * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
  */
 package org.knime.ext.microsoft.teams.nodes.messages;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.knime.core.node.port.PortObject;
-import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.oauth.api.AccessTokenAccessor;
 import org.knime.credentials.base.oauth.api.AccessTokenWithScopesAccessor;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
 
-import com.azure.core.credential.AccessToken;
 import com.microsoft.graph.authentication.IAuthenticationProvider;
-import com.microsoft.graph.authentication.TokenCredentialAuthProvider;
 import com.microsoft.graph.requests.GraphServiceClient;
 
 import okhttp3.Request;
-import reactor.core.publisher.Mono;
-
+/**
+ * Factory class for creating Microsoft Graph Service Clients specifically configured
+ * for Microsoft Teams operations, handling authentication provider setup and scope management.
+ */
 public final class TeamsGraphClientFactory {
 
-    // Minimal scopes for basic Teams functionality
-    public static final List<String> TEAMS_SCOPES_MIN = List.of(
-        "User.Read",           // /me
-        "Chat.ReadBasic",      // /me/chats (no expand)
-        "Team.ReadBasic.All",  // /me/joinedTeams
-        "Channel.ReadBasic.All"// /teams/{id}/channels
+    // Minimal scopes for basic Teams functionality.
+    public static final List<String> TEAMS_SCOPES_MINIMAL = List.of("User.Read",
+            "Chat.ReadBasic", // /me/chats //
+            "Team.ReadBasic.All", // /me/joinedTeams //
+            "Channel.ReadBasic.All" // /teams/{id}/channels //
     );
 
-    // Required only if you insist on expanding members or reading chat members
-    public static final List<String> TEAMS_SCOPES_PLUS = List.of(
-        "User.Read",
-        
-        "Chat.ReadBasic",
-        "Chat.Read",           // needed for expand=members or /chats/{id}/members
-        "Team.ReadBasic.All",
-        "Channel.ReadBasic.All"
+    // Additional scopes to read chat members or expand members in chats.
+    public static final List<String> TEAMS_SCOPES_READ_MEMBERS = List.of("User.Read",
+            "Chat.ReadBasic",
+            "Chat.Read", // needed for expand=members or /chats/{id}/members //
+            "Team.ReadBasic.All",
+            "Channel.ReadBasic.All"
     );
 
-    private TeamsGraphClientFactory() {}
+    private static final int DIALOG_CLIENT_TIMEOUT_MILLIS = 30000;
+
+    private TeamsGraphClientFactory() {
+    }
 
     /**
-     * Accept either the PortObjectSpec or the PortObject with custom scopes
+     * Creates a Graph client for the given credential spec and scopes.
+     *
+     * @param spec
+     *            The credential specification containing authentication details.
+     * @param scopes
+     *            The collection of OAuth scopes required for the Graph client.
+     * @return A {@link GraphServiceClient} configured for Microsoft Teams.
      */
-    public static GraphServiceClient<Request> fromCredentialPort(final Object in, final Collection<String> scopes) {
-        final CredentialPortObjectSpec spec;
-        if (in instanceof CredentialPortObjectSpec) {
-            spec = (CredentialPortObjectSpec) in;
-        } else if (in instanceof PortObject) {
-            final var po = (PortObject) in;
-            if (po instanceof CredentialPortObject) {
-                spec = ((CredentialPortObject) po).getSpec();
-            } else {
-                throw new IllegalArgumentException("Expected CredentialPortObject on input port 0");
-            }
-        } else {
-            throw new IllegalArgumentException("Expected CredentialPortObjectSpec on input port 0");
-        }
-
-        // Try Teams-specific scopes first, then fallback to default
-        if (scopes != null && !scopes.isEmpty()) {
-            try {
-                final var authProvider = createTeamsAuthenticationProvider(spec, scopes);
-                final var graphClient = GraphApiUtil.createClient(authProvider, 60000, 120000);
-                return graphClient;
-            } catch (Exception teamsError) {
-                // Check if it's a consent issue (AADSTS65001)
-                if (teamsError.getMessage() != null && teamsError.getMessage().contains("AADSTS65001")) {
-                    try {
-                        // Fallback to the standard SharePoint approach (which the user has already consented to)
-                        final var fallbackAuthProvider = GraphCredentialUtil.createAuthenticationProvider(spec);
-                        final var fallbackClient = GraphApiUtil.createClient(fallbackAuthProvider, 60000, 120000);
-                        return fallbackClient;
-                    } catch (Exception fallbackError) {
-                        // Throw the original Teams scope error since that's what we really want
-                        throw new IllegalStateException("Teams scopes require admin consent. Original error: " + teamsError.getMessage(), teamsError);
-                    }
-                } else {
-                    // Not a consent issue, throw the original error
-                    throw new IllegalStateException("Failed to create Microsoft Graph client with Teams scopes: " + teamsError.getMessage(), teamsError);
+    public static GraphServiceClient<Request> fromPortObjectSpec(final CredentialPortObjectSpec spec,
+            final Collection<String> scopes) {
+        try {
+            final var authProvider = createTeamsAuthenticationProvider(spec, scopes);
+            return GraphApiUtil.createClient(authProvider, DIALOG_CLIENT_TIMEOUT_MILLIS, DIALOG_CLIENT_TIMEOUT_MILLIS);
+        } catch (Exception teamsError) {
+            final var msg = teamsError.getMessage();
+            if (msg != null && msg.contains("AADSTS65001")) {
+                try {
+                    final var fallbackAuthProvider = GraphCredentialUtil.createAuthenticationProvider(spec);
+                    return GraphApiUtil.createClient(fallbackAuthProvider, DIALOG_CLIENT_TIMEOUT_MILLIS,
+                            DIALOG_CLIENT_TIMEOUT_MILLIS);
+                } catch (Exception fallbackError) {
+                    throw new IllegalStateException(
+                            "Teams scopes require admin consent. Original error: " + teamsError.getMessage(),
+                            teamsError);
                 }
             }
-        } else {
-            // No specific scopes requested, use default approach
-            try {
-                final var defaultAuthProvider = GraphCredentialUtil.createAuthenticationProvider(spec);
-                final var defaultClient = GraphApiUtil.createClient(defaultAuthProvider, 60000, 120000);
-                return defaultClient;
-            } catch (Exception e) {
-                throw new IllegalStateException("Failed to create Microsoft Graph client: " + e.getMessage(), e);
-            }
+            throw new IllegalStateException(
+                    "Failed to create Microsoft Graph client with Teams scopes: " + teamsError.getMessage(),
+                    teamsError);
         }
     }
 
     /**
-     * Creates an authentication provider with Teams-specific scopes.
-     * This is a Teams-specific implementation that doesn't modify the shared GraphCredentialUtil.
+     * Creates an authentication provider with Teams-specific scopes. This is a
+     * Teams-specific implementation that doesn't modify the shared
+     * GraphCredentialUtil.
      */
-    private static IAuthenticationProvider createTeamsAuthenticationProvider(
-            final CredentialPortObjectSpec credSpec, final Collection<String> scopes) throws Exception {
+    private static IAuthenticationProvider createTeamsAuthenticationProvider(final CredentialPortObjectSpec credSpec,
+            final Collection<String> scopes) throws Exception {
 
         final AccessTokenAccessor tokenAccessor;
 
         if (credSpec.hasAccessor(AccessTokenWithScopesAccessor.class) && scopes != null && !scopes.isEmpty()) {
-            // Use the custom scopes with AccessTokenWithScopesAccessor
+            // Uses the custom scopes with AccessTokenWithScopesAccessor
             tokenAccessor = credSpec.toAccessor(AccessTokenWithScopesAccessor.class)
                     .getAccessTokenWithScopes(Set.copyOf(scopes));
         } else if (credSpec.hasAccessor(AccessTokenAccessor.class)) {
-            // For simple AccessTokenAccessor, we can't customize scopes, use as-is
+            // For simple AccessTokenAccessor
             tokenAccessor = credSpec.toAccessor(AccessTokenAccessor.class);
         } else {
             throw new IllegalStateException("The provided credential is incompatible.");
         }
-
-        // Create the authentication provider (similar to GraphCredentialUtil but Teams-specific)
-        final var accessTokenMono = Mono.fromCallable(() -> toAccessToken(tokenAccessor));
-        final var authProvider = new TokenCredentialAuthProvider(ignored -> accessTokenMono);
-        return authProvider;
-    }
-
-    private static AccessToken toAccessToken(final AccessTokenAccessor tokenAccessor) throws Exception {
-        final var accessToken = tokenAccessor.getAccessToken();
-        final var expiration = tokenAccessor.getExpiresAfter()
-                .map(instant -> OffsetDateTime.ofInstant(instant, ZoneId.of("UTC"))).orElseThrow();
-        return new AccessToken(accessToken, expiration);
+        return GraphCredentialUtil.createAuthenticationProvider(tokenAccessor);
     }
 }

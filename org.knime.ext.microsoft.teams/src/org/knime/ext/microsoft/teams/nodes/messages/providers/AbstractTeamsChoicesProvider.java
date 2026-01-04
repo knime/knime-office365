@@ -49,117 +49,51 @@
 
 package org.knime.ext.microsoft.teams.nodes.messages.providers;
 
-
-import java.util.List;
-
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.microsoft.teams.nodes.messages.TeamsGraphClientFactory;
+import org.knime.node.parameters.NodeParametersInput;
 
 import com.microsoft.graph.requests.GraphServiceClient;
 
 import okhttp3.Request;
 
 /**
- * Abstract base class that encapsulates shared context and helper methods for
- * Teams dropdown choices providers (chats, teams, channels).
+ * Package-private base class with helper methods for Teams dropdown choices
+ * providers (chats, teams, channels).
  *
- * It holds the credential spec, Graph client creation and network error caching
- * so that concrete providers can stay focused on their own logic.
+ * There is no shared mutable state. Credentials are resolved from the
+ * {@link NodeParametersInput} provided to each computeState(...) call and a
+ * fresh Graph client is created per invocation.
  *
- * @author halilyerlikaya
+ * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
  */
-public abstract class AbstractTeamsChoicesProvider {
-
-    /** Minimal Teams scopes (no member expansion). */
-    private static final List<String> TEAMS_SCOPES_MIN = TeamsGraphClientFactory.TEAMS_SCOPES_MIN;
-
-    /** Extended Teams scopes (for reading members etc.). */
-    private static final List<String> TEAMS_SCOPES_PLUS = TeamsGraphClientFactory.TEAMS_SCOPES_PLUS;
-
-    /** Static context for credential spec - updated by node model. */
-    private static volatile CredentialPortObjectSpec s_credentialSpec = null;
-
-    /** Cache for failed calls to avoid repeated timeout errors. */
-    private static volatile boolean s_hasNetworkIssue = false;
-    private static volatile long s_lastNetworkErrorTime = 0L;
-    /** Cache network error flag for 30 seconds. */
-    private static final long NETWORK_ERROR_CACHE_MS = 30_000L;
+abstract class AbstractTeamsChoicesProvider implements org.knime.node.parameters.widget.choices.StringChoicesProvider {
 
     /**
-     * Updates the credential context for all ChoicesProviders. Called by the node
-     * model when the credential port is available.
-     *
-     * NOTE: this method also performs a manual connectivity test if the credential
-     * spec is present, to help diagnose network / auth issues.
-     *
-     * @param credSpec
-     *            the credential spec from the credential port
+     * Gets a Graph client using the credential from the dialog context with
+     * minimal Teams-specific scopes.
      */
-    public static void updateCredentialContext(final CredentialPortObjectSpec credSpec) {
-        if (credSpec != null) {
-            // Store the credential spec regardless of isPresent() status.
-            s_credentialSpec = credSpec;
-
-            // Set network properties for better connectivity
-            if (credSpec.isPresent()) {
-                System.setProperty("java.net.useSystemProxies", "true");
-                System.setProperty("okhttp.protocols", "http/1.1");
-            }
-        } else {
-            s_credentialSpec = null;
-        }
+    protected static GraphServiceClient<Request> getGraphClient(final NodeParametersInput context) {
+        return getGraphClientWithScopes(context, false);
     }
 
     /**
-     * Gets the Graph client using the current credential context with minimal
-     * Teams-specific scopes.
-     *
-     * @return GraphServiceClient or {@code null} if credentials are not available
+     * Gets a Graph client using the credential from the dialog context with
+     * scopes that allow reading chat members.
      */
-    protected static GraphServiceClient<Request> getGraphClient() {
-        return getGraphClient(false);
+    protected static GraphServiceClient<Request> getGraphClientWithMembersScope(final NodeParametersInput context) {
+        return getGraphClientWithScopes(context, true);
     }
 
-    /**
-     * Gets the Graph client using the current credential context with
-     * Teams-specific scopes.
-     *
-     * @param needMembers
-     *            whether member-related scopes are required
-     * @return GraphServiceClient or {@code null} if credentials are not available
-     */
-    protected static GraphServiceClient<Request> getGraphClient(final boolean needMembers) {
-        try {
-            if (s_credentialSpec == null) {
-                return null;
-            }
+    private static GraphServiceClient<Request> getGraphClientWithScopes(final NodeParametersInput context,
+            final boolean needMembers) {
+        final var specOpt = context.getInPortSpec(0);
+        final var spec = specOpt.filter(CredentialPortObjectSpec.class::isInstance)
+                .map(CredentialPortObjectSpec.class::cast)
+                .orElseThrow(() -> new IllegalStateException("Input port not connected"));
 
-            final var scopes = needMembers ? TEAMS_SCOPES_PLUS : TEAMS_SCOPES_MIN;
-            return TeamsGraphClientFactory.fromCredentialPort(s_credentialSpec, scopes);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * Check if we should skip API calls due to recent network errors.
-     *
-     * @return {@code true} if API calls should be skipped for now
-     */
-    protected static boolean shouldSkipApiCall() {
-        if (s_hasNetworkIssue) {
-            final long timeSinceError = System.currentTimeMillis() - s_lastNetworkErrorTime;
-            if (timeSinceError < NETWORK_ERROR_CACHE_MS) {
-                return true;
-            }
-            s_hasNetworkIssue = false;
-        }
-        return false;
-    }
-
-    /** Mark that a network error has occurred. */
-    protected static void markNetworkError() {
-        s_hasNetworkIssue = true;
-        s_lastNetworkErrorTime = System.currentTimeMillis();
+        final var scopes = needMembers ? TeamsGraphClientFactory.TEAMS_SCOPES_READ_MEMBERS
+                : TeamsGraphClientFactory.TEAMS_SCOPES_MINIMAL;
+        return TeamsGraphClientFactory.fromPortObjectSpec(spec, scopes);
     }
 }

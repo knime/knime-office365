@@ -55,10 +55,10 @@ package org.knime.ext.microsoft.teams.nodes.messages.providers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.widget.choices.StringChoice;
-import org.knime.node.parameters.widget.choices.StringChoicesProvider;
 
 import com.microsoft.graph.requests.GraphServiceClient;
 
@@ -69,69 +69,62 @@ import okhttp3.Request;
  *
  * Uses Microsoft Graph to list chats for the current user. Uses extended scopes
  * so that member names can be displayed where possible.
+ *
+ * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
  */
-public final class ChatChoicesProvider extends AbstractTeamsChoicesProvider
-        implements StringChoicesProvider {
+public final class ChatChoicesProvider extends AbstractTeamsChoicesProvider {
 
-    /** Public no-arg constructor required by KNIME reflection. */
-    public ChatChoicesProvider() {
-        // no-op
+    private Supplier<String> m_chatSupplier;
+
+    @Override
+    public void init(final StateProviderInitializer initializer) {
+        initializer.computeAfterOpenDialog();
+        m_chatSupplier = initializer.computeFromValueSupplier(
+                org.knime.ext.microsoft.teams.nodes.messages.TeamsMessageSenderNodeSettings.ChatRef.class);
     }
+
+    // Default constructor implicitly provided
 
     @Override
     public List<StringChoice> computeState(final NodeParametersInput context) {
-        if (shouldSkipApiCall()) {
-            return List.of(new StringChoice("__not_selected__",
-                    "⚠️ Network timeout - wait 30 seconds and reopen dialog to retry"));
-        }
-
         try {
-            // Use PLUS scopes to get chat members
-            final GraphServiceClient<Request> graph = getGraphClient(true);
-            if (graph == null) {
-                return List.of(new StringChoice("__not_selected__",
-                        "Connect Microsoft Authenticator node first"));
-            }
+            final GraphServiceClient<Request> graph = getGraphClientWithMembersScope(context);
 
-            // Fetch chats without expanding members (not supported by API)
-            var chats = graph.me().chats().buildRequest().select("id,topic,chatType").get();
-
+            var page = graph.me().chats().buildRequest().select("id,topic,chatType").get();
             var out = new ArrayList<StringChoice>();
-            out.add(new StringChoice("__not_selected__", "Select a chat..."));
 
-            for (var chat : chats.getCurrentPage()) {
-                out.add(new StringChoice(chat.id, buildChatDisplayNameWithMembers(graph, chat)));
-            }
-
-            if (out.size() == 1) { // Only placeholder, no real chats
-                return List.of(new StringChoice("__not_selected__", "No chats found for this user"));
+            while (true) {
+                for (var chat : page.getCurrentPage()) {
+                    out.add(new StringChoice(chat.id, buildChatDisplayNameWithMembers(graph, chat)));
+                }
+                if (page.getNextPage() == null) {
+                    break;
+                }
+                page = page.getNextPage().buildRequest().select("id,topic,chatType").get();
             }
 
             return out;
-
         } catch (Exception e) {
-            if (e.getMessage() != null && (e.getMessage().contains("Connect timed out")
-                    || e.getMessage().contains("SocketTimeoutException")
-                    || e.getMessage().contains("Error executing the request"))) {
-                markNetworkError();
-                return List.of(new StringChoice("__not_selected__",
-                        "Network timeout - check connection, proxy or firewall"));
-            }
-            return List.of(new StringChoice("__not_selected__", "Error loading chats: " + e.getMessage()));
+            final var current = m_chatSupplier != null ? m_chatSupplier.get() : null;
+            return (current == null || current.isBlank())
+                    ? List.of()
+                    : List.of(new StringChoice(current, current));
         }
     }
 
     /** Build a readable label without members (for Chat.ReadBasic fallback). */
     private static String buildLabelNoMembers(final com.microsoft.graph.models.Chat chat) {
         if (chat.topic != null && !chat.topic.isBlank()) {
-            String ct = String.valueOf(chat.chatType);
-            return "meeting".equalsIgnoreCase(ct) ? ("Meeting: " + chat.topic) : chat.topic;
+            return com.microsoft.graph.models.ChatType.MEETING == chat.chatType
+                    ? ("Meeting: " + chat.topic)
+                    : chat.topic;
         }
-        final String ct = String.valueOf(chat.chatType);
-        final String prefix = "meeting".equalsIgnoreCase(ct) ? "Meeting"
-                : ("oneOnOne".equalsIgnoreCase(ct) ? "1:1" : ("group".equalsIgnoreCase(ct) ? "Group" : "Chat"));
-        final String shortId = (chat.id != null) ? chat.id.substring(0, Math.min(8, chat.id.length())) : "—";
-        return prefix + " #" + shortId;
+        return switch (chat.chatType) {
+            case ONE_ON_ONE -> "1:1 chat";
+            case GROUP -> "Group chat";
+            case MEETING -> "Meeting";
+            default -> "Chat";
+        };
     }
 
     /**
@@ -141,48 +134,36 @@ public final class ChatChoicesProvider extends AbstractTeamsChoicesProvider
             final com.microsoft.graph.models.Chat chat) {
 
         if (chat.topic != null && !chat.topic.isBlank()) {
-            String ct = String.valueOf(chat.chatType);
-            return "meeting".equalsIgnoreCase(ct) ? ("Meeting: " + chat.topic) : chat.topic;
+            return com.microsoft.graph.models.ChatType.MEETING == chat.chatType
+                    ? ("Meeting: " + chat.topic)
+                    : chat.topic;
         }
 
         try {
-            var membersRequest = graph.chats().byId(chat.id).members().buildRequest();
-            var membersPage = membersRequest.get();
+            final var currentUserId = graph.me().buildRequest().get().id;
 
-            var memberNames = new java.util.ArrayList<String>();
-            String currentUserId = null;
-
-            try {
-                var currentUser = graph.me().buildRequest().get();
-                currentUserId = currentUser.id;
-            } catch (Exception e) {
-                // Ignore error getting current user ID
-            }
-
+            var membersPage = graph.chats().byId(chat.id).members().buildRequest().get();
+            var memberNames = new ArrayList<String>();
             for (var member : membersPage.getCurrentPage()) {
-                if (member.id != null && !member.id.equals(currentUserId)) {
-                    if (member.displayName != null && !member.displayName.isBlank()) {
-                        memberNames.add(member.displayName);
-                    }
+                if (!member.id.equals(currentUserId)) {
+                    memberNames.add(member.displayName);
                 }
             }
 
             if (!memberNames.isEmpty()) {
-                String ct = String.valueOf(chat.chatType);
-                String prefix = "oneOnOne".equalsIgnoreCase(ct) ? ""
-                        : ("group".equalsIgnoreCase(ct) ? "Group: " : "Chat: ");
+                final var prefix = switch (chat.chatType) {
+                    case ONE_ON_ONE -> "";
+                    case GROUP -> "Group: ";
+                    default -> "Chat: ";
+                };
 
-                if (memberNames.size() == 1) {
-                    return prefix + memberNames.get(0);
-                } else if (memberNames.size() <= 3) {
-                    return prefix + String.join(", ", memberNames);
-                } else {
-                    return prefix + String.join(", ", memberNames.subList(0, 2)) + " +" + (memberNames.size() - 2)
-                            + " others";
-                }
+                final var base = memberNames.size() <= 3
+                        ? String.join(", ", memberNames)
+                        : (String.join(", ", memberNames.subList(0, 2)) + " + others");
+                return prefix + base;
             }
-        } catch (Exception e) {
-            // Could not fetch chat members, will fallback to basic display name
+        } catch (Exception ignore) {
+
         }
 
         return buildLabelNoMembers(chat);

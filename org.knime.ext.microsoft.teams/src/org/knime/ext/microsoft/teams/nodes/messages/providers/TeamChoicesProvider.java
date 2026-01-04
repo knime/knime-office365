@@ -50,15 +50,15 @@ package org.knime.ext.microsoft.teams.nodes.messages.providers;
 
 /**
  *
- * @author halilyerlikaya
+ * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
  */
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.widget.choices.StringChoice;
-import org.knime.node.parameters.widget.choices.StringChoicesProvider;
 
 import com.microsoft.graph.requests.GraphServiceClient;
 
@@ -69,55 +69,40 @@ import okhttp3.Request;
  *
  * Loads the user's joined Teams and exposes them as dropdown entries.
  */
-public final class TeamChoicesProvider extends AbstractTeamsChoicesProvider implements StringChoicesProvider {
+public final class TeamChoicesProvider extends AbstractTeamsChoicesProvider {
 
-    /** Public no-arg constructor required by KNIME reflection. */
-    public TeamChoicesProvider() {
-        // no-op
+    private Supplier<String> m_teamSupplier;
+
+    @Override
+    public void init(final StateProviderInitializer initializer) {
+        initializer.computeAfterOpenDialog();
+        m_teamSupplier = initializer.computeFromValueSupplier(
+                org.knime.ext.microsoft.teams.nodes.messages.TeamsMessageSenderNodeSettings.TeamRef.class);
     }
 
     @Override
     public List<StringChoice> computeState(final NodeParametersInput context) {
-        if (shouldSkipApiCall()) {
-            return List.of(new StringChoice("__not_selected__",
-                    "⚠️ Network timeout - wait 30 seconds and reopen dialog to retry"));
-        }
-
         try {
-            final GraphServiceClient<Request> graphClient = getGraphClient();
-            if (graphClient == null) {
-                return List.of(new StringChoice("__not_selected__", "Connect Microsoft Authenticator node first"));
-            }
-
-            var teams = graphClient.me().joinedTeams().buildRequest().get();
+            final GraphServiceClient<Request> graphClient = getGraphClient(context);
+            var page = graphClient.me().joinedTeams().buildRequest().select("id,displayName").get();
             var teamChoices = new ArrayList<StringChoice>();
 
-            for (var team : teams.getCurrentPage()) {
-                teamChoices.add(new StringChoice(team.id, team.displayName));
+            while (true) {
+                for (var team : page.getCurrentPage()) {
+                    teamChoices.add(new StringChoice(team.id, team.displayName));
+                }
+                if (page.getNextPage() == null) {
+                    break;
+                }
+                page = page.getNextPage().buildRequest().get();
             }
 
-            if (teamChoices.isEmpty()) {
-                return List.of(new StringChoice("__not_selected__", "No Teams found for this user"));
-            }
-
-            teamChoices.add(0, new StringChoice("__not_selected__", "Select a team…"));
             return teamChoices;
-
         } catch (Exception e) {
-            if (e.getMessage() != null && e.getMessage().contains("Failed to get license information")) {
-                return List.of(new StringChoice("__not_selected__",
-                        "❌ Teams license required - assign Office 365/Teams license to user"));
-            }
-
-            if (e.getMessage() != null && (e.getMessage().contains("Connect timed out")
-                    || e.getMessage().contains("SocketTimeoutException")
-                    || e.getMessage().contains("Error executing the request"))) {
-                markNetworkError();
-                return List.of(new StringChoice("__not_selected__",
-                        "Network timeout - check connection, proxy settings, or firewall"));
-            }
-
-            return List.of(new StringChoice("__not_selected__", "Error loading teams: " + e.getMessage()));
+            final var current = m_teamSupplier != null ? m_teamSupplier.get() : null;
+            return (current == null || current.isBlank())
+                    ? List.of()
+                    : List.of(new StringChoice(current, current));
         }
     }
 }

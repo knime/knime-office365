@@ -46,167 +46,83 @@
  * History
  *   2025-10-24 (halilyerlikaya): created
  */
-
-/**
- *
- * @author halilyerlikaya
- */
-
-/*
- * ------------------------------------------------------------------------
- *  Copyright by KNIME AG, Zurich, Switzerland
- * ---------------------------------------------------------------------
- *
- * History
- *   2025-10-24 (halilyerlikaya): created
- */
 package org.knime.ext.microsoft.teams.nodes.messages;
 
-import org.knime.core.node.ExecutionContext;
+import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.KNIMEException;
 import org.knime.core.node.NodeLogger;
-import org.knime.core.node.NodeModel;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.port.PortObject;
-import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.port.PortType;
-import org.knime.credentials.base.CredentialPortObjectSpec;
-import org.knime.ext.microsoft.teams.nodes.messages.providers.AbstractTeamsChoicesProvider;
+import org.knime.node.DefaultModel.ConfigureInput;
+import org.knime.node.DefaultModel.ConfigureOutput;
+import org.knime.node.DefaultModel.ExecuteInput;
+import org.knime.node.DefaultModel.ExecuteOutput;
 
+import com.microsoft.graph.core.ClientException;
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.BodyType;
 import com.microsoft.graph.models.ChatMessage;
 import com.microsoft.graph.models.ItemBody;
-import com.microsoft.graph.requests.GraphServiceClient;
 
-import okhttp3.Request;
-
-public final class TeamsMessageSenderNodeModel extends NodeModel {
+/**
+ * Node model logic for the Microsoft Teams Message Sender node.
+ *
+ * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
+ */
+final class TeamsMessageSenderNodeModel {
 
     private static final NodeLogger LOG = NodeLogger.getLogger(TeamsMessageSenderNodeModel.class);
-    private TeamsMessageSenderNodeSettings m_params = new TeamsMessageSenderNodeSettings();
 
-    public TeamsMessageSenderNodeModel() {
-        super(new PortType[] { org.knime.credentials.base.CredentialPortObject.TYPE }, new PortType[0]);
+    private TeamsMessageSenderNodeModel() {
+        // Utility class
     }
 
-    @Override
-    protected void saveSettingsTo(final NodeSettingsWO s) {
-        s.addString("destination", m_params.m_destination.name());
-        s.addString("selectedChat", m_params.m_selectedChat);
-        s.addString("selectedTeam", m_params.m_selectedTeam);
-        s.addString("selectedChannel", m_params.m_selectedChannel);
-
-        s.addString("contentType", m_params.m_contentType.name());
-        s.addString("messageText", m_params.m_messageText != null ? m_params.m_messageText : "");
-        s.addString("messageHtml", m_params.m_messageHtml != null ? m_params.m_messageHtml : "");
-
-        s.addString("message", getEffectiveMessageForPersist());
+    /**
+     * Configure method for the node.
+     *
+     * @param input configure input
+     * @param output configure output
+     * @throws InvalidSettingsException if settings are invalid
+     */
+    static void configure(final ConfigureInput input, final ConfigureOutput output)//NOSONAR
+            throws InvalidSettingsException {
+        final TeamsMessageSenderNodeSettings settings = input.getParameters();
+        settings.validate();
     }
 
-    private String getEffectiveMessageForPersist() {
-        if (m_params.m_contentType == TeamsMessageSenderNodeSettings.ContentType.HTML) {
-            return m_params.m_messageHtml != null ? m_params.m_messageHtml : "";
+    /**
+     * Execute method for the node.
+     *
+     * @param input execute input
+     * @throws CanceledExecutionException if execution is canceled
+     * @throws KNIMEException if execution fails
+     */
+    static void execute(final ExecuteInput input, final ExecuteOutput output)// NOSONAR
+            throws CanceledExecutionException, KNIMEException {
+        final var exec = input.getExecutionContext();
+        final TeamsMessageSenderNodeSettings settings = input.getParameters();
+        final var inPorts = input.getInPortObjects();
+
+        final var message = settings.getMessage();
+        final var isHtml = settings.m_contentType == TeamsMessageSenderNodeSettings.ContentType.HTML;
+        final var toChat = settings.m_destination == TeamsMessageSenderNodeSettings.Destination.CHAT;
+
+
+        final var chatId = settings.m_selectedChat.trim();
+        final var teamId = settings.m_selectedTeam.trim();
+        final var channelId = settings.m_selectedChannel.trim();
+
+        LOG.debug(() -> String.format(
+                "TeamsMessageSender execute(): destination=%s, chatId=%s, teamId=%s, channelId=%s",
+                settings.m_destination, chatId, teamId, channelId));
+
+        final var spec = (inPorts[0] instanceof org.knime.credentials.base.CredentialPortObject port)
+            ? port.getSpec()
+            : null;
+        if (spec == null) {
+            throw new KNIMEException("Input port not connected");
         }
-        return m_params.m_messageText != null ? m_params.m_messageText : "";
-    }
-
-    @Override
-    protected void loadValidatedSettingsFrom(final NodeSettingsRO s) throws InvalidSettingsException {
-        final var p = new TeamsMessageSenderNodeSettings();
-
-        try {
-            p.m_destination = TeamsMessageSenderNodeSettings.Destination
-                    .valueOf(s.getString("destination", p.m_destination.name()));
-        } catch (Exception ignore) {
-            // keep default
-        }
-
-        p.m_selectedChat = s.getString("selectedChat", "");
-        p.m_selectedTeam = s.getString("selectedTeam", "");
-        p.m_selectedChannel = s.getString("selectedChannel", "");
-
-        try {
-            p.m_contentType = TeamsMessageSenderNodeSettings.ContentType
-                    .valueOf(s.getString("contentType", p.m_contentType.name()));
-        } catch (Exception ignore) {
-            // keep default
-        }
-
-        p.m_messageText = s.getString("messageText", null);
-        p.m_messageHtml = s.getString("messageHtml", null);
-
-        final String legacy = s.getString("message", "");
-        if (p.m_messageText == null && p.m_messageHtml == null) {
-            p.m_messageText = legacy;
-            p.m_messageHtml = legacy;
-        } else {
-            if (p.m_messageText == null) {
-                p.m_messageText = "";
-            }
-            if (p.m_messageHtml == null) {
-                p.m_messageHtml = "";
-            }
-        }
-
-        m_params = p;
-    }
-
-    @Override
-    protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        // Nothing extra; execute() does runtime validation.
-    }
-
-    @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        if (inSpecs.length > 0 && inSpecs[0] instanceof CredentialPortObjectSpec) {
-            AbstractTeamsChoicesProvider.updateCredentialContext((CredentialPortObjectSpec) inSpecs[0]);
-        }
-        return new PortObjectSpec[0];
-    }
-
-    @Override
-    protected PortObject[] execute(final PortObject[] inPorts, final ExecutionContext exec) throws Exception {
-        final var p = m_params;
-
-        final boolean isHtml = p.m_contentType == TeamsMessageSenderNodeSettings.ContentType.HTML;
-        final String message = isHtml ? p.m_messageHtml : p.m_messageText;
-
-        if (message == null || message.isBlank()) {
-            throw new InvalidSettingsException("Message must not be empty.");
-        }
-
-        final boolean toChat = p.m_destination == TeamsMessageSenderNodeSettings.Destination.CHAT;
-
-        final String chatId = toChat ? safeTrim(p.m_selectedChat) : null;
-
-        if (toChat) {
-            if (chatId == null || chatId.isBlank() || "__not_selected__".equals(chatId)) {
-                throw new InvalidSettingsException("Chat selection is required. Please select a chat.");
-            }
-        }
-
-        String teamId = null;
-        String channelId = null;
-
-        if (!toChat) {
-            final String rawTeam = safeTrim(p.m_selectedTeam);
-            final String rawChannel = safeTrim(p.m_selectedChannel);
-
-            teamId = rawTeam;
-            channelId = rawChannel;
-
-            if (teamId == null || teamId.isBlank() || "__not_selected__".equals(teamId)
-                    || channelId == null || channelId.isBlank() || "__not_selected__".equals(channelId)) {
-                throw new InvalidSettingsException("Team and Channel selections are required.");
-            }
-        }
-
-        LOG.debug("TeamsMessageSender execute(): destination=" + p.m_destination + ", chatId=" + chatId + ", teamId="
-                + teamId + ", channelId=" + channelId);
-
-        final GraphServiceClient<Request> graph = TeamsGraphClientFactory.fromCredentialPort(inPorts[0],
-                TeamsGraphClientFactory.TEAMS_SCOPES_MIN);
+        final var graph = TeamsGraphClientFactory.fromPortObjectSpec(spec,
+            TeamsGraphClientFactory.TEAMS_SCOPES_MINIMAL);
 
         final var body = new ItemBody();
         body.content = message;
@@ -218,50 +134,36 @@ public final class TeamsMessageSenderNodeModel extends NodeModel {
         try {
             if (toChat) {
                 graph.chats().byId(chatId).messages().buildRequest().post(msg);
-                LOG.info("Message sent to chat " + chatId);
+                LOG.debug("Message sent to chat " + chatId);
             } else {
                 graph.teams().byId(teamId).channels().byId(channelId).messages().buildRequest().post(msg);
-                LOG.info("Message sent to channel " + teamId + "/" + channelId);
+                LOG.debug("Message sent to channel " + teamId + "/" + channelId);
             }
-        } catch (com.microsoft.graph.core.ClientException ge) {
-            final var m = String.valueOf(ge.getMessage());
-            LOG.warn("Graph error while sending Teams message: " + m, ge);
+        } catch (GraphServiceException ge) {
+            final var statusCode = ge.getResponseCode();
+            final var errorMessage = ge.getServiceError() != null && ge.getServiceError().message != null
+                    ? ge.getServiceError().message
+                    : ge.getMessage();
 
-            if (m.contains("429")) {
-                throw new InvalidSettingsException("Graph rate limit hit. Please retry later.", ge);
-            }
-            if (m.contains("403")) {
-                throw new InvalidSettingsException("Insufficient Graph permissions or membership.", ge);
-            }
-            if (m.contains("404")) {
-                throw new InvalidSettingsException(
+            LOG.debug(() -> String.format("Graph error while sending Teams message (HTTP %d): %s", statusCode,
+                    errorMessage), ge);
+
+            if (statusCode == 429) {
+                throw new KNIMEException("Graph rate limit hit. Please retry later.", ge);
+            } else if (statusCode == 403) {
+                throw new KNIMEException("Insufficient Graph permissions or membership.", ge);
+            } else if (statusCode == 404) {
+                throw new KNIMEException(
                         "Target not found. Often caused by stale team/channel IDs.\n"
                                 + "Re-open the dialog, re-select Team + Channel, and re-execute.",
                         ge);
             }
-            throw new InvalidSettingsException("Graph error: " + m, ge);
+            throw new KNIMEException("Graph error: " + errorMessage, ge);
+        } catch (ClientException ce) {
+            LOG.debug("Client error while sending Teams message: " + ce.getMessage(), ce);
+            throw new KNIMEException("Error sending message: " + ce.getMessage(), ce);
         }
 
         exec.checkCanceled();
-        return new PortObject[0];
-    }
-
-    private static String safeTrim(final String s) {
-        return s == null ? null : s.trim();
-    }
-
-    @Override
-    protected void reset() {
-        // nothing to do
-    }
-
-    @Override
-    protected void loadInternals(final java.io.File dir, final org.knime.core.node.ExecutionMonitor m) {
-        // no internals
-    }
-
-    @Override
-    protected void saveInternals(final java.io.File dir, final org.knime.core.node.ExecutionMonitor m) {
-        // no internals
     }
 }

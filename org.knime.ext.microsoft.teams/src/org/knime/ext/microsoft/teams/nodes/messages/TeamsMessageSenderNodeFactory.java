@@ -46,106 +46,36 @@
  * History
  *   2025-10-24 (halilyerlikaya): created
  */
-
-/**
- *
- * @author halilyerlikaya
- */
-
 package org.knime.ext.microsoft.teams.nodes.messages;
 
-import static org.knime.node.impl.description.PortDescription.fixedPort;
+import org.knime.credentials.base.CredentialPortObject;
+import org.knime.node.DefaultNode;
+import org.knime.node.DefaultNodeFactory;
 
-import java.util.List;
-import java.util.Map;
+/**
+ * The node factory for the Microsoft Teams Message Sender Node.
+ *
+ * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
+ */
+@SuppressWarnings("restriction") // New Node UI is not yet API
+public final class TeamsMessageSenderNodeFactory extends DefaultNodeFactory {
 
-import org.knime.core.node.NodeDescription;
-import org.knime.core.node.NodeDialogPane;
-import org.knime.core.node.NodeFactory;
-import org.knime.core.node.NodeView;
-import org.knime.core.webui.node.dialog.NodeDialog; // webui NodeDialog
-import org.knime.core.webui.node.dialog.NodeDialogFactory;
-import org.knime.core.webui.node.dialog.NodeDialogManager;
-import org.knime.core.webui.node.dialog.SettingsType;
-import org.knime.core.webui.node.dialog.defaultdialog.DefaultKaiNodeInterface;
-import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeDialog;
-import org.knime.core.webui.node.dialog.kai.KaiNodeInterface;
-import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
-import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
-import org.knime.node.impl.description.PortDescription;
-
-@SuppressWarnings("restriction") // suppress non-API access warnings from webui helpers
-public class TeamsMessageSenderNodeFactory extends NodeFactory<TeamsMessageSenderNodeModel>
-        implements NodeDialogFactory, KaiNodeInterfaceFactory {
-
-    private static final String NODE_NAME = "Microsoft Teams Message Sender";
-    private static final String NODE_ICON = "./teams16x16.png";
-
-    private static final String SHORT_DESCRIPTION = """
-            Send a message to a Microsoft Teams chat (default) or a channel.
-        """;
-
-    private static final String FULL_DESCRIPTION = """
-        Sends a message to an existing Microsoft Teams chat or to a channel in a Team.
-        First version: no attachments and no table input. Supports Text and limited HTML content.
-            Note: Microsoft Graph enforces rate limits (≈10 messages / 10 seconds).
-        """;
-
-    private static final List<PortDescription> INPUT_PORTS = List.of(
-            fixedPort("Microsoft Graph Credentials", "Credential port with OAuth context for Microsoft Graph.")
-    );
-    private static final List<PortDescription> OUTPUT_PORTS = List.of();
-
-    // mirror StringToURI: provide keywords and use NodeType.Manipulator (safe in
-    // your target)
-    private static final List<String> KEYWORDS = List.of("Teams", "Microsoft", "Graph", "Chat", "Channel", "Message");
-
-    @Override
-    public TeamsMessageSenderNodeModel createNodeModel() {
-        return new TeamsMessageSenderNodeModel();
-    }
-
-    @Override protected int getNrNodeViews() { return 0; }
-
-    @Override
-    public NodeView<TeamsMessageSenderNodeModel> createNodeView(final int index,
-            final TeamsMessageSenderNodeModel model) {
-        return null;
-    }
-
-    @Override
-    protected boolean hasDialog() {
-        return true;
-    }
-
-    @Override
-    public NodeDialog createNodeDialog() {
-        return new DefaultNodeDialog(SettingsType.MODEL, TeamsMessageSenderNodeSettings.class);
-    }
-
-    @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return NodeDialogManager.createLegacyFlowVariableNodeDialog(createNodeDialog());
-    }
-
-    @Override
-    public NodeDescription createNodeDescription() {
-        // Use the long overload (same as your StringToURI node)
-        return DefaultNodeDescriptionUtil.createNodeDescription(
-                NODE_NAME, NODE_ICON, INPUT_PORTS, OUTPUT_PORTS, SHORT_DESCRIPTION, FULL_DESCRIPTION, List.of(), // external
-                                                                                                                 // resources
-                TeamsMessageSenderNodeSettings.class, // settings class
-                null, // view descriptions
-                NodeType.Manipulator, // type (Connector isn't in your target)
-                KEYWORDS, // keywords
-                null // version
-        );
-    }
-
-    @Override
-    public KaiNodeInterface createKaiNodeInterface() {
-        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, TeamsMessageSenderNodeSettings.class));
+    /**
+     * Creates the factory with the DefaultNode definition.
+     */
+    public TeamsMessageSenderNodeFactory() {
+        super(DefaultNode.create().name("Microsoft Teams Message Sender").icon("./teams16x16.png")
+                .shortDescription("Send a message to a Microsoft Teams chat (default) or a channel.")
+                .fullDescription("""
+                        Sends a message to an existing Microsoft Teams chat or to a channel in a Team.
+                        First version: no attachments and no table input. Supports Text and limited HTML content.
+                        Note: Microsoft Graph enforces rate limits (≈10 messages / 10 seconds).
+                        """).sinceVersion(5, 4, 0)
+                .ports(ports -> ports.addInputPort("Credential port with OAuth context for Microsoft Graph.",
+                        "Microsoft Graph Credentials", CredentialPortObject.TYPE))
+                .model(model -> model.parametersClass(TeamsMessageSenderNodeSettings.class)
+                        .configure(TeamsMessageSenderNodeModel::configure)
+                        .execute(TeamsMessageSenderNodeModel::execute))
+                .keywords("Teams", "Microsoft", "Graph", "Chat", "Channel", "Message").nodeType(NodeType.Manipulator));
     }
 }
-
-
