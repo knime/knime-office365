@@ -143,13 +143,23 @@ public enum Scope {
      * Fabric application.
      */
     FABRIC_APP("Fabric", "https://api.fabric.microsoft.com/.default", ScopeType.APPLICATION),
-    
+
     /**
      * Exchange Online
      */
     OUTLOOK("Exchange Online",
             "https://outlook.office.com/IMAP.AccessAsUser.All " + "https://outlook.office.com/SMTP.Send",
-            ScopeType.DELEGATED);
+            ScopeType.DELEGATED),
+
+    /**
+     * Azure OpenAI
+     */
+    AZURE_OPENAI("Azure OpenAI", "https://cognitiveservices.azure.com/user_impersonation", ScopeType.DELEGATED),
+
+    /**
+     * Azure OpenAI application
+     */
+    AZURE_OPENAI_APP("Azure OpenAI", "https://cognitiveservices.azure.com/.default", ScopeType.APPLICATION);
 
     private static final Map<String, Scope> SCOPES = new HashMap<>();
     static {
