@@ -48,6 +48,8 @@
  */
 package org.knime.ext.microsoft.teams.nodes.messages;
 
+import java.io.IOException;
+
 import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.KNIMEException;
@@ -79,11 +81,14 @@ final class TeamsMessageSenderNodeModel {
     /**
      * Configure method for the node.
      *
-     * @param input configure input
-     * @param output configure output
-     * @throws InvalidSettingsException if settings are invalid
+     * @param input
+     *            configure input
+     * @param output
+     *            configure output
+     * @throws InvalidSettingsException
+     *             if settings are invalid
      */
-    static void configure(final ConfigureInput input, final ConfigureOutput output)//NOSONAR
+    static void configure(final ConfigureInput input, final ConfigureOutput output)// NOSONAR framework output unused
             throws InvalidSettingsException {
         final TeamsMessageSenderNodeSettings settings = input.getParameters();
         settings.validate();
@@ -92,46 +97,46 @@ final class TeamsMessageSenderNodeModel {
     /**
      * Execute method for the node.
      *
-     * @param input execute input
-     * @throws CanceledExecutionException if execution is canceled
-     * @throws KNIMEException if execution fails
+     * @param input
+     *            execute input
+     * @throws CanceledExecutionException
+     *             if execution is canceled
+     * @throws KNIMEException
+     *             if execution fails
+     * @throws IOException
+     *             if a client couldn't be created
      */
-    static void execute(final ExecuteInput input, final ExecuteOutput output)// NOSONAR
-            throws CanceledExecutionException, KNIMEException {
-        final var exec = input.getExecutionContext();
+    static void execute(final ExecuteInput input, final ExecuteOutput output)// NOSONAR framework output unused
+            throws KNIMEException {
         final TeamsMessageSenderNodeSettings settings = input.getParameters();
         final var inPorts = input.getInPortObjects();
-
-        final var message = settings.getMessage();
-        final var isHtml = settings.m_contentType == TeamsMessageSenderNodeSettings.ContentType.HTML;
-        final var toChat = settings.m_destination == TeamsMessageSenderNodeSettings.Destination.CHAT;
-
-
         final var chatId = settings.m_selectedChat.trim();
         final var teamId = settings.m_selectedTeam.trim();
         final var channelId = settings.m_selectedChannel.trim();
 
-        LOG.debug(() -> String.format(
-                "TeamsMessageSender execute(): destination=%s, chatId=%s, teamId=%s, channelId=%s",
-                settings.m_destination, chatId, teamId, channelId));
+        LOG.debug(
+                () -> String.format("TeamsMessageSender execute(): destination=%s, chatId=%s, teamId=%s, channelId=%s",
+                        settings.m_destination, chatId, teamId, channelId));
 
-        final var spec = (inPorts[0] instanceof org.knime.credentials.base.CredentialPortObject port)
-            ? port.getSpec()
-            : null;
+        final var spec = (inPorts[0] instanceof org.knime.credentials.base.CredentialPortObject port) ? port.getSpec()
+                : null;
         if (spec == null) {
             throw new KNIMEException("Input port not connected");
         }
-        final var graph = TeamsGraphClientFactory.fromPortObjectSpec(spec,
-            TeamsGraphClientFactory.TEAMS_SCOPES_MINIMAL);
 
         final var body = new ItemBody();
+        final var message = settings.getMessage();
         body.content = message;
+
+        final var isHtml = settings.m_contentType == TeamsMessageSenderNodeSettings.ContentType.HTML;
         body.contentType = isHtml ? BodyType.HTML : BodyType.TEXT;
 
         final var msg = new ChatMessage();
         msg.body = body;
 
         try {
+            final var graph = TeamsGraphClientFactory.fromPortObjectSpec(spec);
+            final var toChat = settings.m_destination == TeamsMessageSenderNodeSettings.Destination.CHAT;
             if (toChat) {
                 graph.chats().byId(chatId).messages().buildRequest().post(msg);
                 LOG.debug("Message sent to chat " + chatId);
@@ -141,29 +146,28 @@ final class TeamsMessageSenderNodeModel {
             }
         } catch (GraphServiceException ge) {
             final var statusCode = ge.getResponseCode();
-            final var errorMessage = ge.getServiceError() != null && ge.getServiceError().message != null
-                    ? ge.getServiceError().message
-                    : ge.getMessage();
 
-            LOG.debug(() -> String.format("Graph error while sending Teams message (HTTP %d): %s", statusCode,
-                    errorMessage), ge);
-
-            if (statusCode == 429) {
+            switch (statusCode) {
+            case 429: // TOO MANY REQUESTS
                 throw new KNIMEException("Graph rate limit hit. Please retry later.", ge);
-            } else if (statusCode == 403) {
+            case 403: // PERMISSION DENIED
                 throw new KNIMEException("Insufficient Graph permissions or membership.", ge);
-            } else if (statusCode == 404) {
-                throw new KNIMEException(
-                        "Target not found. Often caused by stale team/channel IDs.\n"
-                                + "Re-open the dialog, re-select Team + Channel, and re-execute.",
-                        ge);
+            case 404: // NOT FOUND
+                throw new KNIMEException("Target not found. Often caused by stale team/channel IDs.\n"
+                        + "Re-open the dialog, re-select Team + Channel, and re-execute.", ge);
+            default:
+                final var errorMessage = ge.getServiceError() != null && ge.getServiceError().message != null
+                        ? ge.getServiceError().message
+                        : ge.getMessage();
+                throw new KNIMEException("Graph error: " + errorMessage, ge);
             }
-            throw new KNIMEException("Graph error: " + errorMessage, ge);
+
         } catch (ClientException ce) {
             LOG.debug("Client error while sending Teams message: " + ce.getMessage(), ce);
             throw new KNIMEException("Error sending message: " + ce.getMessage(), ce);
+        } catch (IOException ex) {
+            throw new KNIMEException(ex.getMessage(), ex);
         }
 
-        exec.checkCanceled();
     }
 }

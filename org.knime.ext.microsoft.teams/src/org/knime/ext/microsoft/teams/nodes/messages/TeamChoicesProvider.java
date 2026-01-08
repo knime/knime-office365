@@ -46,67 +46,60 @@
  * History
  *   2025-11-19 (halilyerlikaya): created
  */
-package org.knime.ext.microsoft.teams.nodes.messages.providers;
+package org.knime.ext.microsoft.teams.nodes.messages;
+
+import java.io.IOException;
+
+/**
+ *
+ * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
+ */
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
-import org.knime.ext.microsoft.teams.nodes.messages.TeamsMessageSenderNodeSettings;
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.widget.choices.StringChoice;
 import org.knime.node.parameters.widget.choices.StringChoicesProvider;
 
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.requests.GraphServiceClient;
 
 import okhttp3.Request;
 
 /**
- * ChoicesProvider for available channels.
+ * ChoicesProvider for available Teams.
  *
- * Behaviour:
- * <ul>
- *   <li>If Team is selected -> list that team's channels (value = channelId).</li>
- *   <li>If Team is NOT selected -> return an empty list.</li>
- * </ul>
- *
- * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
+ * Loads the user's joined Teams and exposes them as dropdown entries.
  */
-public final class ChannelChoicesProvider extends AbstractTeamsChoicesProvider {
+public final class TeamChoicesProvider implements StringChoicesProvider {
 
-    private Supplier<String> m_teamSupplier;
-    private Supplier<String> m_channelSupplier;
 
     @Override
     public void init(final StateProviderInitializer initializer) {
         initializer.computeAfterOpenDialog();
-        m_teamSupplier =
-                initializer.computeFromValueSupplier(TeamsMessageSenderNodeSettings.TeamRef.class);
-        m_channelSupplier =
-            initializer.computeFromValueSupplier(TeamsMessageSenderNodeSettings.ChannelRef.class);
     }
 
     @Override
     public List<StringChoice> computeState(final NodeParametersInput context) {
         try {
-            final String selectedTeamId = m_teamSupplier.get();
-            if (selectedTeamId == null || selectedTeamId.isBlank()) {
-                return List.of();
+            final GraphServiceClient<Request> graphClient = TeamsGraphClientFactory.getGraphClient(context);
+            var page = graphClient.me().joinedTeams().buildRequest().select("id,displayName").get();
+            var teamChoices = new ArrayList<StringChoice>();
+
+            while (true) {
+                for (var team : page.getCurrentPage()) {
+                    teamChoices.add(new StringChoice(team.id, team.displayName));
+                }
+                if (page.getNextPage() == null) {
+                    break;
+                }
+                page = page.getNextPage().buildRequest().get();
             }
 
-            final GraphServiceClient<Request> graphClient = getGraphClient(context);
-            var channels = graphClient.teams().byId(selectedTeamId).channels().buildRequest().get();
-
-            final var choices = new ArrayList<StringChoice>();
-            for (var channel : channels.getCurrentPage()) {
-                choices.add(new StringChoice(channel.id, channel.displayName));
-            }
-            return choices;
-        } catch (Exception e) {
-            final var current = m_channelSupplier != null ? m_channelSupplier.get() : null;
-            return (current == null || current.isBlank())
-                    ? List.of()
-                    : List.of(new StringChoice(current, current));
+            return teamChoices;
+        } catch (IOException | GraphServiceException e) { // NOSONAR
+            return List.of();
         }
     }
 }

@@ -50,9 +50,6 @@
 package org.knime.ext.microsoft.teams.nodes.messages;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.ext.microsoft.teams.nodes.messages.providers.ChannelChoicesProvider;
-import org.knime.ext.microsoft.teams.nodes.messages.providers.ChatChoicesProvider;
-import org.knime.ext.microsoft.teams.nodes.messages.providers.TeamChoicesProvider;
 import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.Widget;
 import org.knime.node.parameters.updates.Effect;

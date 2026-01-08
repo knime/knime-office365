@@ -46,7 +46,9 @@
  * History
  *   2025-11-19 (halilyerlikaya): created
  */
-package org.knime.ext.microsoft.teams.nodes.messages.providers;
+package org.knime.ext.microsoft.teams.nodes.messages;
+
+import java.io.IOException;
 
 /**
  *
@@ -55,11 +57,12 @@ package org.knime.ext.microsoft.teams.nodes.messages.providers;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.widget.choices.StringChoice;
+import org.knime.node.parameters.widget.choices.StringChoicesProvider;
 
+import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.requests.GraphServiceClient;
 
 import okhttp3.Request;
@@ -72,15 +75,11 @@ import okhttp3.Request;
  *
  * @author Halil Yerlikaya, KNIME GmbH, Berlin, Germany
  */
-public final class ChatChoicesProvider extends AbstractTeamsChoicesProvider {
-
-    private Supplier<String> m_chatSupplier;
+public final class ChatChoicesProvider implements StringChoicesProvider {
 
     @Override
     public void init(final StateProviderInitializer initializer) {
         initializer.computeAfterOpenDialog();
-        m_chatSupplier = initializer.computeFromValueSupplier(
-                org.knime.ext.microsoft.teams.nodes.messages.TeamsMessageSenderNodeSettings.ChatRef.class);
     }
 
     // Default constructor implicitly provided
@@ -88,7 +87,7 @@ public final class ChatChoicesProvider extends AbstractTeamsChoicesProvider {
     @Override
     public List<StringChoice> computeState(final NodeParametersInput context) {
         try {
-            final GraphServiceClient<Request> graph = getGraphClientWithMembersScope(context);
+            final GraphServiceClient<Request> graph = TeamsGraphClientFactory.getGraphClient(context);
 
             var page = graph.me().chats().buildRequest().select("id,topic,chatType").get();
             var out = new ArrayList<StringChoice>();
@@ -104,27 +103,9 @@ public final class ChatChoicesProvider extends AbstractTeamsChoicesProvider {
             }
 
             return out;
-        } catch (Exception e) {
-            final var current = m_chatSupplier != null ? m_chatSupplier.get() : null;
-            return (current == null || current.isBlank())
-                    ? List.of()
-                    : List.of(new StringChoice(current, current));
+        } catch (IOException | GraphServiceException e) {// NOSONAR
+            return List.of();
         }
-    }
-
-    /** Build a readable label without members (for Chat.ReadBasic fallback). */
-    private static String buildLabelNoMembers(final com.microsoft.graph.models.Chat chat) {
-        if (chat.topic != null && !chat.topic.isBlank()) {
-            return com.microsoft.graph.models.ChatType.MEETING == chat.chatType
-                    ? ("Meeting: " + chat.topic)
-                    : chat.topic;
-        }
-        return switch (chat.chatType) {
-            case ONE_ON_ONE -> "1:1 chat";
-            case GROUP -> "Group chat";
-            case MEETING -> "Meeting";
-            default -> "Chat";
-        };
     }
 
     /**
@@ -134,38 +115,32 @@ public final class ChatChoicesProvider extends AbstractTeamsChoicesProvider {
             final com.microsoft.graph.models.Chat chat) {
 
         if (chat.topic != null && !chat.topic.isBlank()) {
-            return com.microsoft.graph.models.ChatType.MEETING == chat.chatType
-                    ? ("Meeting: " + chat.topic)
+            return com.microsoft.graph.models.ChatType.MEETING == chat.chatType ? ("Meeting: " + chat.topic)
                     : chat.topic;
         }
 
-        try {
-            final var currentUserId = graph.me().buildRequest().get().id;
+        final var currentUserId = graph.me().buildRequest().get().id;
 
-            var membersPage = graph.chats().byId(chat.id).members().buildRequest().get();
-            var memberNames = new ArrayList<String>();
-            for (var member : membersPage.getCurrentPage()) {
-                if (!member.id.equals(currentUserId)) {
-                    memberNames.add(member.displayName);
-                }
+        var membersPage = graph.chats().byId(chat.id).members().buildRequest().get();
+        var memberNames = new ArrayList<String>();
+        for (var member : membersPage.getCurrentPage()) {
+            if (!member.id.equals(currentUserId)) {
+                memberNames.add(member.displayName);
             }
-
-            if (!memberNames.isEmpty()) {
-                final var prefix = switch (chat.chatType) {
-                    case ONE_ON_ONE -> "";
-                    case GROUP -> "Group: ";
-                    default -> "Chat: ";
-                };
-
-                final var base = memberNames.size() <= 3
-                        ? String.join(", ", memberNames)
-                        : (String.join(", ", memberNames.subList(0, 2)) + " + others");
-                return prefix + base;
-            }
-        } catch (Exception ignore) {
-
         }
 
-        return buildLabelNoMembers(chat);
+        if (!memberNames.isEmpty()) {
+            final var prefix = switch (chat.chatType) {
+            case ONE_ON_ONE -> "";
+            case GROUP -> "Group: ";
+            default -> "Chat: ";
+            };
+
+            final var base = memberNames.size() <= 3 ? String.join(", ", memberNames)
+                    : (String.join(", ", memberNames.subList(0, 2)) + " + others");
+            return prefix + base;
+        } else {
+            return "(empty)";
+        }
     }
 }
