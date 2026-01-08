@@ -114,8 +114,7 @@ final class TeamsMessageSenderNodeModel {
         final var teamId = settings.m_selectedTeam.trim();
         final var channelId = settings.m_selectedChannel.trim();
 
-        LOG.debug(
-                () -> String.format("TeamsMessageSender execute(): destination=%s, chatId=%s, teamId=%s, channelId=%s",
+        LOG.debug(String.format("TeamsMessageSender execute(): destination=%s, chatId=%s, teamId=%s, channelId=%s",
                         settings.m_destination, chatId, teamId, channelId));
 
         final var spec = (inPorts[0] instanceof org.knime.credentials.base.CredentialPortObject port) ? port.getSpec()
@@ -135,7 +134,7 @@ final class TeamsMessageSenderNodeModel {
         msg.body = body;
 
         try {
-            final var graph = TeamsGraphClientFactory.fromPortObjectSpec(spec);
+            final var graph = TeamsGraphClientUtils.fromPortObjectSpec(spec);
             final var toChat = settings.m_destination == TeamsMessageSenderNodeSettings.Destination.CHAT;
             if (toChat) {
                 graph.chats().byId(chatId).messages().buildRequest().post(msg);

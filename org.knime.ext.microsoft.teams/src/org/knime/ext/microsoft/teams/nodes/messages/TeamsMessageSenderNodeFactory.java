@@ -64,18 +64,22 @@ public final class TeamsMessageSenderNodeFactory extends DefaultNodeFactory {
      * Creates the factory with the DefaultNode definition.
      */
     public TeamsMessageSenderNodeFactory() {
-        super(DefaultNode.create().name("Microsoft Teams Message Sender").icon("./teams16x16.png")
+        super(DefaultNode.create() //
+                .name("Microsoft Teams Message Sender") //
+                .icon("./teams16x16.png") //
                 .shortDescription("Send a message to a Microsoft Teams chat (default) or a channel.")
                 .fullDescription("""
                         Sends a message to an existing Microsoft Teams chat or to a channel in a Team.
                         First version: no attachments and no table input. Supports Text and limited HTML content.
                         Note: Microsoft Graph enforces rate limits (≈10 messages / 10 seconds).
-                        """).sinceVersion(5, 4, 0)
+                        """) //
+                .sinceVersion(5, 10, 0)
                 .ports(ports -> ports.addInputPort("Credential port with OAuth context for Microsoft Graph.",
                         "Microsoft Graph Credentials", CredentialPortObject.TYPE))
                 .model(model -> model.parametersClass(TeamsMessageSenderNodeSettings.class)
                         .configure(TeamsMessageSenderNodeModel::configure)
                         .execute(TeamsMessageSenderNodeModel::execute))
-                .keywords("Teams", "Microsoft", "Graph", "Chat", "Channel", "Message").nodeType(NodeType.Manipulator));
+                .keywords("Teams", "Microsoft", "Graph", "Chat", "Channel", "Message") //
+                .nodeType(NodeType.Sink));
     }
 }

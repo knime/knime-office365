@@ -77,7 +77,7 @@ import okhttp3.Request;
  * configured for Microsoft Teams operations, handling authentication provider
  * setup and scope management.
  */
-public final class TeamsGraphClientFactory {
+public final class TeamsGraphClientUtils {
 
     public static final List<String> TEAMS_SCOPES_READ_MEMBERS = List.of(//
             // "User.Read", //
@@ -89,7 +89,7 @@ public final class TeamsGraphClientFactory {
 
     private static final int DIALOG_CLIENT_TIMEOUT_MILLIS = 30000;
 
-    private TeamsGraphClientFactory() {
+    private TeamsGraphClientUtils() {
     }
 
     /**

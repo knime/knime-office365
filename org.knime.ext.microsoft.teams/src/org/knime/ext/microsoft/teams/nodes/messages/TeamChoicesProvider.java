@@ -83,7 +83,7 @@ public final class TeamChoicesProvider implements StringChoicesProvider {
     @Override
     public List<StringChoice> computeState(final NodeParametersInput context) {
         try {
-            final GraphServiceClient<Request> graphClient = TeamsGraphClientFactory.getGraphClient(context);
+            final GraphServiceClient<Request> graphClient = TeamsGraphClientUtils.getGraphClient(context);
             var page = graphClient.me().joinedTeams().buildRequest().select("id,displayName").get();
             var teamChoices = new ArrayList<StringChoice>();
 

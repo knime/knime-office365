@@ -92,7 +92,7 @@ public final class ChannelChoicesProvider implements StringChoicesProvider {
                 return List.of();
             }
 
-            final GraphServiceClient<Request> graphClient = TeamsGraphClientFactory.getGraphClient(context);
+            final GraphServiceClient<Request> graphClient = TeamsGraphClientUtils.getGraphClient(context);
             var channels = graphClient.teams().byId(selectedTeamId).channels().buildRequest().get();
 
             final var choices = new ArrayList<StringChoice>();

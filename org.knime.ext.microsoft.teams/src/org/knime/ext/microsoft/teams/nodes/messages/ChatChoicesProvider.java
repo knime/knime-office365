@@ -87,7 +87,7 @@ public final class ChatChoicesProvider implements StringChoicesProvider {
     @Override
     public List<StringChoice> computeState(final NodeParametersInput context) {
         try {
-            final GraphServiceClient<Request> graph = TeamsGraphClientFactory.getGraphClient(context);
+            final GraphServiceClient<Request> graph = TeamsGraphClientUtils.getGraphClient(context);
 
             var page = graph.me().chats().buildRequest().select("id,topic,chatType").get();
             var out = new ArrayList<StringChoice>();
