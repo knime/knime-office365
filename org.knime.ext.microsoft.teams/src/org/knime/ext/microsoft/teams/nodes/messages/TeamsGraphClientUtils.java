@@ -107,7 +107,6 @@ public final class TeamsGraphClientUtils {
             return GraphApiUtil.createClient(authProvider, DIALOG_CLIENT_TIMEOUT_MILLIS, DIALOG_CLIENT_TIMEOUT_MILLIS);
         } catch (IOException | NoSuchCredentialException e) {
             throw new IOException("Could not authenticate." + e.getMessage(), e);
-
         } catch (GraphServiceException e) {
             throw new IOException("Could not authenticate.", e);
         }

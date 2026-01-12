@@ -84,11 +84,11 @@ final class TeamsMessageSenderNodeModel {
      * @param input
      *            configure input
      * @param output
-     *            configure output
+     *            configure output (unused)
      * @throws InvalidSettingsException
      *             if settings are invalid
      */
-    static void configure(final ConfigureInput input, final ConfigureOutput output)// NOSONAR framework output unused
+    static void configure(final ConfigureInput input, final ConfigureOutput output) // NOSONAR framework output unused
             throws InvalidSettingsException {
         final TeamsMessageSenderNodeSettings settings = input.getParameters();
         settings.validate();
@@ -99,6 +99,8 @@ final class TeamsMessageSenderNodeModel {
      *
      * @param input
      *            execute input
+     * @param output
+     *            execute output (unused)
      * @throws CanceledExecutionException
      *             if execution is canceled
      * @throws KNIMEException
@@ -106,16 +108,13 @@ final class TeamsMessageSenderNodeModel {
      * @throws IOException
      *             if a client couldn't be created
      */
-    static void execute(final ExecuteInput input, final ExecuteOutput output)// NOSONAR framework output unused
+    static void execute(final ExecuteInput input, final ExecuteOutput output) // NOSONAR framework output unused
             throws KNIMEException {
         final TeamsMessageSenderNodeSettings settings = input.getParameters();
         final var inPorts = input.getInPortObjects();
         final var chatId = settings.m_selectedChat.trim();
         final var teamId = settings.m_selectedTeam.trim();
         final var channelId = settings.m_selectedChannel.trim();
-
-        LOG.debug(String.format("TeamsMessageSender execute(): destination=%s, chatId=%s, teamId=%s, channelId=%s",
-                        settings.m_destination, chatId, teamId, channelId));
 
         final var spec = (inPorts[0] instanceof org.knime.credentials.base.CredentialPortObject port) ? port.getSpec()
                 : null;
