@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="settings.xml">
+    <entry key="node_file" type="xstring" value="settings.xml"/>
+    <config key="flow_stack"/>
+    <config key="internal_node_subsettings">
+        <entry key="memory_policy" type="xstring" value="CacheSmallInMemory"/>
+    </config>
+    <config key="model">
+        <config key="site">
+            <config key="site_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="site" type="xstring" value=""/>
+            <config key="group_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="group" type="xstring" value="43a9b675-77d5-44e2-8126-f1a8b9d199a9"/>
+            <config key="groupName_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="groupName" type="xstring" value="SharepointsListsLars"/>
+            <config key="mode_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="mode" type="xstring" value="GROUP"/>
+            <config key="subsite_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="subsite" type="xstring" value=""/>
+            <config key="subsiteName_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="subsiteName" type="xstring" value=""/>
+            <config key="connectToSubsite_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_boolean"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="connectToSubsite" type="xboolean" value="false"/>
+        </config>
+        <config key="connectionTimeout_Internals">
+            <entry key="SettingsModelID" type="xstring" value="SMID_integer"/>
+            <entry key="EnabledStatus" type="xboolean" value="true"/>
+        </config>
+        <entry key="connectionTimeout" type="xint" value="20"/>
+        <config key="readTimeout_Internals">
+            <entry key="SettingsModelID" type="xstring" value="SMID_integer"/>
+            <entry key="EnabledStatus" type="xboolean" value="true"/>
+        </config>
+        <entry key="readTimeout" type="xint" value="20"/>
+        <config key="list">
+            <config key="list_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="list" type="xstring" value="d3e885a6-bedd-4920-aa51-4d3563bda940"/>
+            <config key="listName_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="listName" type="xstring" value="UpdaterTest (UpdaterTest)"/>
+            <config key="showSystemLists_Internals_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_boolean"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="showSystemLists_Internals" type="xboolean" value="false"/>
+        </config>
+        <config key="id_column_Internals">
+            <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+            <entry key="EnabledStatus" type="xboolean" value="true"/>
+        </config>
+        <config key="id_column">
+            <entry key="useRowID" type="xboolean" value="false"/>
+            <entry key="columnName" type="xstring" value="ID"/>
+        </config>
+    </config>
+    <config key="variables">
+        <entry key="version" type="xstring" value="V_2019_09_13"/>
+        <config key="tree">
+            <config key="site">
+                <config key="site">
+                    <entry key="used_variable" type="xstring" value="site_id"/>
+                    <entry key="exposed_variable" type="xstring" isnull="true" value=""/>
+                </config>
+                <config key="mode">
+                    <entry key="used_variable" type="xstring" value="mode"/>
+                    <entry key="exposed_variable" type="xstring" isnull="true" value=""/>
+                </config>
+            </config>
+            <config key="list">
+                <config key="list">
+                    <entry key="used_variable" type="xstring" value="sharepoint_list_id"/>
+                    <entry key="exposed_variable" type="xstring" isnull="true" value=""/>
+                </config>
+            </config>
+        </config>
+    </config>
+    <entry key="customDescription" type="xstring" isnull="true" value=""/>
+    <entry key="state" type="xstring" value="IDLE"/>
+    <entry key="factory" type="xstring" value="org.knime.ext.sharepoint.lists.node.updater.SharepointListUpdaterNodeFactory"/>
+    <entry key="node-name" type="xstring" value="SharePoint Online List Updater"/>
+    <entry key="node-bundle-name" type="xstring" value="Sharepoint extension for KNIME Workbench"/>
+    <entry key="node-bundle-symbolic-name" type="xstring" value="org.knime.ext.sharepoint.lists"/>
+    <entry key="node-bundle-vendor" type="xstring" value="KNIME AG, Zurich, Switzerland"/>
+    <entry key="node-bundle-version" type="xstring" value="5.10.0.qualifier"/>
+    <entry key="node-feature-name" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-symbolic-name" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-vendor" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-version" type="xstring" value="0.0.0"/>
+    <config key="factory_settings"/>
+    <entry key="name" type="xstring" value="SharePoint Online List Updater"/>
+    <entry key="hasContent" type="xboolean" value="false"/>
+    <entry key="isInactive" type="xboolean" value="false"/>
+    <config key="ports"/>
+    <config key="filestores">
+        <entry key="file_store_location" type="xstring" isnull="true" value=""/>
+        <entry key="file_store_id" type="xstring" isnull="true" value=""/>
+    </config>
+</config>

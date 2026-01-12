@@ -59,34 +59,34 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeModel;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
+import org.knime.core.webui.node.impl.WebUINodeModel;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.lists.node.KNIMEToSharepointTypeConverter;
 import org.knime.ext.sharepoint.lists.node.SharepointListChangingClient;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters;
 
 /**
  * SharePoint Online List Updater node implementation of a {@link NodeModel}.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListUpdaterNodeModel extends NodeModel {
-
-    private final SharepointListUpdaterConfig m_config;
+@SuppressWarnings({ "deprecation", "restriction" })
+final class SharepointListUpdaterNodeModel extends WebUINodeModel<SharepointListUpdaterNodeParameters> {
 
     protected SharepointListUpdaterNodeModel() {
-        super(new PortType[] { CredentialPortObject.TYPE, BufferedDataTable.TYPE }, new PortType[] {});
-        m_config = new SharepointListUpdaterConfig();
+        super(new PortType[] { CredentialPortObject.TYPE, BufferedDataTable.TYPE }, new PortType[] {},
+                SharepointListUpdaterNodeParameters.class);
     }
 
     @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs,
+            final SharepointListUpdaterNodeParameters params) throws InvalidSettingsException {
         final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
         if (credSpec != null) {
             GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
@@ -94,19 +94,23 @@ final class SharepointListUpdaterNodeModel extends NodeModel {
 
         final var inputTableSpec = (DataTableSpec) inSpecs[1];
 
-        CheckUtils.checkSetting(listSettingsNonEmpty(), "No list selected. Please select a list.");
+        if (params.m_list.isLegacyAndWebUIDialogNeverOpened()) {
+            // do manual checking because of legacy mode
+            CheckUtils.checkSetting(legacyListSettingsNonEmpty(params.m_list),
+                    "No list selected. Please select a list.");
+        }
 
-        final var colId = m_config.getIdColNameModel();
+        final var colId = params.m_idColumn;
 
-        if (!colId.useRowID()) {
-            CheckUtils.checkSetting(inputTableSpec.containsName(colId.getColumnName()),
+        if (colId.getEnumChoice().isEmpty()) {
+            CheckUtils.checkSetting(inputTableSpec.containsName(colId.getStringChoice()),
                     "Please select a column containing the item ID");
             CheckUtils.checkSetting(
-                    inputTableSpec.getColumnSpec(colId.getColumnName()).getType().isCompatible(StringValue.class),
+                    inputTableSpec.getColumnSpec(colId.getStringChoice()).getType().isCompatible(StringValue.class),
                     "Column containing the item ID is not string compatible");
         }
 
-        final var idColIdx = inputTableSpec.findColumnIndex(colId.getColumnName());
+        final var idColIdx = inputTableSpec.findColumnIndex(colId.getStringChoice());
 
         for (var i = 0; i < inputTableSpec.getNumColumns(); i++) {
             if (i == idColIdx) {
@@ -136,37 +140,24 @@ final class SharepointListUpdaterNodeModel extends NodeModel {
     }
 
     @Override
-    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec,
+            final SharepointListUpdaterNodeParameters params) throws Exception {
 
         final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
         final var table = (BufferedDataTable) inObjects[1];
 
-        try (final var client = new SharepointListChangingClient(m_config.getSharepointListSettings(), false, null,
+        try (final var client = new SharepointListChangingClient(params.m_site, params.m_list, params.m_timeout, null,
                 table, credSpec, exec)) {
-            client.updateList(m_config.getIdColName());
+            client.updateList(
+                    params.m_idColumn.getEnumChoice().isPresent() ? null : params.m_idColumn.getStringChoice());
         }
 
         return new PortObject[] {};
     }
 
-    private boolean listSettingsNonEmpty() {
-        return !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty()
-                || !m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue().isEmpty();
-    }
-
-    @Override
-    protected void saveSettingsTo(final NodeSettingsWO settings) {
-        m_config.saveSettings(settings);
-    }
-
-    @Override
-    protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.validateSettings(settings);
-    }
-
-    @Override
-    protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.loadSettings(settings);
+    private static boolean legacyListSettingsNonEmpty(final SharepointListParameters list) {
+        return list.getExistingListId() != null || list.getExistingListInternalName() != null
+                || list.getExistingListDisplayName() != null;
     }
 
     @Override
