@@ -58,10 +58,13 @@ import org.knime.node.parameters.widget.choices.Label;
  */
 public enum ListExistsPolicy implements ButtonGroupEnumInterface {
 
-    /** Overwrite existing list. */
-    @Label(value = "Overwrite", //
-            description = "Overwrite an existing list by removing all columns and items beforehand.")
-    OVERWRITE("overwrite"),
+    /**
+     * Fail during execution if list with id or name already exists. Neither
+     * overwrite nor append.
+     */
+    @Label(value = "Fail", //
+            description = "Fail node execution if an list already exists.")
+    FAIL("fail"),
 
     /**
      * Append to an existing list if it already exists and the column specs match.
@@ -72,13 +75,10 @@ public enum ListExistsPolicy implements ButtonGroupEnumInterface {
             for more information.""")
     APPEND("append"),
 
-    /**
-     * Fail during execution if list with id or name already exists. Neither
-     * overwrite nor append.
-     */
-    @Label(value = "Fail", //
-            description = "Fail node execution if an list already exists.")
-    FAIL("fail");
+    /** Overwrite existing list. */
+    @Label(value = "Overwrite", //
+            description = "Overwrite an existing list by removing all columns and items beforehand.")
+    OVERWRITE("overwrite");
 
 
     private final String m_description;

@@ -76,7 +76,6 @@ import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.lists.node.SharepointListParameters.CreateListParameters.ListModeRef;
-import org.knime.ext.sharepoint.lists.node.SharepointListParameters.CreateListParameters.NewListCheckRef;
 import org.knime.ext.sharepoint.lists.node.SharepointListParameters.CreateListParameters.NewListRef;
 import org.knime.ext.sharepoint.lists.node.SharepointListParameters.ListParameters.ExistingListWRef;
 import org.knime.ext.sharepoint.lists.node.SharepointListParameters.ShowSystemLists.ReplaceListChoicesToShowSystemLists;
@@ -110,6 +109,8 @@ import org.knime.node.parameters.widget.choices.Label;
 import org.knime.node.parameters.widget.choices.StringChoice;
 import org.knime.node.parameters.widget.choices.StringChoicesProvider;
 import org.knime.node.parameters.widget.choices.ValueSwitchWidget;
+import org.knime.node.parameters.widget.text.TextInputWidget;
+import org.knime.node.parameters.widget.text.TextInputWidgetValidation.PatternValidation.IsNotBlankValidation;
 
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.options.Option;
@@ -255,7 +256,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         CreateListParameters m_list = new CreateListParameters();
 
         @PersistEmbedded
-        IfListExists m_listExists = new IfListExists();
+        ListWriteMode m_writeMode = new ListWriteMode();
 
         @Override
         ListParameters getListParameters() {
@@ -264,7 +265,10 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
         @Override
         ListExistsPolicy getIfListExistsPolicy() {
-            return m_listExists.m_ifListExists;
+            return switch (m_list.m_listMode) {
+            case CREATE -> m_writeMode.m_ifListExists;
+            case SELECT -> WriteMode.asExistsPolicy(m_writeMode.m_writeMode);
+            };
         }
     }
 
@@ -285,7 +289,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         ShowSystemLists m_showSystemLists = new ShowSystemLists();
 
         @PersistEmbedded
-        IfListExists m_listExists = new IfListExists();
+        ListWriteMode m_writeMode = new ListWriteMode();
 
         @Override
         ListParameters getListParameters() {
@@ -294,7 +298,10 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
         @Override
         ListExistsPolicy getIfListExistsPolicy() {
-            return m_listExists.m_ifListExists;
+            return switch (m_list.m_listMode) {
+            case CREATE -> m_writeMode.m_ifListExists;
+            case SELECT -> WriteMode.asExistsPolicy(m_writeMode.m_writeMode);
+            };
         }
     }
 
@@ -373,31 +380,21 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         static final class ListModeRef implements ParameterReference<ListMode> {
         }
 
-        @Widget(title = "New list name", description = """
-                The display name of the list to create. If a list was previously created with
-                this node and the dialog is reopened, the created list must be selected from the existing lists instead.
-                As long as the dialog is not reopened, the list will be matched by its display name. If there are
+        @Widget(title = "List name", description = """
+                The display name of the list to use. If no such list exists, it will be created.
+                The list will be matched by its display name only. If there are
                 multiple lists with the same name, the first one returned by the API will be used, which
-                may lead to unexpected results if the list is renamed in SharePoint.
+                may lead to unexpected results if the list is renamed in SharePoint. Thus it is best
+                to use “select” mode if the list exists or was created by a previous execution of
+                this node.
                 """)
         @ValueReference(NewListRef.class)
+        @TextInputWidget(patternValidation = IsNotBlankValidation.class)
         @Effect(predicate = CreateListSelected.class, type = EffectType.SHOW)
         @CustomValidation(ListNameValidator.class)
         String m_newListName = "";
 
         static final class NewListRef implements ParameterReference<String> {
-        }
-
-        /**
-         * This field is used to be able to prevent applying the settings when the name
-         * already exists. It is not persisted if there is no error.
-         */
-        @ValueProvider(ListNameChecker.class)
-        @ValueReference(NewListCheckRef.class)
-        @Persistor(ListNameValidationPersistor.class)
-        String m_lastNameValidationInternal;
-
-        static final class NewListCheckRef implements ParameterReference<String> {
         }
 
         public ListMode getListMode() {
@@ -423,9 +420,6 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
             } else {
                 super.validate();
             }
-            if (m_lastNameValidationInternal != null) {
-                throw new InvalidSettingsException(m_lastNameValidationInternal);
-            }
         }
     }
 
@@ -450,13 +444,46 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
     }
 
-    static final class IfListExists implements NodeParameters {
+    static final class ListWriteMode implements NodeParameters {
+        @Widget(title = "List write mode", //
+                description = "How to write to the selected list.")
+        @ValueSwitchWidget
+        @Layout(SharepointListSection.Tail.class)
+        @Migration(WriteModeMigration.class)
+        @Effect(predicate = CreateListSelected.class, type = EffectType.HIDE)
+        WriteMode m_writeMode = WriteMode.APPEND;
+
         @Widget(title = "If list already exists", //
                 description = "How to handle the situation when a list with the same name already exists.")
         @ValueSwitchWidget
         @Layout(SharepointListSection.Tail.class)
         @Migration(IfListExistsMigration.class)
+        @Effect(predicate = CreateListSelected.class, type = EffectType.SHOW)
         ListExistsPolicy m_ifListExists = ListExistsPolicy.FAIL;
+    }
+
+    enum WriteMode {
+        @Label(value = "Append", description = """
+                Append the data at the bottom of the list.
+                There are limitations to appending. Please check the note in the node introduction
+                for more information.""")
+        APPEND,
+
+        /** Overwrite existing list. */
+        @Label(value = "Overwrite", //
+                description = "Overwrite the list by removing all columns and items beforehand.")
+        OVERWRITE;
+
+        static ListExistsPolicy asExistsPolicy(final WriteMode mode) {
+            if (mode == null) {
+                return ListExistsPolicy.FAIL;
+            }
+
+            return switch (mode) {
+            case APPEND -> ListExistsPolicy.APPEND;
+            case OVERWRITE -> ListExistsPolicy.OVERWRITE;
+            };
+        }
     }
 
     @Override
@@ -532,7 +559,9 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         SELECT,
 
         @Label(value = "Create", //
-                description = "Create a new list with a specified display name.")
+                description = """
+                        Use the first list with the specified display name. If
+                        no such list exists, create one.""")
         CREATE
     }
 
@@ -658,9 +687,6 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         }
     }
 
-    // Perform validation in a state provider to be able to save the validation
-    // results in the parameters so that they can be re-used in
-    // NodeParameters#validate() as that method does not allow IO
     static final class ListNameChecker extends DebouncedChoicesProvider<String> implements StateProvider<String> {
 
         private static final AtomicReference<Thread> DEBOUNCE_LOCK = new AtomicReference<>();
@@ -684,7 +710,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         protected Optional<String> preDebounceCheck(final NodeParametersInput context) {
             final var value = m_newName.get();
             if (value.isEmpty()) {
-                return Optional.of("Please specify a name.");
+                return Optional.of(""); // special won't check value as NotBlankValidation already present
             } else {
                 return Optional.empty();
             }
@@ -697,9 +723,11 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
                 final var client = createClient(context);
                 final var siteId = site.getSiteId(client);
 
-                CheckUtils.checkSetting(client.sites(siteId).lists().buildRequest(getFilter(m_newName.get())) //
-                        .get().getCurrentPage().isEmpty(),
-                        "List already exists. Choose a different name or select it in the existing lists.");
+                final var page = client.sites(siteId).lists().buildRequest(getFilter(m_newName.get())) //
+                        .get().getCurrentPage();
+
+                CheckUtils.checkSetting(page.isEmpty() || page.stream().anyMatch(l -> l.system == null),
+                        "Name cannot be used because a read-only system list with that name already exists.");
             } catch (InvalidSettingsException e) { // NOSONAR thrown by us
                 return e.getMessage();
             } catch (IOException | IllegalStateException | GraphServiceException ignore) { // NOSONAR
@@ -710,7 +738,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
         private static List<Option> getFilter(final String name) {
             return List.of( //
-                    new QueryOption("select", "system"), //
+                    new QueryOption("select", "system,displayName"), //
                     new QueryOption("filter", "displayName eq '%s'".formatted(name.replace("'", "''"))));
         }
 
@@ -727,13 +755,13 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Override
         public void init(final StateProviderInitializer initializer) {
             initializer.computeAfterOpenDialog();
-            m_newNameError = initializer.computeFromValueSupplier(NewListCheckRef.class);
+            m_newNameError = initializer.computeFromProvidedState(ListNameChecker.class);
         }
 
         @Override
         public ValidationCallback<String> computeValidationCallback(final NodeParametersInput context) {
             final var message = m_newNameError.get();
-            if (message == null) {
+            if (message == null || message.isEmpty()) {
                 return null;
             } else {
                 return v -> {
@@ -861,6 +889,35 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Override
         public String[][] getConfigPaths() {
             return new String[0][];
+        }
+    }
+
+    static final class WriteModeMigration implements NodeParametersMigration<WriteMode> {
+
+        @Override
+        public List<ConfigMigration<WriteMode>> getConfigMigrations() {
+            return List.of(ConfigMigration.builder(WriteModeMigration::loadOutside)
+                    .withMatcher(WriteModeMigration::matchOutside).build());
+        }
+
+        private static boolean matchOutside(final NodeSettingsRO settings) {
+            return (settings.getParent() instanceof NodeSettingsRO ro) && ro.containsKey("if_list_exists");
+        }
+
+        private static WriteMode loadOutside(final NodeSettingsRO settings) throws InvalidSettingsException {
+            if (settings.getParent() instanceof NodeSettingsRO ro) {
+                final var value = ro.getString("if_list_exists");
+                try {
+                    return switch (ListExistsPolicy.valueOf(value)) {
+                    case APPEND -> WriteMode.APPEND;
+                    case FAIL -> null; // deselect which is mapped to FAIL later
+                    case OVERWRITE -> WriteMode.OVERWRITE;
+                    };
+                } catch (IllegalArgumentException e) {
+                    throw new InvalidSettingsException(e.getMessage());
+                }
+            }
+            return WriteMode.APPEND;
         }
     }
 

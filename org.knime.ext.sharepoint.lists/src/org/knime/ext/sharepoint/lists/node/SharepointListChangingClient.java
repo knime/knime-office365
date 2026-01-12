@@ -72,7 +72,9 @@ import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
-import org.knime.ext.sharepoint.SharepointSiteResolver;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters.ListMode;
+import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
+import org.knime.ext.sharepoint.parameters.TimeoutParameters;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonPrimitive;
@@ -90,7 +92,8 @@ import com.microsoft.graph.requests.ListRequestBuilder;
 import okhttp3.Request;
 
 /**
- * Handles operations which change a Sharepoint List (create, write, update, delete).
+ * Handles operations which change a Sharepoint List (create, write, update,
+ * delete).
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
@@ -130,7 +133,10 @@ public final class SharepointListChangingClient implements AutoCloseable {
 
     private final Consumer<String> m_pushListId;
 
-    private final SharepointListSettings m_sharePointListSettings;
+
+    private final SharepointListParameters m_listSettings;
+
+    private final TimeoutParameters m_timeoutSettings;
 
     private final BufferedDataTable m_table;
 
@@ -159,11 +165,12 @@ public final class SharepointListChangingClient implements AutoCloseable {
     /**
      * Create the client
      *
-     * @param settings
+     * @param siteSettings
+     *            the site settings to use
+     * @param listSettings
      *            the list settings to use
-     * @param createMissingList
-     *            whether to create a list during initialization if the list from
-     *            the settings wasn't found
+     * @param timeoutSettings
+     *            the timeout settings to use
      * @param pushListId
      *            called with the id of a newly created list or the existing list.
      *            Can be used to export the id. May be {@code id}.
@@ -181,22 +188,24 @@ public final class SharepointListChangingClient implements AutoCloseable {
      * @throws NoSuchCredentialException
      *             the credential was invalid
      */
-    public SharepointListChangingClient(final SharepointListSettings settings, //
-            final boolean createMissingList, //
+    public SharepointListChangingClient(final SharepointSiteParameters siteSettings,
+            final SharepointListParameters listSettings, //
+            final TimeoutParameters timeoutSettings, //
             final Consumer<String> pushListId, //
             final BufferedDataTable table, //
             final CredentialPortObjectSpec credSpec, //
-            final ExecutionContext exec)
-            throws IOException, InvalidSettingsException, NoSuchCredentialException {
+            final ExecutionContext exec) throws IOException, InvalidSettingsException, NoSuchCredentialException {
 
-        m_sharePointListSettings = settings;
+        m_listSettings = listSettings;
+        m_timeoutSettings = timeoutSettings;
         m_table = table;
         m_tableSpec = m_table.getDataTableSpec();
         m_exec = exec;
         m_client = createGraphServiceClient(credSpec);
         m_pushListId = pushListId;
-        m_createMissingList = createMissingList;
-        m_siteId = getSiteId();
+        m_siteId = siteSettings.getSiteId(m_client);
+        m_createMissingList = listSettings instanceof SharepointListParameters.WithCreateLists
+                || listSettings instanceof SharepointListParameters.WithCreateListsAndSystemLists;
         m_listId = getListId();
     }
 
@@ -212,7 +221,8 @@ public final class SharepointListChangingClient implements AutoCloseable {
     public void writeList() throws IOException, CanceledExecutionException {
         m_exec.setMessage("Writing rows");
         final String[] colNames = m_tableSpec.getColumnNames();
-        final var overwritePolicy = m_sharePointListSettings.getOverwritePolicy();
+        final var overwritePolicy = m_listSettings.getExistingListPolicy().orElseThrow(() -> new IllegalStateException(
+                "This method can only be called when the list settings allow creating lists."));
 
         final var colMap = mapColNames(false);
 
@@ -375,26 +385,10 @@ public final class SharepointListChangingClient implements AutoCloseable {
     private GraphServiceClient<Request> createGraphServiceClient(final CredentialPortObjectSpec credSpecl)
             throws NoSuchCredentialException, IOException {
 
-        final var timeouts = m_sharePointListSettings.getTimeoutSettings();
         return GraphApiUtil.createClient(//
                 GraphCredentialUtil.createAuthenticationProvider(credSpecl), //
-                timeouts.getConnectionTimeout(), //
-                timeouts.getReadTimeout());
-    }
-
-    /**
-     * Returns the site id.
-     *
-     * @return returns the site id
-     * @throws IOException
-     */
-    private String getSiteId() throws IOException {
-        final var settings = m_sharePointListSettings.getSiteSettings();
-        final var siteResolver = new SharepointSiteResolver(m_client, settings.getMode(),
-                settings.getSubsiteModel().getStringValue(), settings.getWebURLModel().getStringValue(),
-                settings.getGroupModel().getStringValue());
-
-        return siteResolver.getTargetSiteId();
+                m_timeoutSettings.getConnectionTimeoutMillis(), //
+                m_timeoutSettings.getReadTimeoutMillis());
     }
 
     /**
@@ -407,45 +401,97 @@ public final class SharepointListChangingClient implements AutoCloseable {
      *             if the list could not be created due to configuration
      */
     private String getListId() throws IOException, InvalidSettingsException {
-        var listId = m_sharePointListSettings.getListSettings().getListModel().getStringValue();
-        var listExists = !listId.isEmpty();
+        final var failOnExists = m_listSettings.getExistingListPolicy() //
+                .filter(ListExistsPolicy.FAIL::equals).isPresent();
 
-        if (!listExists) {
-            final var optionalListId = SharePointListUtils.getListIdByInternalOrDisplayName(m_client, m_siteId,
-                    m_sharePointListSettings.getListSettings().getListNameModel().getStringValue());
-            listExists = optionalListId.isPresent();
-            listId = optionalListId.orElse(null);
-
-        }
-
-        if (m_createMissingList && !listExists) {
-            listId = tryCreateSharepointList();
-        } else if (!listExists) {
-            throw new InvalidSettingsException("Configured list does not exist");
+        var result = "";
+        if (m_listSettings.getListMode().filter(ListMode.CREATE::equals).isPresent()) {
+            result = getOrCreateNewListId(failOnExists);
+        } else {
+            result = getExistingListId(failOnExists);
         }
 
         if (m_pushListId != null) {
-            m_pushListId.accept(listId);
+            m_pushListId.accept(result);
         }
 
-        if (listExists && m_createMissingList // overwriting is only a concern if we are not only reading
-                && m_sharePointListSettings.getOverwritePolicy() == ListExistsPolicy.FAIL) {
+        return result;
+    }
+
+    /**
+     * Create a list with the given name or reuse an existing one if permitted by
+     * node settings
+     *
+     * @param failOnExists
+     *            whether the node should fail if the list already exists
+     * @return returns the list id
+     * @throws IOException
+     *             if there was an error accessing the Graph API
+     * @throws InvalidSettingsException
+     *             if the list could not be created due to configuration
+     */
+    private String getOrCreateNewListId(final boolean failOnExists) throws IOException, InvalidSettingsException {
+        var toCreate = m_listSettings.getListNameToCreate().orElseThrow();
+        final var optionalListId = SharePointListUtils.getListIdByDisplayName(m_client, m_siteId, toCreate);
+        if (optionalListId.isPresent() && failOnExists) {
             throw new InvalidSettingsException(
                     "The specified list already exists and the node fails due to overwrite settings");
         }
 
-        return listId;
+        return optionalListId.isPresent() ? optionalListId.get()
+                : tryCreateSharepointList(toCreate);
+    }
+
+    /**
+     * Find an existing list depending on legacy settings
+     *
+     * @param failOnExists
+     *            whether the node should fail if the list already exists
+     * @return returns the list id
+     * @throws IOException
+     *             if there was an error accessing the Graph API
+     * @throws InvalidSettingsException
+     *             if the list could not be found or not created due to
+     *             configuration
+     */
+    private String getExistingListId(final boolean failOnExists) throws IOException, InvalidSettingsException {
+        var result = m_listSettings.getExistingListId();
+        if (result == null && m_listSettings.isLegacyAndWebUIDialogNeverOpened()) {
+            result = SharePointListUtils.getListIdByInternalOrDisplayNameLegacy(m_client, m_siteId,
+                    m_listSettings.getExistingListInternalName(), m_listSettings.getExistingListDisplayName())
+                    .orElse(null);
+        } else if (result == null) {
+            result = SharePointListUtils.getListIdByInternalOrDisplayName(m_client, m_siteId,
+                    m_listSettings.getExistingListInternalName(), m_listSettings.getExistingListDisplayName())
+                    .orElse(null);
+        }
+
+        if (result != null && failOnExists) {
+            throw new InvalidSettingsException(
+                    "The specified list already exists and the node fails due to overwrite settings");
+        }
+        if (result == null && m_createMissingList) {
+            // as a last resort try to create the list
+            return tryCreateSharepointList(m_listSettings.getExistingListDisplayName());
+        } else if (result == null) {
+            throw new InvalidSettingsException(
+                    "Could not find a list with display name: " + m_listSettings.getExistingListDisplayName());
+        }
+        return result;
     }
 
     /**
      * Creates a new list.
      *
+     * @param displayName
+     *            the name of the new list to create
+     *
      * @return the Id of the created list
      * @throws IOException
      */
-    private String tryCreateSharepointList() throws IOException {
+    private String tryCreateSharepointList(final String displayName) throws IOException {
         final var list = new com.microsoft.graph.models.List();
-        list.displayName = m_sharePointListSettings.getListSettings().getListNameModel().getStringValue();
+        list.displayName = displayName;
 
         final var columnDefinitionCollectionResponse = new ColumnDefinitionCollectionResponse();
         columnDefinitionCollectionResponse.value = createColumnDefinitions(new HashSet<>());
@@ -549,8 +595,8 @@ public final class SharepointListChangingClient implements AutoCloseable {
      * @throws CanceledExecutionException
      */
     private void createListItem(final DataRow row, final String[] colNames,
-            final Map<String, Pair<String, Boolean>> colMap,
-            final ListBatchRequest batch) throws IOException, CanceledExecutionException {
+            final Map<String, Pair<String, Boolean>> colMap, final ListBatchRequest batch)
+            throws IOException, CanceledExecutionException {
         var i = 0;
         final var fvs = new FieldValueSet();
 
@@ -596,8 +642,8 @@ public final class SharepointListChangingClient implements AutoCloseable {
      *             point due to batching.
      * @throws CanceledExecutionException
      */
-    private void updateListItem(final DataRow row, final String[] colNames, final String id,
-            final int idColIndex, final Map<String, Pair<String, Boolean>> colMap, final ListBatchRequest batch)
+    private void updateListItem(final DataRow row, final String[] colNames, final String id, final int idColIndex,
+            final Map<String, Pair<String, Boolean>> colMap, final ListBatchRequest batch)
             throws IOException, CanceledExecutionException {
         var i = 0;
         final var fvs = new FieldValueSet();
@@ -694,9 +740,9 @@ public final class SharepointListChangingClient implements AutoCloseable {
                 case 204 /* DELETED */ -> {
                     // ignore
                 }
-                default -> throw new IllegalStateException(
+                default -> throw new IllegalStateException( //
                         "Unexpected status when parsing column creation response: " //
-                                + obj.get("status").getAsInt());
+                        + obj.get("status").getAsInt());
                 }
             }
         }

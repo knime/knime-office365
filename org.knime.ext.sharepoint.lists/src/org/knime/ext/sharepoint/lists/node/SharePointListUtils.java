@@ -58,6 +58,8 @@ import org.knime.core.util.Pair;
 
 import com.microsoft.graph.http.GraphServiceException;
 import com.microsoft.graph.models.List;
+import com.microsoft.graph.options.Option;
+import com.microsoft.graph.options.QueryOption;
 import com.microsoft.graph.requests.GraphServiceClient;
 
 import okhttp3.Request;
@@ -68,6 +70,11 @@ import okhttp3.Request;
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
 public final class SharePointListUtils {
+
+    private static final String SYSTEM_LIST_COLLISION_MSG = //
+            "Matching list is a read-only system list and cannot be used!";
+
+    private static final String SELECT_NAME_DISPLAY_NAME_ID = "name,displayName";
 
     // Pattern of the settings is actually "<displayName> (<internalName>)"
     private static final Pattern SETTINGS_INTERNAL_LIST_NAME_PATTERN = Pattern.compile("(.+) \\(([^)]+)\\)");
@@ -114,6 +121,8 @@ public final class SharePointListUtils {
      * Get a list by name by checking which list internal name matches the given
      * name.
      *
+     * This method will throw an exception if only a system list was found.
+     *
      * @param client
      *            the {@link GraphServiceClient}
      * @param siteId
@@ -127,48 +136,116 @@ public final class SharePointListUtils {
      *
      * @apiNote This method exists for backwards compatibility with the questionable
      *          behavior of the "Delete Sharepoint List" node. Please use
-     *          {@link #getListIdByInternalOrDisplayName(GraphServiceClient, String, String)}
+     *          {@link #getListIdByInternalOrDisplayName(GraphServiceClient, String, String, String)}
      *          instead!
      */
     public static Optional<String> getListIdByInternalName(final GraphServiceClient<Request> client, //
             final String siteId, final String internalName) throws IOException {
         // no last resort needed as the internal name may not contain parentheses
-        return getListIdByFilter(client, siteId, l -> l.name.equals(internalName), null);
+        return getListIdByFilter(client, siteId, l -> l.name.equals(internalName), "name", null);
     }
 
     /**
-     * Get a list by name by checking which list internal name matches the given
-     * name if it's in "display name (internal name)" form, otherwise the whole
-     * string will be assumed to be a display name.
+     * Get a non-system list by name by checking which list display name matches the
+     * given name.
+     *
+     * This method will throw an exception if only a system list was found.
      *
      * @param client
      *            the {@link GraphServiceClient}
      * @param siteId
      *            the ID of the SharePoint site
-     * @param listName
-     *            the name of the list, if it does not match the "display name
-     *            (internal name)" form, the whole string will be assumed to be a
-     *            display name.
+     * @param displayName
+     *            the display name of the list
+     *
+     * @return an {@link Optional} of {@link String} with the list id
+     * @throws IOException
+     *             if an error happened during the request
+     *
+     * @apiNote This method exists for backwards compatibility with the questionable
+     *          behavior of the "Delete Sharepoint List" node. Please use
+     *          {@link #getListIdByInternalOrDisplayName(GraphServiceClient, String, String, String)}
+     *          instead!
+     */
+    public static Optional<String> getListIdByDisplayName(final GraphServiceClient<Request> client, //
+            final String siteId, final String displayName) throws IOException {
+        return displayName != null ? getListIdByFilter(client, siteId, "displayName", displayName) : Optional.empty();
+    }
+
+    /**
+     * Get a list by name by checking which list internal name matches the given
+     * name if it was loaded from "display name (internal name)" form, otherwise the
+     * internal name will be appended to the display name in parenthesis and
+     * searched as display name to follow legacy behaviour.
+     *
+     * This method will throw an exception if only a system list was found.
+     *
+     * @param client
+     *            the {@link GraphServiceClient}
+     * @param siteId
+     *            the ID of the SharePoint site
+     * @param internalName
+     *            the internal name to search for, if {@code null} search for the
+     *            display name instead.
+     * @param displayName
+     *            the display name to search for, used if internal name is not
+     *            present or no list with given internal name exists (in the last
+     *            case the internal name is appended in parentheses to the display
+     *            name because it may have been grandfathered in from an old node
+     *            configuration)
+     *
+     * @return an {@link Optional} of {@link String} with the list id
+     * @throws IOException
+     *             if an error happened during the request
+     */
+    public static Optional<String> getListIdByInternalOrDisplayNameLegacy(final GraphServiceClient<Request> client, //
+            final String siteId, final String internalName, final String displayName) throws IOException {
+        if (internalName != null) {
+            final var fallback = "%s (%s)".formatted(displayName, internalName);
+            // if the list display name ended with parentheses and thus accidentally matched
+            // the pattern, use the full name as a last resort
+            return getListIdByFilter(client, siteId, l -> l.name.equals(internalName), SELECT_NAME_DISPLAY_NAME_ID,
+                    l -> l.displayName.equals(fallback));
+        } else {
+            return getListIdByFilter(client, siteId, l -> l.displayName.equals(displayName),
+                    SELECT_NAME_DISPLAY_NAME_ID, null);
+        }
+    }
+
+    /**
+     * Get a list by name by checking which list internal name matches the given
+     * name, if no such list is found the display name will be used instead. This
+     * method will throw an exception if only a system list was found.
+     *
+     * @param client
+     *            the {@link GraphServiceClient}
+     * @param siteId
+     *            the ID of the SharePoint site
+     * @param internalName
+     *            the internal name to search for, if {@code null} search for the
+     *            display name instead.
+     * @param displayName
+     *            the display name to search for, used if internal name is not
+     *            present or no list with given internal name exists
      *
      * @return an {@link Optional} of {@link String} with the list id
      * @throws IOException
      *             if an error happened during the request
      */
     public static Optional<String> getListIdByInternalOrDisplayName(final GraphServiceClient<Request> client, //
-            final String siteId, final String listName) throws IOException {
-        final var name = getInternalListName(listName);
-        if (name != null) {
-            // if the list display name ended with parentheses and thus accidentally matched
-            // the pattern, use the full name as a last resort
-            return getListIdByFilter(client, siteId, l -> l.name.equals(name), l -> l.displayName.equals(listName));
+            final String siteId, final String internalName, final String displayName) throws IOException {
+        if (internalName != null) {
+            return getListIdByFilter(client, siteId, l -> l.name.equals(internalName), SELECT_NAME_DISPLAY_NAME_ID,
+                    l -> l.displayName.equals(displayName));
         } else {
-            return getListIdByFilter(client, siteId, l -> l.displayName.equals(listName), null);
+            return getListIdByFilter(client, siteId, l -> l.displayName.equals(displayName),
+                    SELECT_NAME_DISPLAY_NAME_ID, null);
         }
     }
 
     /**
      * Get a list by name by checking that the given property matches the given
-     * value.
+     * value. This method will throw an exception if only a system list was found.
      *
      *
      * @param client
@@ -177,18 +254,17 @@ public final class SharePointListUtils {
      *            the ID of the SharePoint site
      * @param filter
      *            predicate used to select list whose id to return
+     * @param select
+     *            a string to pass as a select query to allow to select only
+     *            required fields. This may lead to performance boosts.
      * @param lastResortFilter
      *            predicate used to select list whose id to return if no list
      *            matched the normal filter. May be {@code null}.
-     * @param lastResortValue
-     *            if the given property value does not match any of the lists, try
-     *            to match this value instead. May be null.
-     * @return an {@link Optional} of {@link String} with the list id
      * @throws IOException
      *             if an error happened during the request
      */
     private static Optional<String> getListIdByFilter(final GraphServiceClient<Request> client, final String siteId,
-            final Predicate<List> filter, final Predicate<List> lastResortFilter)
+            final Predicate<List> filter, final String select, final Predicate<List> lastResortFilter)
             throws IOException {
         var result = Optional.<String>empty();
         final var lists = new LinkedList<List>();
@@ -196,8 +272,11 @@ public final class SharePointListUtils {
             var nextRequest = client.sites(siteId).lists();
 
             while (nextRequest != null) {
-                final var resp = nextRequest.buildRequest().get();
-                result = resp.getCurrentPage().stream().filter(filter).findFirst().map(l -> l.id);
+                final var resp = nextRequest
+                        .buildRequest(java.util.List.of(new QueryOption("select", "id,system," + select))).get();
+                result = resp.getCurrentPage().stream() //
+                        .filter(filter).filter(l -> l.system == null) //
+                        .findFirst().map(l -> l.id);
                 if (result.isPresent()) {
                     return result;
                 }
@@ -205,13 +284,62 @@ public final class SharePointListUtils {
                 nextRequest = resp.getNextPage();
             }
 
-            if (lastResortFilter == null) {
-                return result;
+            // no last resort; check for system list
+            if (lastResortFilter == null && lists.stream().anyMatch(filter)) {
+                throw new IOException(SYSTEM_LIST_COLLISION_MSG);
+            } else if (lastResortFilter == null) {
+                return Optional.empty();
+            }
+
+            // last resort
+            result = lists.stream() //
+                    .filter(lastResortFilter).filter(l -> l.system == null) //
+                    .findFirst().map(l -> l.id);
+            if (result.isEmpty() && lists.stream().anyMatch(filter.or(lastResortFilter))) {
+                throw new IOException(SYSTEM_LIST_COLLISION_MSG);
+            }
+            return result;
+        } catch (GraphServiceException ex) {
+            throw new IOException("Error during list ID retrieval: " + ex.getServiceError().message, ex);
+        }
+    }
+
+    /**
+     * Get an list id using a direct property query filter. This is only possible
+     * for certain properties such as "displayName" but not for others like "name"
+     * because SharePoint. This method will throw an exception if only a system list
+     * was found.
+     */
+    private static Optional<String> getListIdByFilter(final GraphServiceClient<Request> client, final String siteId,
+            final String property, final String value) throws IOException {
+        try {
+            var nextRequest = client.sites(siteId).lists();
+            var matchedSystemLists = false;
+            while (nextRequest != null) {
+                final var resp = nextRequest.buildRequest(getFilter(property, value)).get();
+                matchedSystemLists |= !resp.getCurrentPage().isEmpty();
+                final var result = resp.getCurrentPage().stream() //
+                        .filter(l -> l.system == null).map(l -> l.id).findFirst();
+                if (result.isPresent()) {
+                    return result;
+                }
+
+                nextRequest = resp.getNextPage();
+            }
+
+            if (matchedSystemLists) {
+                throw new IOException(SYSTEM_LIST_COLLISION_MSG);
             } else {
-                return result.or(() -> lists.stream().filter(lastResortFilter).findFirst().map(l -> l.id));
+                return Optional.empty();
             }
         } catch (GraphServiceException ex) {
-            throw new IOException("Error during list ID retrival: " + ex.getServiceError().message, ex);
+            throw new IOException("Error during list ID retrieval: " + ex.getServiceError().message, ex);
         }
+    }
+
+    private static java.util.List<Option> getFilter(final String key, final String value) {
+        return java.util.List.of( //
+                new QueryOption("select", "id,system," + key), //
+                new QueryOption("filter", key + " eq '%s'".formatted(value.replace("'", "''"))));
     }
 }

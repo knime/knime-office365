@@ -41,44 +41,42 @@
  *  propagated with or for interoperation with KNIME.  The owner of a Node
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
- * ---------------------------------------------------------------------
- *
- * History
- *   14 Feb 2022 (Lars Schweikardt, KNIME GmbH, Konstanz, Germany): created
+ * ------------------------------------------------------------------------
  */
+    
 package org.knime.ext.sharepoint.lists.node.writer;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.PersistWithin.PersistEmbedded;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters;
+import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
+import org.knime.ext.sharepoint.parameters.TimeoutParameters;
+import org.knime.node.parameters.NodeParameters;
+import org.knime.node.parameters.migration.LoadDefaultsForAbsentFields;
+import org.knime.node.parameters.updates.ValueReference;
 
 /**
- * “SharePoint List Writer” config.
- *
- * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+ * Node parameters for SharePoint Online List Writer.
+ * 
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author AI Migration Pipeline v1.2
  */
-public final class SharepointListWriterConfig {
+@SuppressWarnings("restriction")
+@LoadDefaultsForAbsentFields
+final class SharepointListWriterNodeParameters implements NodeParameters {
+    
+    @ValueReference(SharepointSiteParameters.Ref.class)
+    SharepointSiteParameters m_site = new SharepointSiteParameters();
 
-    private final SharepointListSettings m_sharepointListSettings;
+    SharepointListParameters.WithCreateLists m_list = new SharepointListParameters.WithCreateLists();
 
-    SharepointListWriterConfig() {
-        m_sharepointListSettings = new SharepointListSettings(false, true);
-    }
+    @PersistEmbedded
+    TimeoutParameters m_timeout = new TimeoutParameters();
 
-    SharepointListSettings getSharepointListSettings() {
-        return m_sharepointListSettings;
-    }
-
-    void saveSettings(final NodeSettingsWO settings) {
-        m_sharepointListSettings.saveSettingsTo(settings);
-    }
-
-    void loadSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_sharepointListSettings.loadSettingsFrom(settings);
-    }
-
-    void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_sharepointListSettings.validateSettings(settings);
+    @Override
+    public void validate() throws InvalidSettingsException {
+        m_site.validate();
+        m_list.validate();
+        m_timeout.validate();
     }
 }
