@@ -60,43 +60,46 @@ import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeModel;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.node.workflow.VariableType;
+import org.knime.core.webui.node.impl.WebUINodeModel;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.lists.node.KNIMEToSharepointTypeConverter;
 import org.knime.ext.sharepoint.lists.node.SharepointListChangingClient;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters;
 
 /**
  * “SharePoint List Writer” implementation of a {@link NodeModel}.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListWriterNodeModel extends NodeModel {
+@SuppressWarnings({ "deprecation", "restriction" })
+final class SharepointListWriterNodeModel extends WebUINodeModel<SharepointListWriterNodeParameters> {
 
     private static final String LIST_ID_VAR_NAME = "sharepoint_list_id";
-
-    private final SharepointListWriterConfig m_config;
 
     private boolean m_raiseVariableOverwriteWarning;
 
     protected SharepointListWriterNodeModel() {
-        super(new PortType[] { CredentialPortObject.TYPE, BufferedDataTable.TYPE }, new PortType[] {});
-        m_config = new SharepointListWriterConfig();
+        super(new PortType[] { CredentialPortObject.TYPE, BufferedDataTable.TYPE }, new PortType[] {},
+                SharepointListWriterNodeParameters.class);
     }
 
     @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs,
+            final SharepointListWriterNodeParameters params) throws InvalidSettingsException {
         final var inputTableSpec = (DataTableSpec) inSpecs[1];
 
-        CheckUtils.checkSetting(listSettingsNonEmpty(),
-                "No list selected or entered. Please select a list or enter a list name.");
+        if (params.m_list.isLegacyAndWebUIDialogNeverOpened()) {
+            // do manual checking because of legacy mode
+            CheckUtils.checkSetting(legacyListSettingsNonEmpty(params.m_list),
+                    "No list selected. Please select a list.");
+        }
 
         for (var i = 0; i < inputTableSpec.getNumColumns(); i++) {
             final var colSpec = inputTableSpec.getColumnSpec(i);
@@ -119,7 +122,7 @@ final class SharepointListWriterNodeModel extends NodeModel {
             }
         }
 
-        final var listID = m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue();
+        final var listID = params.m_list.getExistingListId();
         if (getAvailableFlowVariables(VariableType.StringType.INSTANCE).containsKey(LIST_ID_VAR_NAME)) {
             m_raiseVariableOverwriteWarning = !Objects.equals(peekFlowVariableString(LIST_ID_VAR_NAME), listID);
         } else {
@@ -136,12 +139,13 @@ final class SharepointListWriterNodeModel extends NodeModel {
     }
 
     @Override
-    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec,
+            final SharepointListWriterNodeParameters params) throws Exception {
 
         final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
         final var table = (BufferedDataTable) inObjects[1];
 
-        try (final var client = new SharepointListChangingClient(m_config.getSharepointListSettings(), true,
+        try (final var client = new SharepointListChangingClient(params.m_site, params.m_list, params.m_timeout,
                 this::pushListId, table, credSpec, exec)) {
             client.writeList();
         }
@@ -149,9 +153,9 @@ final class SharepointListWriterNodeModel extends NodeModel {
         return new PortObject[] {};
     }
 
-    private boolean listSettingsNonEmpty() {
-        return !m_config.getSharepointListSettings().getListSettings().getListNameModel().getStringValue().isEmpty()
-                || !m_config.getSharepointListSettings().getListSettings().getListModel().getStringValue().isEmpty();
+    private static boolean legacyListSettingsNonEmpty(final SharepointListParameters list) {
+        return list.getExistingListId() != null || list.getExistingListInternalName() != null
+                || list.getExistingListDisplayName() != null || list.getListNameToCreate().isPresent();
     }
 
     private void pushListId(final String listID) {
@@ -161,21 +165,6 @@ final class SharepointListWriterNodeModel extends NodeModel {
         }
 
         pushFlowVariableString(LIST_ID_VAR_NAME, listID);
-    }
-
-    @Override
-    protected void saveSettingsTo(final NodeSettingsWO settings) {
-        m_config.saveSettings(settings);
-    }
-
-    @Override
-    protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.validateSettings(settings);
-    }
-
-    @Override
-    protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.loadSettings(settings);
     }
 
     @Override
