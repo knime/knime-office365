@@ -77,15 +77,14 @@ import okhttp3.Request;
  * configured for Microsoft Teams operations, handling authentication provider
  * setup and scope management.
  */
-public final class TeamsGraphClientUtils {
+final class TeamsGraphClientUtils {
 
-    public static final List<String> TEAMS_SCOPES_READ_MEMBERS = List.of(//
-            // "User.Read", //
-            // "Chat.ReadBasic", //
-            // "Chat.Read", //
-            // "Team.ReadBasic.All", //
-            // "Channel.ReadBasic.All"
-            "Sites.ReadWrite.All");
+    public static final List<String> TEAMS_SCOPES_READ = List.of(//
+            "User.Read", //
+            "Chat.ReadBasic", // Chat.Read may be required to read names :O
+            "Team.ReadBasic.All", //
+            "Channel.ReadBasic.All"
+    );
 
     private static final int DIALOG_CLIENT_TIMEOUT_MILLIS = 30000;
 
@@ -103,7 +102,7 @@ public final class TeamsGraphClientUtils {
      */
     static GraphServiceClient<Request> fromPortObjectSpec(final CredentialPortObjectSpec spec) throws IOException {
         try {
-            final var authProvider = createTeamsAuthenticationProvider(spec, TEAMS_SCOPES_READ_MEMBERS);
+            final var authProvider = createTeamsAuthenticationProvider(spec, TEAMS_SCOPES_READ);
             return GraphApiUtil.createClient(authProvider, DIALOG_CLIENT_TIMEOUT_MILLIS, DIALOG_CLIENT_TIMEOUT_MILLIS);
         } catch (IOException | NoSuchCredentialException e) {
             throw new IOException("Could not authenticate." + e.getMessage(), e);
@@ -148,5 +147,4 @@ public final class TeamsGraphClientUtils {
                 .orElseThrow(() -> new IllegalStateException("Input port not connected"));
         return fromPortObjectSpec((CredentialPortObjectSpec) spec);
     }
-
 }
