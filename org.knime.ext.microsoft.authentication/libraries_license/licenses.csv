@@ -1,0 +1,3 @@
+library,library-url,license,license-url,copyright
+Azure-json-1.4.0.jar,https://github.com/Azure/azure-sdk-for-java,MIT License,https://github.com/Azure/azure-sdk-for-java/blob/main/LICENSE.txt,Microsoft Corporation
+msal4j-1.23.1.jar,https://github.com/AzureAD/microsoft-authentication-library-for-java,MIT License,https://github.com/AzureAD/microsoft-authentication-library-for-java/blob/dev/LICENSE,Microsoft Corporation
