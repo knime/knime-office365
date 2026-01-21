@@ -22,6 +22,9 @@
 	</properties>
 
 	<modules>
+		<!-- this needs to go first because it ensures that jar files required by org.knime.ext.microsoft.authentication are present -->
+		<module>org.knime.ext.microsoft.authentication/libs/fetch_jars</module>
+	  
 		<module>org.knime.ext.microsoft.authentication</module>
 		<module>org.knime.ext.sharepoint</module>
 		<module>org.knime.ext.sharepoint.filehandling</module>
