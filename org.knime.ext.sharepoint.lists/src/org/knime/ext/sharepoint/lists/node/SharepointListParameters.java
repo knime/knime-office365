@@ -710,7 +710,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
         private static List<Option> getFilter(final String name) {
             return List.of( //
-                    new QueryOption("select", "system"), //
+                    new QueryOption("select", "system,displayName"), //
                     new QueryOption("filter", "displayName eq '%s'".formatted(name.replace("'", "''"))));
         }
 
