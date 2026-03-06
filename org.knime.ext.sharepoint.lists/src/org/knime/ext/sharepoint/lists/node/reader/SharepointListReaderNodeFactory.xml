@@ -3,20 +3,20 @@
     xmlns="http://knime.org/node/v4.1"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://knime.org/node/v4.1 http://knime.org/node/v4.1.xsd">
-    <name>SharePoint Online List Reader</name>
+    <name>SharePoint List Reader</name>
 
     <shortDescription>
-        Read a SharePoint Online list.
+        Read a SharePoint list.
     </shortDescription>
 
     <fullDescription>
         <intro>
             <p>
-                This node reads a SharePoint Online list and outputs it as a KNIME table.
+                This node reads a SharePoint list and outputs it as a KNIME table.
             </p>
-            <b>SharePoint Online list column type support</b>
+            <b>SharePoint list column type support</b>
             <p>
-            	You can select to which KNIME types the SharePoint Online list column types
+            	You can select to which KNIME types the SharePoint list column types
                 should be transformed. The following describes the extend of the support 
                 for the different column types.<br/>
             	<u>Fully supported column types:</u>
@@ -54,9 +54,9 @@
             </p>
             <b>Working with Person and Lookup columns</b>
             <p>
-                <i>Person</i> and <i>Lookup</i> columns reference data from other SharePoint Online lists.
+                <i>Person</i> and <i>Lookup</i> columns reference data from other SharePoint lists.
                 Instead of containing the value in the other list they store the value of the "ID" column of the row in that list.
-                To be able to access the content you can use another <i>SharePoint Online List Reader</i> to read the
+                To be able to access the content you can use another <i>SharePoint List Reader</i> to read the
                 lookup list and than use the <a href="https://kni.me/n/WzkQfvBXnYxub9hJ">Joiner node</a> 
                 to join both lists using the "ID" column of the lookup list.
             </p>
@@ -68,12 +68,12 @@
             <p>
                 <i>Person</i> columns reference entries in the so called "User Information List"
                 (with the internal name "users"). This is a hidden system list in the Root of each SharePoint
-                site. To find it, you must check the <i>"Show system lists"</i> option in the SharePoint Online List Reader node. 
+                site. To find it, you must check the <i>"Show system lists"</i> option in the SharePoint List Reader node. 
                 The name may be localized to your language so you should search for the internal name.
             </p>
             <b>Generated Columns</b>
             <p>
-            Apart from the columns you define in a SharePoint Online list there are some which are present in each list e.g. ID.
+            Apart from the columns you define in a SharePoint list there are some which are present in each list e.g. ID.
             In addition SharePoint generates columns for some specific column types such as <i>Location.</i>
             The Microsoft API does not provide information about these columns or any layout information. 
             To deselect unwanted columns and reorder the retained columns go to the "Transformation" tab.

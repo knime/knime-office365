@@ -74,7 +74,7 @@ import com.microsoft.graph.requests.GraphServiceClient;
 import okhttp3.Request;
 
 /**
- * Delete SharePoint Online List node implementation of a WebUI NodeModel.
+ * Delete SharePoint List node implementation of a WebUI NodeModel.
  *
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */

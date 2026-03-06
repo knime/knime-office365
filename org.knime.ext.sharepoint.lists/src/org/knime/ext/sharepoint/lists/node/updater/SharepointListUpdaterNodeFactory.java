@@ -69,7 +69,7 @@ import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
 import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
 
 /**
- * SharePoint Online List Updater implementation of a {@link NodeFactory}.
+ * SharePoint List Updater implementation of a {@link NodeFactory}.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author AI Migration Pipeline v1.2
@@ -80,7 +80,7 @@ public class SharepointListUpdaterNodeFactory extends NodeFactory<SharepointList
 
     private static final String FULL_DESCRIPTION = """
             <p>
-                Updates rows in a SharePoint Online list based on their ID.
+                Updates rows in a SharePoint list based on their ID.
             </p>
             <p>
                 <i>Notes:</i>
@@ -181,7 +181,7 @@ public class SharepointListUpdaterNodeFactory extends NodeFactory<SharepointList
             <p>
                 <u>Unsupported KNIME column types:</u><br />
                 All column types that do not belong to the above categories are unsupported and the node cannot be
-                executed, since there is no corresponding type in SharePoint Online.
+                executed, since there is no corresponding type in SharePoint.
             </p>
             """;
 
@@ -213,13 +213,13 @@ public class SharepointListUpdaterNodeFactory extends NodeFactory<SharepointList
     @Override
     public NodeDescription createNodeDescription() {
         return DefaultNodeDescriptionUtil.createNodeDescription( //
-                "SharePoint Online List Updater", //
+                "SharePoint List Updater", //
                 "./sharepoint-list-updater.png", //
                 List.of(fixedPort("Credential (JWT)", //
                         "A JWT credential as provided by the Microsoft Authenticator node."), //
                         fixedPort("Table", "The table to be written to SharePoint.")), //
                 List.of(), // output ports
-                "Updates a SharePoint Online list.", //
+                "Updates a SharePoint list.", //
                 FULL_DESCRIPTION, //
                 List.of(), // external resources
                 SharepointListUpdaterNodeParameters.class, null, // node view descriptions

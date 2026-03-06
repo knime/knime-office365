@@ -71,7 +71,7 @@ import org.knime.node.parameters.widget.choices.ChoicesProvider;
 import org.knime.node.parameters.widget.choices.util.CompatibleColumnsProvider;
 
 /**
- * Node parameters for SharePoint Online List Updater.
+ * Node parameters for SharePoint List Updater.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author AI Migration Pipeline v1.2
@@ -88,7 +88,7 @@ final class SharepointListUpdaterNodeParameters implements NodeParameters {
     @Widget(title = "ID column", description = """
             A string column from the input table that specifies the list item IDs to update.
             The list item IDs can be retrieved using the <a href="https://hub.knime.com/n/vGN09MfWXdqsgbXo">SharePoint
-            Online List Reader</a>, which outputs a string column called "ID".""")
+            List Reader</a>, which outputs a string column called "ID".""")
     @ChoicesProvider(IdColumnProvider.class)
     @Migration(ColumnSelectionMigration.class)
     @ValueProvider(DefaultIdColumnProvider.class)

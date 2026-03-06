@@ -60,7 +60,7 @@ import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.updates.ValueReference;
 
 /**
- * Node parameters for Delete SharePoint Online List.
+ * Node parameters for Delete SharePoint List.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
