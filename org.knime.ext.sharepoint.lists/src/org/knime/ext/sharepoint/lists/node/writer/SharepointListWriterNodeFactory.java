@@ -230,9 +230,10 @@ public class SharepointListWriterNodeFactory extends NodeFactory<SharepointListW
                 "Writes a SharePoint Online list.", //
                 FULL_DESCRIPTION, //
                 List.of(), // external resources
-                SharepointListWriterNodeParameters.class, null, // node view descriptions
+                SharepointListWriterNodeParameters.class, //
+                null, // node view descriptions
                 NodeType.Sink, //
-                List.of("sharepoint", "microsoft", "list", "office365"), //
+                List.of("sharepoint", "microsoft", "list", "office365", "write", "create", "append"), //
                 new Version(4, 6, 0));
     }
 

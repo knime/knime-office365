@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="settings.xml">
+    <entry key="node_file" type="xstring" value="settings.xml"/>
+    <config key="flow_stack"/>
+    <config key="internal_node_subsettings">
+        <entry key="memory_policy" type="xstring" value="CacheSmallInMemory"/>
+    </config>
+    <config key="model">
+        <config key="site">
+            <config key="site_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="site" type="xstring" value=""/>
+            <config key="group_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="group" type="xstring" value="43a9b675-77d5-44e2-8126-f1a8b9d199a9"/>
+            <config key="groupName_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="groupName" type="xstring" value="SharepointsListsLars"/>
+            <config key="mode_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="mode" type="xstring" value="GROUP"/>
+            <config key="subsite_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="subsite" type="xstring" value="knimedev.sharepoint.com,881540e6-54db-4019-a1a5-da1353998205,095daa39-3778-4b2b-aa10-8926c523eb0d"/>
+            <config key="subsiteName_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="subsiteName" type="xstring" value="cody &gt; SidneyDrowned"/>
+            <config key="connectToSubsite_Internals">
+                <entry key="SettingsModelID" type="xstring" value="SMID_boolean"/>
+                <entry key="EnabledStatus" type="xboolean" value="true"/>
+            </config>
+            <entry key="connectToSubsite" type="xboolean" value="true"/>
+        </config>
+        <config key="connectionTimeout_Internals">
+            <entry key="SettingsModelID" type="xstring" value="SMID_integer"/>
+            <entry key="EnabledStatus" type="xboolean" value="true"/>
+        </config>
+        <entry key="connectionTimeout" type="xint" value="20"/>
+        <config key="readTimeout_Internals">
+            <entry key="SettingsModelID" type="xstring" value="SMID_integer"/>
+            <entry key="EnabledStatus" type="xboolean" value="true"/>
+        </config>
+        <entry key="readTimeout" type="xint" value="20"/>
+        <config key="workingDirectory_Internals">
+            <entry key="SettingsModelID" type="xstring" value="SMID_string"/>
+            <entry key="EnabledStatus" type="xboolean" value="true"/>
+        </config>
+        <entry key="workingDirectory" type="xstring" value="/Library Test"/>
+    </config>
+    <entry key="customDescription" type="xstring" isnull="true" value=""/>
+    <entry key="state" type="xstring" value="IDLE"/>
+    <config key="nodecontainer_message">
+        <entry key="type" type="xstring" value="WARNING"/>
+        <entry key="message" type="xstring" value="Node can't be executed - Node &quot;SharePoint Online Connector&quot; not available (provided by &quot;KNIME AG, Zurich, Switzerland&quot;; plugin &quot;org.knime.ext.sharepoint.filehandling&quot; is installed)"/>
+    </config>
+    <entry key="factory" type="xstring" value="org.knime.ext.sharepoint.filehandling.node.SharepointConnectionNodeFactory"/>
+    <entry key="node-name" type="xstring" value="SharePoint Online Connector"/>
+    <entry key="node-bundle-name" type="xstring" value="Sharepoint extension for KNIME Workbench"/>
+    <entry key="node-bundle-symbolic-name" type="xstring" value="org.knime.ext.sharepoint.filehandling"/>
+    <entry key="node-bundle-vendor" type="xstring" value="KNIME AG, Zurich, Switzerland"/>
+    <entry key="node-bundle-version" type="xstring" value="5.10.0.qualifier"/>
+    <entry key="node-feature-name" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-symbolic-name" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-vendor" type="xstring" isnull="true" value=""/>
+    <entry key="node-feature-version" type="xstring" value="0.0.0"/>
+    <entry key="factory-id-uniquifier" type="xstring" isnull="true" value=""/>
+    <config key="factory_settings"/>
+    <entry key="name" type="xstring" value="MISSING SharePoint Online Connector"/>
+    <entry key="hasContent" type="xboolean" value="false"/>
+    <entry key="isInactive" type="xboolean" value="false"/>
+    <config key="ports"/>
+    <config key="filestores">
+        <entry key="file_store_location" type="xstring" isnull="true" value=""/>
+        <entry key="file_store_id" type="xstring" isnull="true" value=""/>
+    </config>
+</config>
