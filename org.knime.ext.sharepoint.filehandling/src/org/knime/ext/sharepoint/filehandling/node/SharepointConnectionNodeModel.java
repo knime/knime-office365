@@ -55,12 +55,10 @@ import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeModel;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
+import org.knime.core.webui.node.impl.WebUINodeModel;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
@@ -71,31 +69,34 @@ import org.knime.filehandling.core.port.FileSystemPortObject;
 import org.knime.filehandling.core.port.FileSystemPortObjectSpec;
 
 /**
- * Node model for the Sharepoint Connector node.
+ * Node model for the SharePoint Online Connector node.
  *
  * @author Alexander Bondaletov
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author AI Migration Pipeline v1.2
  */
-final class SharepointConnectionNodeModel extends NodeModel {
+@SuppressWarnings({ "restriction", "deprecation" })
+final class SharepointConnectionNodeModel extends WebUINodeModel<SharepointConnectionNodeParameters> {
 
     private static final String FILE_SYSTEM_NAME = "Sharepoint Online";
 
     private String m_fsId;
     private SharepointFSConnection m_fsConnection;
 
-    private final SharepointConnectionSettings m_settings = new SharepointConnectionSettings();
-
     /**
      * Creates new instance.
      */
     SharepointConnectionNodeModel() {
-        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[] { FileSystemPortObject.TYPE });
+        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[] { FileSystemPortObject.TYPE },
+                SharepointConnectionNodeParameters.class);
     }
 
     @Override
-    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec) throws Exception {
+    protected PortObject[] execute(final PortObject[] inObjects, final ExecutionContext exec,
+            final SharepointConnectionNodeParameters params) throws Exception {
 
         final var credSpec = ((CredentialPortObject) inObjects[0]).getSpec();
-        final var fsConfig = m_settings
+        final var fsConfig = params
                 .toFSConnectionConfig(GraphCredentialUtil.createAuthenticationProvider(credSpec));
 
         m_fsConnection = new SharepointFSConnection(fsConfig);
@@ -104,8 +105,8 @@ final class SharepointConnectionNodeModel extends NodeModel {
     }
 
     @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        m_settings.validate();
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs,
+            final SharepointConnectionNodeParameters params) throws InvalidSettingsException {
 
         final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
         if (credSpec != null) {
@@ -123,29 +124,13 @@ final class SharepointConnectionNodeModel extends NodeModel {
     @Override
     protected void loadInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
-        setWarningMessage("Sharepoint connection no longer available. Please re-execute the node.");
+        setWarningMessage("SharePoint connection no longer available. Please re-execute the node.");
     }
 
     @Override
     protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec)
             throws IOException, CanceledExecutionException {
         // nothing to save
-
-    }
-
-    @Override
-    protected void saveSettingsTo(final NodeSettingsWO settings) {
-        m_settings.saveSettingsTo(settings);
-    }
-
-    @Override
-    protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_settings.validateSettings(settings);
-    }
-
-    @Override
-    protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_settings.loadSettingsFrom(settings);
     }
 
     @Override

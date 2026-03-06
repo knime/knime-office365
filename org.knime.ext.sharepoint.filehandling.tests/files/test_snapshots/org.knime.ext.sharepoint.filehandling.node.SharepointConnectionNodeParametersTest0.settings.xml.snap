@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns="http://www.knime.org/2008/09/XMLConfig" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.knime.org/2008/09/XMLConfig http://www.knime.org/XMLConfig_2008_09.xsd" key="test">
+    <config key="site">
+        <entry key="mode" type="xstring" value="GROUP"/>
+        <entry key="webUrl" type="xstring" value=""/>
+        <entry key="groupId" type="xstring" value="43a9b675-77d5-44e2-8126-f1a8b9d199a9"/>
+        <entry key="groupName" type="xstring" value="SharepointsListsLars"/>
+        <entry key="connectToSubsite" type="xboolean" value="true"/>
+        <entry key="subsiteId" type="xstring" value="knimedev.sharepoint.com,881540e6-54db-4019-a1a5-da1353998205,095daa39-3778-4b2b-aa10-8926c523eb0d"/>
+        <entry key="subsiteName" type="xstring" value="cody &gt; SidneyDrowned"/>
+    </config>
+    <entry key="workingDirectory" type="xstring" value="/Library Test"/>
+    <entry key="connectionTimeout" type="xint" value="20"/>
+    <entry key="readTimeout" type="xint" value="20"/>
+</config>

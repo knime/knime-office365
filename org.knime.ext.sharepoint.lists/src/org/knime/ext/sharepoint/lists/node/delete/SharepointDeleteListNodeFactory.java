@@ -57,6 +57,7 @@ import org.knime.core.node.NodeDescription;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
+import org.knime.core.util.Version;
 import org.knime.core.webui.node.dialog.NodeDialog;
 import org.knime.core.webui.node.dialog.NodeDialogFactory;
 import org.knime.core.webui.node.dialog.NodeDialogManager;
@@ -74,7 +75,7 @@ import org.knime.node.impl.description.PortDescription;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author AI Migration Pipeline v1.2
  */
-@SuppressWarnings("restriction")
+@SuppressWarnings({ "restriction", "removal" })
 public class SharepointDeleteListNodeFactory extends NodeFactory<SharepointDeleteListNodeModel>
         implements NodeDialogFactory, KaiNodeInterfaceFactory {
 
@@ -124,9 +125,18 @@ public class SharepointDeleteListNodeFactory extends NodeFactory<SharepointDelet
 
     @Override
     public NodeDescription createNodeDescription() {
-        return DefaultNodeDescriptionUtil.createNodeDescription(NODE_NAME, NODE_ICON, INPUT_PORTS, OUTPUT_PORTS,
-                SHORT_DESCRIPTION, FULL_DESCRIPTION, List.of(), SharepointDeleteListNodeParameters.class, null,
-                NodeType.Other, List.of(), null);
+        return DefaultNodeDescriptionUtil.createNodeDescription(NODE_NAME, //
+                NODE_ICON, //
+                INPUT_PORTS, //
+                OUTPUT_PORTS, //
+                SHORT_DESCRIPTION, //
+                FULL_DESCRIPTION, //
+                List.of(), // external resources
+                SharepointDeleteListNodeParameters.class, //
+                null, // node view descriptions
+                NodeType.Other, //
+                List.of("sharepoint", "microsoft", "list", "office365", "remove"), //
+                new Version(4, 6, 0));
     }
 
     @Override
