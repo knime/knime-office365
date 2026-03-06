@@ -43,40 +43,57 @@
  *  when such Node is propagated with or for interoperation with KNIME.
  * ------------------------------------------------------------------------
  */
+package org.knime.ext.sharepoint.filehandling.node;
 
-package org.knime.ext.sharepoint.lists.node.writer;
+import java.io.FileInputStream;
+import java.io.IOException;
 
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.PersistWithin.PersistEmbedded;
-import org.knime.ext.sharepoint.lists.node.SharepointListParameters;
-import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
-import org.knime.ext.sharepoint.parameters.TimeoutParameters;
-import org.knime.node.parameters.NodeParameters;
-import org.knime.node.parameters.migration.LoadDefaultsForAbsentFields;
-import org.knime.node.parameters.updates.ValueReference;
+import org.knime.core.node.NodeSettings;
+import org.knime.core.node.port.PortObjectSpec;
+import org.knime.core.webui.node.dialog.SettingsType;
+import org.knime.core.webui.node.dialog.defaultdialog.NodeParametersUtil;
+import org.knime.credentials.base.CredentialPortObjectSpec;
+import org.knime.testing.node.dialog.DefaultNodeSettingsSnapshotTest;
+import org.knime.testing.node.dialog.SnapshotTestConfiguration;
 
 /**
- * Node parameters for SharePoint List Writer.
+ * Snapshot test for {@link SharepointConnectionNodeParameters}.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
- * @author AI Migration Pipeline v1.2
  */
 @SuppressWarnings("restriction")
-@LoadDefaultsForAbsentFields
-final class SharepointListWriterNodeParameters implements NodeParameters {
+final class SharepointConnectionNodeParametersTest extends DefaultNodeSettingsSnapshotTest {
 
-    @ValueReference(SharepointSiteParameters.Ref.class)
-    SharepointSiteParameters m_site = new SharepointSiteParameters();
+    SharepointConnectionNodeParametersTest() {
+        super(getConfig());
+    }
 
-    SharepointListParameters.WithCreateLists m_list = new SharepointListParameters.WithCreateLists();
+    private static SnapshotTestConfiguration getConfig() {
+        return SnapshotTestConfiguration.builder() //
+                .withInputPortObjectSpecs(createInputPortSpecs()) //
+                .testJsonFormsForModel(SharepointConnectionNodeParameters.class) //
+                .testJsonFormsWithInstance(SettingsType.MODEL, SharepointConnectionNodeParametersTest::readSettings) //
+                .testNodeSettingsStructure(SharepointConnectionNodeParametersTest::readSettings) //
+                .build();
+    }
 
-    @PersistEmbedded
-    TimeoutParameters m_timeout = new TimeoutParameters();
+    private static SharepointConnectionNodeParameters readSettings() {
+        try {
+            var path = getSnapshotPath(SharepointConnectionNodeParameters.class).getParent().resolve("node_settings")
+                    .resolve("SharepointConnectionNodeParameters.xml");
+            try (var fis = new FileInputStream(path.toFile())) {
+                var nodeSettings = NodeSettings.loadFromXML(fis);
+                return NodeParametersUtil.loadSettings(
+                        nodeSettings.getNodeSettings(SettingsType.MODEL.getConfigKey()),
+                        SharepointConnectionNodeParameters.class);
+            }
+        } catch (IOException | InvalidSettingsException e) {
+            throw new IllegalStateException(e);
+        }
+    }
 
-    @Override
-    public void validate() throws InvalidSettingsException {
-        m_site.validate();
-        m_list.validate();
-        m_timeout.validate();
+    private static PortObjectSpec[] createInputPortSpecs() {
+        return new PortObjectSpec[] { new CredentialPortObjectSpec() };
     }
 }

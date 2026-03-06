@@ -48,20 +48,77 @@
  */
 package org.knime.ext.sharepoint.filehandling.node;
 
+import static org.knime.node.impl.description.PortDescription.fixedPort;
+
+import java.util.List;
+import java.util.Map;
+
+import org.knime.core.node.NodeDescription;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
+import org.knime.core.util.Version;
+import org.knime.core.webui.node.dialog.NodeDialog;
+import org.knime.core.webui.node.dialog.NodeDialogFactory;
+import org.knime.core.webui.node.dialog.NodeDialogManager;
+import org.knime.core.webui.node.dialog.SettingsType;
+import org.knime.core.webui.node.dialog.defaultdialog.DefaultKaiNodeInterface;
+import org.knime.core.webui.node.dialog.defaultdialog.DefaultNodeDialog;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterface;
+import org.knime.core.webui.node.dialog.kai.KaiNodeInterfaceFactory;
+import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
+import org.knime.node.impl.description.PortDescription;
 
 /**
- * Factory class for Sharepoing Connection Node.
+ * Factory class for SharePoint Connector Node.
  *
- * @author Alexander Bondaletov
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+ * @author AI Migration Pipeline v1.2
  */
-public class SharepointConnectionNodeFactory extends NodeFactory<SharepointConnectionNodeModel> {
+@SuppressWarnings({ "restriction", "removal" })
+public class SharepointConnectionNodeFactory extends NodeFactory<SharepointConnectionNodeModel>
+        implements NodeDialogFactory, KaiNodeInterfaceFactory {
+
+    private static final String NODE_NAME = "SharePoint Connector";
+    private static final String NODE_ICON = "./sharepoint-connector.png";
+    private static final String SHORT_DESCRIPTION = """
+            Connects to a SharePoint site in order to read/write files in downstream nodes.
+            """;
+    private static final String FULL_DESCRIPTION = """
+            <p>
+                This node connects to a SharePoint site on the Microsoft 365 cloud offering, not SharePoint Server.
+                The resulting output port allows downstream nodes to access the <i>document libraries</i> of the
+                site as a file system, e.g. to read or write files and folders,
+                or to perform other file system operations (browse/list files, copy, move, ...).
+            </p>
+            <p>
+                <b>Path syntax:</b> Paths for SharePoint are specified with a UNIX-like syntax,
+                /mylibrary/myfolder/myfile. An absolute
+                path for SharePoint consists of:
+                <ol>
+                    <li>A leading slash ("/").</li>
+                    <li>Followed by the name of a <i>document library</i> ("mylibrary" in the above example),
+                    followed by a slash.</li>
+                    <li>Followed by the path to the file ("myfolder/myfile" in the above example).</li>
+                </ol>
+            </p>
+            """;
+
+    private static final List<PortDescription> INPUT_PORTS = List.of(fixedPort("Credential (JWT)", """
+            A JWT credential as provided by the Microsoft Authenticator node.
+            """));
+    private static final List<PortDescription> OUTPUT_PORTS = List.of(fixedPort("SharePoint File System Connection", """
+            SharePoint File System Connection.
+            """));
 
     @Override
     public SharepointConnectionNodeModel createNodeModel() {
         return new SharepointConnectionNodeModel();
+    }
+
+    @Override
+    protected boolean hasDialog() {
+        return true;
     }
 
     @Override
@@ -76,13 +133,34 @@ public class SharepointConnectionNodeFactory extends NodeFactory<SharepointConne
     }
 
     @Override
-    protected boolean hasDialog() {
-        return true;
+    public NodeDialogPane createNodeDialogPane() {
+        return NodeDialogManager.createLegacyFlowVariableNodeDialog(createNodeDialog());
     }
 
     @Override
-    protected NodeDialogPane createNodeDialogPane() {
-        return new SharepointConnectionNodeDialog();
+    public NodeDialog createNodeDialog() {
+        return new DefaultNodeDialog(SettingsType.MODEL, SharepointConnectionNodeParameters.class);
     }
 
+    @Override
+    public NodeDescription createNodeDescription() {
+        return DefaultNodeDescriptionUtil.createNodeDescription( //
+                NODE_NAME, //
+                NODE_ICON, //
+                INPUT_PORTS, //
+                OUTPUT_PORTS, //
+                SHORT_DESCRIPTION, //
+                FULL_DESCRIPTION, //
+                List.of(), // external resources
+                SharepointConnectionNodeParameters.class, //
+                null, // view descriptions
+                NodeType.Source, //
+                List.of("microsoft", "sharepoint", "office365", "filehandling"), //
+                new Version(4, 2, 0));
+    }
+
+    @Override
+    public KaiNodeInterface createKaiNodeInterface() {
+        return new DefaultKaiNodeInterface(Map.of(SettingsType.MODEL, SharepointConnectionNodeParameters.class));
+    }
 }

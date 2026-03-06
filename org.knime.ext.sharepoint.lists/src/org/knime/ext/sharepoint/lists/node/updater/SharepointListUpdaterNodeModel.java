@@ -72,7 +72,7 @@ import org.knime.ext.sharepoint.lists.node.SharepointListChangingClient;
 import org.knime.ext.sharepoint.lists.node.SharepointListParameters;
 
 /**
- * SharePoint Online List Updater node implementation of a {@link NodeModel}.
+ * SharePoint List Updater node implementation of a {@link NodeModel}.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */

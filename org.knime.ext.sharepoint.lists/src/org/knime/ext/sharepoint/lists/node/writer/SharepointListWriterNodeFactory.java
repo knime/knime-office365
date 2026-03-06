@@ -194,7 +194,7 @@ public class SharepointListWriterNodeFactory extends NodeFactory<SharepointListW
             <p>
                 <u>Unsupported KNIME column types:</u><br />
                 All column types that do not belong to the above categories are unsupported and the node cannot be
-                executed, since there is no corresponding type in SharePoint Online.
+                executed, since there is no corresponding type in SharePoint.
             </p>
             """;
 
@@ -221,18 +221,19 @@ public class SharepointListWriterNodeFactory extends NodeFactory<SharepointListW
     @Override
     public NodeDescription createNodeDescription() {
         return DefaultNodeDescriptionUtil.createNodeDescription( //
-                "SharePoint Online List Writer", //
+                "SharePoint List Writer", //
                 "./sharepoint-list-writer.png", //
                 List.of(fixedPort("Credential (JWT)", //
                         "A JWT credential as provided by the Microsoft Authenticator node."), //
                         fixedPort("Table", "The table to be written to SharePoint.")), //
                 List.of(), // output ports
-                "Writes a SharePoint Online list.", //
+                "Writes a SharePoint list.", //
                 FULL_DESCRIPTION, //
                 List.of(), // external resources
-                SharepointListWriterNodeParameters.class, null, // node view descriptions
+                SharepointListWriterNodeParameters.class, //
+                null, // node view descriptions
                 NodeType.Sink, //
-                List.of("sharepoint", "microsoft", "list", "office365"), //
+                List.of("sharepoint", "microsoft", "list", "office365", "write", "create", "append"), //
                 new Version(4, 6, 0));
     }
 

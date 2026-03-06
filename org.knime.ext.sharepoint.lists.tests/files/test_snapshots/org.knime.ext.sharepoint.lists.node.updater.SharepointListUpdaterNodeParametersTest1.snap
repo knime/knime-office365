@@ -46,7 +46,7 @@
               }
             },
             "title" : "ID column",
-            "description" : "A string column from the input table that specifies the list item IDs to update.\nThe list item IDs can be retrieved using the <a href=\"https://hub.knime.com/n/vGN09MfWXdqsgbXo\">SharePoint\nOnline List Reader</a>, which outputs a string column called \"ID\".",
+            "description" : "A string column from the input table that specifies the list item IDs to update.\nThe list item IDs can be retrieved using the <a href=\"https://hub.knime.com/n/vGN09MfWXdqsgbXo\">SharePoint\nList Reader</a>, which outputs a string column called \"ID\".",
             "default" : {
               "regularChoice" : "ID"
             }

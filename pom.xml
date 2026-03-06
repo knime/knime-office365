@@ -28,6 +28,7 @@
 		<module>org.knime.ext.microsoft.authentication</module>
 		<module>org.knime.ext.sharepoint</module>
 		<module>org.knime.ext.sharepoint.filehandling</module>
+		<module>org.knime.ext.sharepoint.filehandling.tests</module>
 		<module>org.knime.ext.sharepoint.lists</module>
 		<module>org.knime.ext.sharepoint.lists.tests</module>
 		<module>org.knime.features.ext.office365.filehandling</module>

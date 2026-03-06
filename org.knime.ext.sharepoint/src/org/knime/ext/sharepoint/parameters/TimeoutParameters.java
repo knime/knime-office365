@@ -58,6 +58,7 @@ import org.knime.node.parameters.Widget;
 import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.migration.Migrate;
+import org.knime.node.parameters.updates.ParameterReference;
 import org.knime.node.parameters.widget.number.NumberInputWidget;
 import org.knime.node.parameters.widget.number.NumberInputWidgetValidation;
 import org.knime.node.parameters.widget.number.NumberInputWidgetValidation.MinValidation.IsNonNegativeValidation;
@@ -132,4 +133,9 @@ public class TimeoutParameters implements NodeParameters {
             return MAX_TIMEOUT;
         }
     }
+
+    /** Used to reference timeouts in a ValueReference. */
+    public static final class Ref implements ParameterReference<TimeoutParameters> {
+    }
+
 }

@@ -57,6 +57,7 @@ import org.knime.core.node.NodeDescription;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeFactory;
 import org.knime.core.node.NodeView;
+import org.knime.core.util.Version;
 import org.knime.core.webui.node.dialog.NodeDialog;
 import org.knime.core.webui.node.dialog.NodeDialogFactory;
 import org.knime.core.webui.node.dialog.NodeDialogManager;
@@ -69,19 +70,19 @@ import org.knime.node.impl.description.DefaultNodeDescriptionUtil;
 import org.knime.node.impl.description.PortDescription;
 
 /**
- * Delete SharePoint Online List implementation of a {@link NodeFactory}.
+ * Delete SharePoint List implementation of a {@link NodeFactory}.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author AI Migration Pipeline v1.2
  */
-@SuppressWarnings("restriction")
+@SuppressWarnings({ "restriction", "removal" })
 public class SharepointDeleteListNodeFactory extends NodeFactory<SharepointDeleteListNodeModel>
         implements NodeDialogFactory, KaiNodeInterfaceFactory {
 
-    private static final String NODE_NAME = "Delete SharePoint Online List";
+    private static final String NODE_NAME = "Delete SharePoint List";
     private static final String NODE_ICON = "./sharepoint-list-deleter.png";
     private static final String SHORT_DESCRIPTION = """
-            Deletes a SharePoint Online list.
+            Deletes a SharePoint list.
             """;
     private static final String FULL_DESCRIPTION = """
             <p> This node deletes a SharePoint list. </p>
@@ -124,9 +125,18 @@ public class SharepointDeleteListNodeFactory extends NodeFactory<SharepointDelet
 
     @Override
     public NodeDescription createNodeDescription() {
-        return DefaultNodeDescriptionUtil.createNodeDescription(NODE_NAME, NODE_ICON, INPUT_PORTS, OUTPUT_PORTS,
-                SHORT_DESCRIPTION, FULL_DESCRIPTION, List.of(), SharepointDeleteListNodeParameters.class, null,
-                NodeType.Other, List.of(), null);
+        return DefaultNodeDescriptionUtil.createNodeDescription(NODE_NAME, //
+                NODE_ICON, //
+                INPUT_PORTS, //
+                OUTPUT_PORTS, //
+                SHORT_DESCRIPTION, //
+                FULL_DESCRIPTION, //
+                List.of(), // external resources
+                SharepointDeleteListNodeParameters.class, //
+                null, // node view descriptions
+                NodeType.Other, //
+                List.of("sharepoint", "microsoft", "list", "office365", "remove"), //
+                new Version(4, 6, 0));
     }
 
     @Override
