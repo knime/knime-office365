@@ -56,7 +56,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.okhttp3.OkHttpProxyAuthenticator;
+import org.knime.core.util.auth.OkHttpProxyAuthenticator;
 
 import com.microsoft.aad.msal4j.HttpRequest;
 import com.microsoft.aad.msal4j.HttpResponse;
