@@ -52,13 +52,13 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.OptionalLong;
 
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderNodeParameters;
 import org.knime.filehandling.core.node.table.reader.randomaccess.AbstractRandomAccessible;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 import org.knime.filehandling.core.node.table.reader.read.Read;
 
 /**
- * {@link Read} implementation that works with {@link SharepointListClient}s.
+ * {@link Read} implementation that works with {@link SharepointListReadingClient}s.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
@@ -85,24 +85,25 @@ public class SharepointListRead implements Read<Object> {
 
     }
 
-    private long m_rowsRead = 0;
+    private long m_rowsRead;
 
     private Iterator<RandomAccessibleDataRow> m_items;
 
     /**
-     * Constructor.
+     * Create a new read which reads items using the provided client
      *
      * @param client
      *            the client to read from and use for requests
-     * @param settings
-     *            the {@link SharepointListSettings}
+     * @param params
+     *            the parameters used to supply the newest parameter version before
+     *            read
      * @throws IOException
+     *             if the items could not be fetched
      */
-    public SharepointListRead(final SharepointListClient client, final SharepointListSettings settings)
+    public SharepointListRead(final SharepointListReadingClient client, final SharepointListReaderNodeParameters params)
             throws IOException {
-        m_items = client.getItems(settings);
+        m_items = client.getItems(params);
         m_rowsRead = 0;
-
     }
 
     @Override

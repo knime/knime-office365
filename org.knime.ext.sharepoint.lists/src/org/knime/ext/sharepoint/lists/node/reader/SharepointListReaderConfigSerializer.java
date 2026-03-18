@@ -57,8 +57,7 @@ import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.NotConfigurableException;
 import org.knime.core.node.defaultnodesettings.SettingsModel;
 import org.knime.core.node.port.PortObjectSpec;
-import org.knime.core.node.util.CheckUtils;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
+import org.knime.core.webui.node.dialog.defaultdialog.NodeParametersUtil;
 import org.knime.ext.sharepoint.lists.node.reader.mapping.SharepointListReadAdapterFactory;
 import org.knime.filehandling.core.node.table.ConfigSerializer;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.ConfigID;
@@ -67,7 +66,6 @@ import org.knime.filehandling.core.node.table.reader.config.tablespec.DefaultPro
 import org.knime.filehandling.core.node.table.reader.config.tablespec.NodeSettingsConfigID;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.NodeSettingsSerializer;
 import org.knime.filehandling.core.node.table.reader.config.tablespec.TableSpecConfigSerializer;
-import org.knime.filehandling.core.util.SettingsUtils;
 
 /**
  * {@link ConfigSerializer} for “SharePoint List Reader” nodes.
@@ -75,6 +73,7 @@ import org.knime.filehandling.core.util.SettingsUtils;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
+@SuppressWarnings("restriction")
 enum SharepointListReaderConfigSerializer implements ConfigSerializer<SharepointListReaderMultiTableReadConfig>,
         ConfigIDFactory<SharepointListReaderMultiTableReadConfig> {
 
@@ -87,26 +86,16 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
 
     private static final String CFG_SETTINGS_ID = "sharepoint_list_reader";
 
-    private static final String CFG_SETTINGS_TAB = "settings";
-
     private static final String CFG_TABLE_SPEC_CONFIG = "table_spec_config" + SettingsModel.CFGKEY_INTERNAL;
-
-    private static final String SUB_CFG_ADVANCED = "advanced";
-
-    private static final String CFG_TIMEOUT = "timeout";
-
-    private static final String SUB_CFG_LIMIT_ROWS = "limit_rows";
-
-    private static final String CFG_SKIP_ROWS = "skip_data_rows";
-
-    private static final String CFG_SKIP_ROW_NUM = "number_of_rows_to_skip";
-
-    private static final String CFG_LIMIT_ROWS = "limit_data_rows";
-
-    private static final String CFG_LIMIT_ROW_NUM = "max_data_rows";
 
     private final TableSpecConfigSerializer<DataType> m_tableSpecSerializer;
 
+    /**
+     * Serializer instance for SharePoint reader
+     *
+     * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+     * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
+     */
     public enum DataTypeSerializer implements NodeSettingsSerializer<DataType> {
 
         SERIALIZER_INSTANCE;
@@ -125,7 +114,7 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
 
     }
 
-    private SharepointListReaderConfigSerializer() {
+    SharepointListReaderConfigSerializer() {
         m_tableSpecSerializer = TableSpecConfigSerializer.createStartingV43(
                 new DefaultProductionPathSerializer(SharepointListReadAdapterFactory.INSTANCE.getProducerRegistry()),
                 this, DataTypeSerializer.SERIALIZER_INSTANCE);
@@ -134,34 +123,11 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
     @Override
     public ConfigID createFromConfig(final SharepointListReaderMultiTableReadConfig config) {
         final var settings = new NodeSettings(CFG_SETTINGS_ID);
-        saveConfigIDSettingsTab(config, settings.addNodeSettings(CFG_SETTINGS_TAB));
-        saveConfigIDAdvancedTab(config, settings.addNodeSettings(SUB_CFG_ADVANCED));
-        saveConfigIDLimitRowsTab(config, settings.addNodeSettings(SUB_CFG_LIMIT_ROWS));
-
+        // TODO is there a better way?
+        config.getReaderSpecificConfig().m_data.loadFrom(config.getTableReadConfig());
+        NodeParametersUtil.saveSettings(SharepointListReaderNodeParameters.class, config.getReaderSpecificConfig(),
+                settings);
         return new NodeSettingsConfigID(settings);
-    }
-
-    private static void saveConfigIDSettingsTab(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsWO settings) {
-        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
-        sls.getSiteSettings().saveSettingsTo(settings);
-        sls.getListSettings().saveSettingsTo(settings);
-    }
-
-    private static void saveConfigIDAdvancedTab(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsWO settings) {
-        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
-        final NodeSettingsWO timeout = settings.addNodeSettings(CFG_TIMEOUT);
-        sls.getTimeoutSettings().saveSettingsTo(timeout);
-    }
-
-    private static void saveConfigIDLimitRowsTab(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsWO settings) {
-        final var trc = config.getTableReadConfig();
-        settings.addBoolean(CFG_SKIP_ROWS, trc.skipRows());
-        settings.addLong(CFG_SKIP_ROW_NUM, trc.getNumRowsToSkip());
-        settings.addBoolean(CFG_LIMIT_ROWS, trc.limitRows());
-        settings.addLong(CFG_LIMIT_ROW_NUM, trc.getMaxRows());
     }
 
     @Override
@@ -172,9 +138,13 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
     @Override
     public void loadInDialog(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings,
             final PortObjectSpec[] specs) throws NotConfigurableException {
-        loadSettingsTabInDialog(config, SettingsUtils.getOrEmpty(settings, CFG_SETTINGS_TAB));
-        loadAdvancedTabInDialog(config, SettingsUtils.getOrEmpty(settings, SUB_CFG_ADVANCED));
-        loadLimitRowsTabInDialog(config, SettingsUtils.getOrEmpty(settings, SUB_CFG_LIMIT_ROWS));
+        // TODO is there a better way?
+        try {
+            final var params = NodeParametersUtil.loadSettings(settings, SharepointListReaderNodeParameters.class);
+            params.saveTo(config.getTableReadConfig());
+        } catch (InvalidSettingsException ex) {
+            LOGGER.debug("Unexpected InvalidSettingsException occured", ex);
+        }
         if (settings.containsKey(CFG_TABLE_SPEC_CONFIG)) {
             try {
                 config.setTableSpecConfig(m_tableSpecSerializer.load(settings.getNodeSettings(CFG_TABLE_SPEC_CONFIG)));
@@ -191,42 +161,12 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
         }
     }
 
-    private static void loadSettingsTabInDialog(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsRO settings) {
-        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
-        try {
-            sls.getSiteSettings().loadSettingsFrom(settings);
-            sls.getListSettings().loadSettingsFrom(settings);
-        } catch (InvalidSettingsException ex) {
-            LOGGER.debug("Unexpected InvalidSettingsException occured", ex);
-        }
-    }
-
-    private static void loadAdvancedTabInDialog(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsRO settings) {
-        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
-        try {
-            sls.getTimeoutSettings().loadSettingsFrom(settings.getNodeSettings(CFG_TIMEOUT));
-        } catch (InvalidSettingsException ex) {
-            LOGGER.debug("Unexpected InvalidSettingsException occured", ex);
-        }
-    }
-
-    private static void loadLimitRowsTabInDialog(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsRO settings) {
-        final var trc = config.getTableReadConfig();
-        trc.setSkipRows(settings.getBoolean(CFG_SKIP_ROWS, false));
-        trc.setNumRowsToSkip(settings.getLong(CFG_SKIP_ROW_NUM, 1L));
-        trc.setLimitRows(settings.getBoolean(CFG_LIMIT_ROWS, false));
-        trc.setMaxRows(settings.getLong(CFG_LIMIT_ROW_NUM, 50L));
-    }
-
     @Override
     public void loadInModel(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings)
             throws InvalidSettingsException {
-        loadSettingsTabInModel(config, settings.getNodeSettings(CFG_SETTINGS_TAB));
-        loadAdvancedTabInModel(config, settings.getNodeSettings(SUB_CFG_ADVANCED));
-        loadLimitRowsTabInModel(config, settings.getNodeSettings(SUB_CFG_LIMIT_ROWS));
+        // TODO is there a better way?
+        final var params = NodeParametersUtil.loadSettings(settings, SharepointListReaderNodeParameters.class);
+        params.saveTo(config.getTableReadConfig());
         if (settings.containsKey(CFG_TABLE_SPEC_CONFIG)) {
             config.setTableSpecConfig(m_tableSpecSerializer.load(settings.getNodeSettings(CFG_TABLE_SPEC_CONFIG)));
         } else {
@@ -234,60 +174,15 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
         }
     }
 
-    private static void loadSettingsTabInModel(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsRO settings) throws InvalidSettingsException {
-        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
-        sls.getSiteSettings().loadSettingsFrom(settings);
-        sls.getListSettings().loadSettingsFrom(settings);
-    }
-
-    private static void loadAdvancedTabInModel(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsRO settings) throws InvalidSettingsException {
-        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
-        sls.getTimeoutSettings().loadSettingsFrom(settings.getNodeSettings(CFG_TIMEOUT));
-    }
-
-    private static void loadLimitRowsTabInModel(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsRO settings) throws InvalidSettingsException {
-        final var trc = config.getTableReadConfig();
-        trc.setSkipRows(settings.getBoolean(CFG_SKIP_ROWS));
-        trc.setNumRowsToSkip(settings.getLong(CFG_SKIP_ROW_NUM));
-        trc.setLimitRows(settings.getBoolean(CFG_LIMIT_ROWS));
-        trc.setMaxRows(settings.getLong(CFG_LIMIT_ROW_NUM));
-    }
-
     @Override
     public void saveInModel(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsWO settings) {
-        saveSettingsTab(config, SettingsUtils.getOrAdd(settings, CFG_SETTINGS_TAB));
-        saveAdvancedTab(config, SettingsUtils.getOrAdd(settings, SUB_CFG_ADVANCED));
-        saveLimitRowsTab(config, settings.addNodeSettings(SUB_CFG_LIMIT_ROWS));
+        // TODO is there a better way?
+        config.getReaderSpecificConfig().m_data.loadFrom(config.getTableReadConfig());
+        NodeParametersUtil.saveSettings(SharepointListReaderNodeParameters.class, config.getReaderSpecificConfig(),
+                settings);
         if (config.hasTableSpecConfig()) {
             m_tableSpecSerializer.save(config.getTableSpecConfig(), settings.addNodeSettings(CFG_TABLE_SPEC_CONFIG));
         }
-    }
-
-    private static void saveSettingsTab(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsWO settings) {
-        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
-        sls.getSiteSettings().saveSettingsTo(settings);
-        sls.getListSettings().saveSettingsTo(settings);
-    }
-
-    private static void saveAdvancedTab(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsWO settings) {
-        final var sls = config.getReaderSpecificConfig().getSharepointListSettings();
-        final NodeSettingsWO timeout = settings.addNodeSettings(CFG_TIMEOUT);
-        sls.getTimeoutSettings().saveSettingsTo(timeout);
-    }
-
-    private static void saveLimitRowsTab(final SharepointListReaderMultiTableReadConfig config,
-            final NodeSettingsWO settings) {
-        final var trc = config.getTableReadConfig();
-        settings.addBoolean(CFG_SKIP_ROWS, trc.skipRows());
-        settings.addLong(CFG_SKIP_ROW_NUM, trc.getNumRowsToSkip());
-        settings.addBoolean(CFG_LIMIT_ROWS, trc.limitRows());
-        settings.addLong(CFG_LIMIT_ROW_NUM, trc.getMaxRows());
-
     }
 
     @Override
@@ -299,32 +194,11 @@ enum SharepointListReaderConfigSerializer implements ConfigSerializer<Sharepoint
     @Override
     public void validate(final SharepointListReaderMultiTableReadConfig config, final NodeSettingsRO settings)
             throws InvalidSettingsException {
-        validateSettingsTab(settings.getNodeSettings(CFG_SETTINGS_TAB));
-        validateAdvancedTab(settings.getNodeSettings(SUB_CFG_ADVANCED));
-        validateLimitRowsTab(settings.getNodeSettings(SUB_CFG_LIMIT_ROWS));
+
+        // TODO is there a better way?
+        NodeParametersUtil.loadSettings(settings, SharepointListReaderNodeParameters.class).validate();
         if (settings.containsKey(CFG_TABLE_SPEC_CONFIG)) {
             m_tableSpecSerializer.load(settings.getNodeSettings(CFG_TABLE_SPEC_CONFIG));
         }
     }
-
-    private static void validateSettingsTab(final NodeSettingsRO settings) throws InvalidSettingsException {
-        final var sls = new SharepointListSettings();
-        sls.getSiteSettings().validateSettings(settings);
-        sls.getListSettings().validateSettings(settings);
-    }
-
-    private static void validateAdvancedTab(final NodeSettingsRO settings) throws InvalidSettingsException {
-        final var sls = new SharepointListSettings();
-        sls.getTimeoutSettings().validateSettings(settings.getNodeSettings(CFG_TIMEOUT));
-    }
-
-    public static void validateLimitRowsTab(final NodeSettingsRO settings) throws InvalidSettingsException {
-        settings.getBoolean(CFG_SKIP_ROWS);
-        CheckUtils.checkSetting(settings.getLong(CFG_SKIP_ROW_NUM) >= 0,
-                "Number of lines to skip must be non-negative!");
-        settings.getBoolean(CFG_LIMIT_ROWS);
-        CheckUtils.checkSetting(settings.getLong(CFG_LIMIT_ROW_NUM) >= 0,
-                "Number of lines to read must be non-negative!");
-    }
-
 }

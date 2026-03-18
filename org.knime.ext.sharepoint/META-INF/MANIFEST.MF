@@ -22,7 +22,5 @@ Bundle-ActivationPolicy: lazy
 Bundle-ClassPath: .
 Automatic-Module-Name: org.knime.ext.sharepoint
 Export-Package: org.knime.ext.sharepoint,
- org.knime.ext.sharepoint.dialog,
- org.knime.ext.sharepoint.parameters,
- org.knime.ext.sharepoint.settings
+ org.knime.ext.sharepoint.parameters
 

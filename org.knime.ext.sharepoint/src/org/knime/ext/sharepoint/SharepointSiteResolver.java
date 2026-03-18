@@ -50,7 +50,7 @@ package org.knime.ext.sharepoint;
 
 import java.io.IOException;
 
-import org.knime.ext.sharepoint.settings.SiteMode;
+import org.knime.ext.sharepoint.parameters.SiteMode;
 
 import com.microsoft.graph.core.ClientException;
 import com.microsoft.graph.requests.GraphServiceClient;

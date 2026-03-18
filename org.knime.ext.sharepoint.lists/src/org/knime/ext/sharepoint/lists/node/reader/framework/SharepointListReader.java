@@ -49,14 +49,13 @@
 package org.knime.ext.sharepoint.lists.node.reader.framework;
 
 import java.io.IOException;
-import java.util.stream.Collectors;
 
 import org.knime.core.data.DataCell;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataType;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.streamable.RowInput;
-import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderConfig;
+import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderNodeParameters;
 import org.knime.filehandling.core.node.table.reader.GenericTableReader;
 import org.knime.filehandling.core.node.table.reader.config.TableReadConfig;
 import org.knime.filehandling.core.node.table.reader.read.Read;
@@ -70,23 +69,27 @@ import org.knime.filehandling.core.node.table.reader.spec.TypedReaderTableSpec;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-public final class SharepointListReader
-        implements GenericTableReader<SharepointListClient, SharepointListReaderConfig, DataType, Object> {
+public final class SharepointListReader implements GenericTableReader<SharepointListReadingClient, //
+        SharepointListReaderNodeParameters, //
+        DataType, //
+        Object> {
 
     @Override
     @SuppressWarnings("resource") // closing the read is the responsibility of the caller
-    public Read<Object> read(final SharepointListClient in, final TableReadConfig<SharepointListReaderConfig> config)
+    public Read<Object> read(final SharepointListReadingClient in,
+            final TableReadConfig<SharepointListReaderNodeParameters> config)
             throws IOException {
-        final var read = new SharepointListRead(in, config.getReaderSpecificConfig().getSharepointListSettings());
+        final var read = new SharepointListRead(in, config.getReaderSpecificConfig());
         return decorateForReading(read, config);
     }
 
     @Override
-    public TypedReaderTableSpec<DataType> readSpec(final SharepointListClient in,
-            final TableReadConfig<SharepointListReaderConfig> config, final ExecutionMonitor exec) throws IOException {
-        final var columnSpecs = in.getColumns(config.getReaderSpecificConfig().getSharepointListSettings()).stream()
-                .map(SharepointListReader::getColumnSpec)//
-                .collect(Collectors.toList());
+    public TypedReaderTableSpec<DataType> readSpec(final SharepointListReadingClient in,
+            final TableReadConfig<SharepointListReaderNodeParameters> config, final ExecutionMonitor exec)
+            throws IOException {
+        final var columnSpecs = in.getColumns(config.getReaderSpecificConfig()).stream()
+                .map(SharepointListReader::getColumnSpec)
+                .toList();
 
         return new TypedReaderTableSpec<>(columnSpecs);
     }
@@ -96,12 +99,12 @@ public final class SharepointListReader
     }
 
     @Override
-    public DataColumnSpec createIdentifierColumnSpec(final SharepointListClient item, final String name) {
+    public DataColumnSpec createIdentifierColumnSpec(final SharepointListReadingClient item, final String name) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public DataCell createIdentifierCell(final SharepointListClient item) {
+    public DataCell createIdentifierCell(final SharepointListReadingClient item) {
         throw new UnsupportedOperationException();
     }
 
@@ -118,7 +121,7 @@ public final class SharepointListReader
      */
     @SuppressWarnings("resource") // closing the read is the responsibility of the caller
     private static Read<Object> decorateForReading(final SharepointListRead read,
-            final TableReadConfig<SharepointListReaderConfig> config) {
+            final TableReadConfig<SharepointListReaderNodeParameters> config) {
         Read<Object> filtered = read;
         if (config.skipRows()) {
             final var numRowsToSkip = config.getNumRowsToSkip();

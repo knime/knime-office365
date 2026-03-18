@@ -53,6 +53,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -62,6 +63,7 @@ import java.util.regex.Pattern;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.DeepCopy;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.webui.node.dialog.defaultdialog.internal.widget.PersistWithin.PersistEmbedded;
 import org.knime.core.webui.node.dialog.defaultdialog.persistence.booleanhelpers.DoNotPersistBoolean;
@@ -150,7 +152,7 @@ import okhttp3.Request;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 @SuppressWarnings({ "restriction" })
-public abstract sealed class SharepointListParameters implements NodeParameters {
+public abstract sealed class SharepointListParameters implements NodeParameters, DeepCopy<SharepointListParameters> {
 
     // The separator used in the id fields to store multiple data points in it
     // to be able to store both of them (required to be backwards compatibility)
@@ -215,6 +217,33 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         ListExistsPolicy getIfListExistsPolicy() {
             return null;
         }
+
+        @Override
+        public Basic copy() {
+            final var result = new Basic();
+            result.m_list = m_list.copy();
+            return result;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(m_list);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            var other = (Basic) obj;
+            return Objects.equals(m_list, other.m_list);
+        }
     }
 
     /**
@@ -230,6 +259,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         ListParameters m_list = new ListParameters();
 
         @PersistEmbedded
+        // UI only, thus not included in equals or hash
         ShowSystemLists m_showSystemLists = new ShowSystemLists();
 
         @Override
@@ -240,6 +270,34 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Override
         ListExistsPolicy getIfListExistsPolicy() {
             return null;
+        }
+
+        @Override
+        public WithSystemLists copy() {
+            final var result = new WithSystemLists();
+            result.m_list = m_list.copy();
+            result.m_showSystemLists.m_showSystemLists = m_showSystemLists.m_showSystemLists;
+            return result;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(m_list);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            var other = (WithSystemLists) obj;
+            return Objects.equals(m_list, other.m_list);
         }
     }
 
@@ -270,6 +328,34 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
             case SELECT -> WriteMode.asExistsPolicy(m_writeMode.m_writeMode);
             };
         }
+
+        @Override
+        public WithCreateLists copy() {
+            final var result = new WithCreateLists();
+            result.m_list = m_list.copy();
+            result.m_writeMode = m_writeMode.copy();
+            return result;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(m_list, m_writeMode);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            var other = (WithCreateLists) obj;
+            return Objects.equals(m_list, other.m_list) && Objects.equals(m_writeMode, other.m_writeMode);
+        }
     }
 
     /**
@@ -286,6 +372,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         CreateListParameters m_list = new CreateListParameters();
 
         @PersistEmbedded
+        // UI only, thus not included in equals or hash
         ShowSystemLists m_showSystemLists = new ShowSystemLists();
 
         @PersistEmbedded
@@ -303,10 +390,39 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
             case SELECT -> WriteMode.asExistsPolicy(m_writeMode.m_writeMode);
             };
         }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(m_list, m_writeMode);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            var other = (WithCreateListsAndSystemLists) obj;
+            return Objects.equals(m_list, other.m_list) && Objects.equals(m_writeMode, other.m_writeMode);
+        }
+
+        @Override
+        public WithCreateListsAndSystemLists copy() {
+            final var result = new WithCreateListsAndSystemLists();
+            result.m_list = m_list.copy();
+            result.m_showSystemLists.m_showSystemLists = m_showSystemLists.m_showSystemLists;
+            result.m_writeMode = m_writeMode.copy();
+            return result;
+        }
     }
 
     @Layout(SharepointListSection.Tail.class)
-    static sealed class ListParameters implements NodeParameters {
+    static sealed class ListParameters implements NodeParameters, DeepCopy<ListParameters> {
 
         private static final String EXISTING_LIST_DESCRIPTION = """
                 An existing SharePoint list. The drop down menu shows lists in the format &lt;display-name&gt;
@@ -362,6 +478,35 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
         String getExistingListDisplayName() {
             return getExistingListField(2);
+        }
+
+        @Override
+        public ListParameters copy() {
+            final var result = new ListParameters();
+            result.m_checkExistenceInDialog = m_checkExistenceInDialog;
+            result.m_existingList = m_existingList;
+            return result;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(m_checkExistenceInDialog, m_existingList);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            var other = (ListParameters) obj;
+            return m_checkExistenceInDialog == other.m_checkExistenceInDialog
+                    && Objects.equals(m_existingList, other.m_existingList);
         }
 
     }
@@ -421,6 +566,39 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
                 super.validate();
             }
         }
+
+        @Override
+        public CreateListParameters copy() {
+            final var result = new CreateListParameters();
+            result.m_checkExistenceInDialog = m_checkExistenceInDialog;
+            result.m_existingList = m_existingList;
+            result.m_newListName = m_newListName;
+            result.m_listMode = m_listMode;
+            return result;
+        }
+
+        @Override
+        public int hashCode() {
+            final var prime = 31;
+            int result = super.hashCode();
+            result = prime * result + Objects.hash(m_listMode, m_newListName);
+            return result;
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!super.equals(obj)) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            var other = (CreateListParameters) obj;
+            return m_listMode == other.m_listMode && Objects.equals(m_newListName, other.m_newListName);
+        }
     }
 
     static final class ShowSystemLists implements NodeParameters {
@@ -444,7 +622,7 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
 
     }
 
-    static final class ListWriteMode implements NodeParameters {
+    static final class ListWriteMode implements NodeParameters, DeepCopy<ListWriteMode> {
         @Widget(title = "List write mode", //
                 description = "How to write to the selected list.")
         @ValueSwitchWidget
@@ -460,6 +638,34 @@ public abstract sealed class SharepointListParameters implements NodeParameters 
         @Migration(IfListExistsMigration.class)
         @Effect(predicate = CreateListSelected.class, type = EffectType.SHOW)
         ListExistsPolicy m_ifListExists = ListExistsPolicy.FAIL;
+
+        @Override
+        public ListWriteMode copy() {
+            final var result = new ListWriteMode();
+            result.m_ifListExists = m_ifListExists;
+            result.m_writeMode = m_writeMode;
+            return result;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(m_ifListExists, m_writeMode);
+        }
+
+        @Override
+        public boolean equals(final Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            var other = (ListWriteMode) obj;
+            return m_ifListExists == other.m_ifListExists && m_writeMode == other.m_writeMode;
+        }
     }
 
     enum WriteMode {

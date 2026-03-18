@@ -64,11 +64,10 @@ import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 import org.knime.core.util.Pair;
-import org.knime.ext.sharepoint.SharepointSiteResolver;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettingsPanel.ListSettings;
+import org.knime.ext.sharepoint.lists.node.SharepointListParameters;
+import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderNodeParameters;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListRead.RandomAccessibleDataRow;
-import org.knime.ext.sharepoint.settings.SiteSettings;
+import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
 import org.knime.filehandling.core.node.table.reader.randomaccess.RandomAccessible;
 
 import com.microsoft.graph.http.GraphServiceException;
@@ -87,7 +86,7 @@ import okhttp3.Request;
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-public final class SharepointListClient {
+public final class SharepointListReadingClient {
 
     private static final List<Option> OPTIONS_ITEMS = Collections.singletonList(new QueryOption("expand", "fields"));
 
@@ -107,9 +106,9 @@ public final class SharepointListClient {
 
     private int m_settingsHash;
 
-    private SiteSettings m_siteSettings;
+    private SharepointSiteParameters m_siteParams;
 
-    private ListSettings m_listSettings;
+    private SharepointListParameters m_listParams;
 
     /**
      * Create an object used to setup and get information from the Microsoft Graph
@@ -117,47 +116,42 @@ public final class SharepointListClient {
      *
      * @param client
      *            the {@link GraphServiceClient} used to make the API calls
-     * @param settings
-     *            the {@link SharepointListSettings} used to setup the client
      */
-    public SharepointListClient(final GraphServiceClient<Request> client, final SharepointListSettings settings) {
+    public SharepointListReadingClient(final GraphServiceClient<Request> client) {
         m_client = client;
-        updateSiteAndListSettings(settings);
+    }
+
+    private void updateSiteAndListSettings(final SharepointListReaderNodeParameters params) {
+        m_siteParams = params.getSiteParameters();
+        m_listParams = params.getListParameters();
     }
 
     /**
-     * Closes this client and releases its resources.
-     */
-    public void close() {
-        // Nothing to do
-    }
-
-    private void updateSiteAndListSettings(final SharepointListSettings settings) {
-        m_siteSettings = settings.getSiteSettings();
-        m_listSettings = settings.getListSettings();
-    }
-
-    /**
-     * @param listSettings
-     *            the {@link ListSettings} used to decide the accessed list
+     * Fetches the list columns, sets them up for further processing. The result is
+     * cached and returned.
+     *
+     * @param params
+     *            the {@link SharepointListReaderNodeParameters} to use
      * @return a {@link List} of {@link SharepointListColumn}.
      * @throws IOException
      *             if the columns couldn't be read (most likely due to the list not
      *             existing in the settings configuration)
      */
-    public List<SharepointListColumn<?>> getColumns(final SharepointListSettings listSettings) throws IOException {
-        setSiteAndListId(listSettings);
+    public List<SharepointListColumn<?>> getColumns(final SharepointListReaderNodeParameters params)
+            throws IOException {
+        setSiteAndListId(params);
 
         // have the columns be read or the settings changed?
-        if (m_columns == null || m_listSettings.hashCode() != m_settingsHash) {
-            m_settingsHash = m_listSettings.hashCode();
+        if (m_columns == null || m_listParams.hashCode() != m_settingsHash) {
+            m_settingsHash = m_listParams.hashCode();
             try {
                 m_columns = StreamSupport
                         .stream(Spliterators.spliteratorUnknownSize(new ColumnIterator(),
                                 Spliterator.ORDERED | Spliterator.IMMUTABLE | Spliterator.NONNULL), false)//
                         .map(SharepointListColumn::of)//
                         .filter(ALLOWED)//
-                        .collect(Collectors.toUnmodifiableList());
+                        .collect(Collectors.toUnmodifiableList());// NOSONAR not replaceable bc Java's type inference
+                                                                  // gets a stroke otherwise
                 // check for columns with duplicate display names and make the column names
                 // unique if necessary
                 final var columnNames = new LinkedHashMap<String, List<SharepointListColumn<?>>>();
@@ -179,34 +173,34 @@ public final class SharepointListClient {
     /**
      * Returns an {@link Iterator} of {@link RandomAccessibleDataRow}.
      *
-     * @param settings
-     *            the {@link SharepointListSettings} used to decide the accessed
-     *            list
+     * @param params
+     *            the {@link SharepointListReaderNodeParameters} to use
      * @return an iterator that allows iteration over all items in a list and
      *         returns them as {@link RandomAccessible}s
      * @throws IOException
+     *             if the site could not be resolved
      */
-    public Iterator<RandomAccessibleDataRow> getItems(final SharepointListSettings settings) throws IOException {
-        setSiteAndListId(settings);
+    public Iterator<RandomAccessibleDataRow> getItems(final SharepointListReaderNodeParameters params)
+            throws IOException {
+        setSiteAndListId(params);
         return new ItemIterator();
     }
 
     /**
      * Sets the site Id and the list Id based on the current settings.
      *
-     * @param listSettings
-     *            the {@link ListSettings} used to determine the site and list Id
+     * @param params
+     *            the {@link SharepointListReaderNodeParameters} used to determine
+     *            the site and list Id
      * @throws IOException
+     *             if the subsite could not be resolved
      */
-    private void setSiteAndListId(final SharepointListSettings listSettings) throws IOException {
-        updateSiteAndListSettings(listSettings);
-        final var siteResolver = new SharepointSiteResolver(m_client, m_siteSettings.getMode(),
-                m_siteSettings.getSubsiteModel().getStringValue(), m_siteSettings.getWebURLModel().getStringValue(),
-                m_siteSettings.getGroupModel().getStringValue());
-        m_siteId = siteResolver.getTargetSiteId();
-        m_listId = m_listSettings.getListModel().getStringValue();
+    private void setSiteAndListId(final SharepointListReaderNodeParameters params) throws IOException {
+        updateSiteAndListSettings(params);
+        m_siteId = m_siteParams.getSiteId(m_client);
+        m_listId = m_listParams.getExistingListId();
 
-        if (m_listId.isEmpty()) {
+        if (m_listId == null) {
             throw new IllegalStateException("Please select a list.");
         }
     }
@@ -215,9 +209,9 @@ public final class SharepointListClient {
 
         private Iterator<ColumnDefinition> m_current = Collections.emptyIterator();
 
-        private ColumnDefinitionCollectionPage m_page = null;
+        private ColumnDefinitionCollectionPage m_page;
 
-        private boolean m_finishedRead = false;
+        private boolean m_finishedRead;
 
         @Override
         public boolean hasNext() {
@@ -264,11 +258,11 @@ public final class SharepointListClient {
 
         private Iterator<ListItem> m_itemSetIterator = Collections.emptyIterator();
 
-        private ListItemCollectionPage m_page = null;
+        private ListItemCollectionPage m_page;
 
-        private boolean m_finishedRead = false;
+        private boolean m_finishedRead;
 
-        public ItemIterator() throws IOException {
+        public ItemIterator() {
             m_idIndexMapping = createColumnAssignment();
         }
 

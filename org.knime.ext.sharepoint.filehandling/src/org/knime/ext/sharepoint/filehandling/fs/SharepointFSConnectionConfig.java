@@ -50,7 +50,7 @@ package org.knime.ext.sharepoint.filehandling.fs;
 
 import java.time.Duration;
 
-import org.knime.ext.sharepoint.settings.SiteMode;
+import org.knime.ext.sharepoint.parameters.SiteMode;
 import org.knime.filehandling.core.connections.meta.base.BaseFSConnectionConfig;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;

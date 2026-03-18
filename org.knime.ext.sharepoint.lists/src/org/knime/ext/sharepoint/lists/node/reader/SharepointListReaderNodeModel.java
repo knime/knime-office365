@@ -57,9 +57,6 @@ import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.ExecutionContext;
 import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeModel;
-import org.knime.core.node.NodeSettingsRO;
-import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.port.PortObject;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
@@ -70,14 +67,14 @@ import org.knime.core.node.streamable.PortObjectInput;
 import org.knime.core.node.streamable.PortOutput;
 import org.knime.core.node.streamable.RowOutput;
 import org.knime.core.node.streamable.StreamableOperator;
+import org.knime.core.webui.node.impl.WebUINodeModel;
 import org.knime.credentials.base.CredentialPortObject;
 import org.knime.credentials.base.CredentialPortObjectSpec;
 import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
-import org.knime.ext.sharepoint.lists.node.SharepointListSettings;
-import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListClient;
 import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListReader;
+import org.knime.ext.sharepoint.lists.node.reader.framework.SharepointListReadingClient;
 import org.knime.ext.sharepoint.lists.node.reader.mapping.SharepointListReadAdapterFactory;
 import org.knime.filehandling.core.node.table.reader.DefaultMultiTableReadFactory;
 import org.knime.filehandling.core.node.table.reader.DefaultSourceGroup;
@@ -87,43 +84,38 @@ import org.knime.filehandling.core.node.table.reader.SourceGroup;
 import org.knime.filehandling.core.node.table.reader.rowkey.DefaultRowKeyGeneratorContextFactory;
 
 /**
- * Node model implementation of the “SharePoint List Reader” node.
+ * Node model implementation of the "SharePoint List Reader" node.
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-final class SharepointListReaderNodeModel extends NodeModel {
-
-
-    private final SharepointListReaderMultiTableReadConfig m_config;
+@SuppressWarnings({ "deprecation", "restriction" })
+final class SharepointListReaderNodeModel extends WebUINodeModel<SharepointListReaderNodeParameters> {
 
     /**
      * A supplier is used to avoid any issues should this node model ever be used in
      * parallel. However, this also means that the specs are recalculated for each
      * generated reader.
      */
-    private final MultiTableReader<SharepointListClient, SharepointListReaderConfig, DataType> m_tableReader;
-
+    private final MultiTableReader< //
+    SharepointListReadingClient, SharepointListReaderNodeParameters, DataType> m_tableReader;
 
     SharepointListReaderNodeModel() {
-        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[] { BufferedDataTable.TYPE });
-        m_config = createConfig();
+        super(new PortType[] { CredentialPortObject.TYPE }, new PortType[] { BufferedDataTable.TYPE },
+                SharepointListReaderNodeParameters.class);
         final var multiTableReadFactory = createReadFactory();
         m_tableReader = new MultiTableReader<>(multiTableReadFactory);
     }
 
-    static SharepointListReaderMultiTableReadConfig createConfig() {
-        return new SharepointListReaderMultiTableReadConfig();
-    }
-
-    static DefaultMultiTableReadFactory<SharepointListClient, SharepointListReaderConfig, DataType, Object> createReadFactory() {
-
+    static DefaultMultiTableReadFactory< //
+            SharepointListReadingClient, SharepointListReaderNodeParameters, DataType, Object> //
+    createReadFactory() {
         final var readAdapterFactory = SharepointListReadAdapterFactory.INSTANCE;
         final var productionPathProvider = createProductionPathProvider();
         return new DefaultMultiTableReadFactory<>(//
                 SharepointListReadAdapterFactory.TYPE_HIERARCHY, // <DataType, DataType>
                 new DefaultRowKeyGeneratorContextFactory<>(Object::toString, "Table"), // <SharepointListClient, Object>
-                new SharepointListReader(), // <SharepointListClient, Config, DataType, Object>
+                new SharepointListReader(), // <SharepointListClient, Parameters, DataType, Object>
                 productionPathProvider, // <DataType>
                 readAdapterFactory::createReadAdapter); // <DataType, Object>
     }
@@ -134,32 +126,33 @@ final class SharepointListReaderNodeModel extends NodeModel {
     }
 
     @Override
-    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
-        if (m_config.hasTableSpecConfig()) {
-            return new PortObjectSpec[] { m_config.getTableSpecConfig().getDataTableSpec() };
-        }
-
+    protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs,
+            final SharepointListReaderNodeParameters params) throws InvalidSettingsException {
         final var credSpec = (CredentialPortObjectSpec) inSpecs[0];
         if (credSpec != null) {
             GraphCredentialUtil.validateCredentialPortObjectSpecOnConfigure(credSpec);
         }
 
+        // FIXME For now, we return null spec since transformations are not yet
+        // implemented
         return new PortObjectSpec[1];
     }
 
     @Override
-    protected PortObject[] execute(final PortObject[] portObjects, final ExecutionContext exec) throws Exception {
+    protected PortObject[] execute(final PortObject[] portObjects, final ExecutionContext exec,
+            final SharepointListReaderNodeParameters params) throws Exception {
 
         final var credSpec = ((CredentialPortObject) portObjects[0]).getSpec();
 
-        final var sourceGroup = createSourceGroup(credSpec,
-                m_config.getReaderSpecificConfig().getSharepointListSettings());
-        return new PortObject[] { m_tableReader.readTable(sourceGroup, m_config, exec) };
+        final var sourceGroup = createSourceGroup(credSpec, params);
+        final var config = createMultiTableReadConfig(params);
+        return new PortObject[] { m_tableReader.readTable(sourceGroup, config, exec) };
     }
 
     @Override
     public StreamableOperator createStreamableOperator(final PartitionInfo partitionInfo,
-            final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
+            final PortObjectSpec[] inSpecs, final SharepointListReaderNodeParameters params)
+            throws InvalidSettingsException {
 
         return new StreamableOperator() {
             @Override
@@ -169,25 +162,33 @@ final class SharepointListReaderNodeModel extends NodeModel {
                 final var credentialPortObjectSpec = (CredentialPortObjectSpec) ((PortObjectInput) inputs[0])
                         .getPortObject().getSpec();
 
-                final var sourceGroup = createSourceGroup(credentialPortObjectSpec,
-                        m_config.getReaderSpecificConfig().getSharepointListSettings());
-                m_tableReader.fillRowOutput(sourceGroup, m_config, (RowOutput) outputs[0], exec);
+                final var sourceGroup = createSourceGroup(credentialPortObjectSpec, params);
+                final var config = createMultiTableReadConfig(params);
+                m_tableReader.fillRowOutput(sourceGroup, config, (RowOutput) outputs[0], exec);
             }
         };
     }
 
-    private static SourceGroup<SharepointListClient> createSourceGroup(
-            final CredentialPortObjectSpec credSpec, final SharepointListSettings settings)
-            throws NoSuchCredentialException, IOException {
+    /**
+     * Creates a MultiTableReadConfig from the node parameters.
+     */
+    private static SharepointListReaderMultiTableReadConfig createMultiTableReadConfig(
+            final SharepointListReaderNodeParameters params) {
+        final var config = new SharepointListReaderMultiTableReadConfig();
+        params.saveTo(config.getTableReadConfig());
+        return config;
+    }
 
-        final var timeouts = settings.getTimeoutSettings();
+    private static SourceGroup<SharepointListReadingClient> createSourceGroup(final CredentialPortObjectSpec credSpec,
+            final SharepointListReaderNodeParameters params) throws NoSuchCredentialException, IOException {
+
         final var graphClient = GraphApiUtil.createClient(//
-                GraphCredentialUtil.createAuthenticationProvider(credSpec), //,
-                timeouts.getConnectionTimeout(),//
-                timeouts.getReadTimeout());
+                GraphCredentialUtil.createAuthenticationProvider(credSpec), //
+                params.m_timeout.getConnectionTimeoutMillis(), //
+                params.m_timeout.getReadTimeoutMillis());
 
         return new DefaultSourceGroup<>("igraph_service_client_source_group",
-                Collections.singleton(new SharepointListClient(graphClient, settings)));
+                Collections.singleton(new SharepointListReadingClient(graphClient)));
     }
 
     @Override
@@ -201,28 +202,7 @@ final class SharepointListReaderNodeModel extends NodeModel {
     }
 
     @Override
-    protected void saveInternals(final File nodeInternDir, final ExecutionMonitor exec) {
-        // no internals to load
-    }
-
-    @Override
-    protected void saveSettingsTo(final NodeSettingsWO settings) {
-        m_config.saveInModel(settings);
-    }
-
-    @Override
-    protected void validateSettings(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.validate(settings);
-    }
-
-    @Override
-    protected void loadValidatedSettingsFrom(final NodeSettingsRO settings) throws InvalidSettingsException {
-        m_config.loadInModel(settings);
-    }
-
-    @Override
     protected void reset() {
         m_tableReader.reset();
     }
-
 }

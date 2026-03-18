@@ -77,7 +77,7 @@ import org.knime.core.data.def.LongCell;
 import org.knime.core.data.def.StringCell;
 import org.knime.core.data.time.localdate.LocalDateCellFactory;
 import org.knime.core.data.time.localdatetime.LocalDateTimeCellFactory;
-import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderConfig;
+import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderNodeParameters;
 import org.knime.filehandling.core.node.table.reader.HierarchyAwareProductionPathProvider;
 import org.knime.filehandling.core.node.table.reader.ReadAdapter;
 import org.knime.filehandling.core.node.table.reader.ReadAdapter.ReadAdapterParams;
@@ -102,13 +102,14 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
     private static final DataType TYPE_LIST_STRING = DataType.getType(ListCell.class, StringCell.TYPE);
     private static final DataType TYPE_LIST_LONG = DataType.getType(ListCell.class, LongCell.TYPE);
 
-    private static final ProducerRegistry<DataType, SharepointListReadAdapter> PRODUCER_REGISTRY = initializeProducerRegistry();
+    private static final ProducerRegistry<DataType, SharepointListReadAdapter> PRODUCER_REGISTRY = //
+            initializeProducerRegistry();
 
     /**
      * The type hierarchy of the SharePointList Reader.
      */
     public static final TreeTypeHierarchy<DataType, DataType> TYPE_HIERARCHY = createHierarchy(
-            new SharepointListReaderConfig()).createTypeFocusedHierarchy();
+            new SharepointListReaderNodeParameters()).createTypeFocusedHierarchy();
 
     private static ProducerRegistry<DataType, SharepointListReadAdapter> initializeProducerRegistry() {
         final ProducerRegistry<DataType, SharepointListReadAdapter> registry = MappingFramework
@@ -135,7 +136,7 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
     }
 
     private static String readStringFromSource(final SharepointListReadAdapter source,
-            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
+            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params) {
         final var val = source.get(params);
         return readString(val);
     }
@@ -144,8 +145,8 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
         if (val == null) {
             return null;
         }
-        if (val instanceof Object[]) {
-            return Arrays.stream((Object[]) val).map(SharepointListReadAdapterFactory::readString)
+        if (val instanceof Object[] array) {
+            return Arrays.stream(array).map(SharepointListReadAdapterFactory::readString)
                     .collect(Collectors.joining(",", "[", "]"));
         } else {
             return val.toString();
@@ -153,13 +154,13 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
     }
 
     private static String[] readStringArrayFromSource(final SharepointListReadAdapter source,
-            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
+            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params) {
         final var val = source.get(params);
         if (val == null) {
-            return null;
+            return null; // NOSONAR mapped to missing value
         }
-        if (val instanceof String[]) {
-            return (String[]) val;
+        if (val instanceof String[] array) {
+            return array;
         } else {
             return Arrays.stream((Object[]) val)//
                     .map(Object::toString)//
@@ -168,45 +169,46 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
     }
 
     private static Long[] readLongArrayFromSource(final SharepointListReadAdapter source,
-            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
+            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params) {
         return (Long[]) source.get(params);
     }
 
     private static LocalDate readLocalDateFromSource(final SharepointListReadAdapter source,
-            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
+            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params) {
         return (LocalDate) source.get(params);
     }
 
     private static LocalDateTime readLocalDateTimeFromSource(final SharepointListReadAdapter source,
-            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params) {
+            final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params) {
         final var val = source.get(params);
         if (val == null) {
             return null;
         }
-        if (val instanceof LocalDate) {
-            return ((LocalDate) val).atStartOfDay();
+        if (val instanceof LocalDate ledate) {
+            return ledate.atStartOfDay();
         } else {
             return (LocalDateTime) val;
         }
     }
 
     private abstract static class AbstractReadAdapterToPrimitiveCellValueProducer<S extends ReadAdapter<?, ?>, T>
-            implements PrimitiveCellValueProducer<S, T, ReadAdapterParams<S, SharepointListReaderConfig>> {
+            implements PrimitiveCellValueProducer<S, T, ReadAdapterParams<S, SharepointListReaderNodeParameters>> {
 
         @Override
         public final boolean producesMissingCellValue(final S source,
-                final ReadAdapterParams<S, SharepointListReaderConfig> params) throws MappingException {
+                final ReadAdapterParams<S, SharepointListReaderNodeParameters> params) throws MappingException {
             return source.get(params) == null;
         }
     }
 
     private static class StringToBooleanCellValueProducer
             extends AbstractReadAdapterToPrimitiveCellValueProducer<SharepointListReadAdapter, Boolean> implements
-            BooleanCellValueProducer<SharepointListReadAdapter, ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig>> {
+            BooleanCellValueProducer<SharepointListReadAdapter, //
+                    ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters>> {
 
         @Override
         public boolean produceBooleanCellValue(final SharepointListReadAdapter source,
-                final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params)
+                final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params)
                 throws MappingException {
             return (Boolean) source.get(params);
         }
@@ -214,11 +216,12 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
 
     private static class NumberToIntCellValueProducer
             extends AbstractReadAdapterToPrimitiveCellValueProducer<SharepointListReadAdapter, Integer> implements
-            IntCellValueProducer<SharepointListReadAdapter, ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig>> {
+            IntCellValueProducer<SharepointListReadAdapter, //
+                    ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters>> {
 
         @Override
         public int produceIntCellValue(final SharepointListReadAdapter source,
-                final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params)
+                final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params)
                 throws MappingException {
             final var val = (Number) source.get(params);
             return val.intValue();
@@ -227,11 +230,12 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
 
     private static class NumberToDoubleCellValueProducer
             extends AbstractReadAdapterToPrimitiveCellValueProducer<SharepointListReadAdapter, Double> implements
-            DoubleCellValueProducer<SharepointListReadAdapter, ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig>> {
+            DoubleCellValueProducer<SharepointListReadAdapter, //
+                    ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters>> {
 
         @Override
         public double produceDoubleCellValue(final SharepointListReadAdapter source,
-                final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params)
+                final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params)
                 throws MappingException {
             final var val = (Number) source.get(params);
             return val.doubleValue();
@@ -240,11 +244,12 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
 
     private static class NumberToLongCellValueProducer
             extends AbstractReadAdapterToPrimitiveCellValueProducer<SharepointListReadAdapter, Long> implements
-            LongCellValueProducer<SharepointListReadAdapter, ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig>> {
+            LongCellValueProducer<SharepointListReadAdapter, //
+                    ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters>> {
 
         @Override
         public long produceLongCellValue(final SharepointListReadAdapter source,
-                final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderConfig> params)
+                final ReadAdapterParams<SharepointListReadAdapter, SharepointListReaderNodeParameters> params)
                 throws MappingException {
             final var val = (Number) source.get(params);
             return val.longValue();
@@ -295,7 +300,7 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
     }
 
     // TODO create an actual hierarchy
-    static TreeTypeHierarchy<DataType, Object> createHierarchy(final SharepointListReaderConfig config) {
+    static TreeTypeHierarchy<DataType, Object> createHierarchy(final SharepointListReaderNodeParameters config) {
         return TreeTypeHierarchy.builder(createTypeTester(StringCell.TYPE, t -> {
         })).addType(StringCell.TYPE, TypeTester.createTypeTester(DoubleCell.TYPE, Double.class::isInstance))
                 .addType(DoubleCell.TYPE, TypeTester.createTypeTester(LongCell.TYPE, Long.class::isInstance))

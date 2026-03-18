@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -61,6 +62,7 @@ import java.util.regex.Pattern;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
+import org.knime.core.node.context.DeepCopy;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.core.webui.node.dialog.defaultdialog.util.updates.StateComputationFailureException;
 import org.knime.core.webui.node.dialog.defaultdialog.widget.validation.custom.CustomValidation;
@@ -71,7 +73,6 @@ import org.knime.credentials.base.NoSuchCredentialException;
 import org.knime.ext.sharepoint.GraphApiUtil;
 import org.knime.ext.sharepoint.GraphCredentialUtil;
 import org.knime.ext.sharepoint.SharepointSiteResolver;
-import org.knime.ext.sharepoint.settings.SiteMode;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.NodeParametersInput;
@@ -116,7 +117,7 @@ import okhttp3.Request;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
 @SuppressWarnings({ "javadoc", "restriction" })
-public final class SharepointSiteParameters implements NodeParameters {
+public final class SharepointSiteParameters implements NodeParameters, DeepCopy<SharepointSiteParameters> {
 
     // The separator used in the id fields to store multiple data points in it
     // to be able to store both of them (required to be backwards compatibility)
@@ -527,6 +528,40 @@ public final class SharepointSiteParameters implements NodeParameters {
         public EffectPredicate init(final PredicateInitializer i) {
             return i.getEnum(SiteModeRef.class).isOneOf(SiteMode.GROUP);
         }
+    }
+
+    @Override
+    public SharepointSiteParameters copy() {
+        final var result = new SharepointSiteParameters();
+        result.m_group = m_group;
+        result.m_mode = m_mode;
+        result.m_subsite.m_displayedSubsite = m_subsite.m_displayedSubsite;
+        result.m_subsite.m_subsite = m_subsite.m_subsite;
+        result.m_webUrl = m_webUrl;
+        return result;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(m_group, m_mode, m_subsite.m_displayedSubsite, m_subsite.m_subsite, m_webUrl);
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        var other = (SharepointSiteParameters) obj;
+        return Objects.equals(m_group, other.m_group) && m_mode == other.m_mode
+                && Objects.equals(m_subsite.m_displayedSubsite, other.m_subsite.m_displayedSubsite)
+                && Objects.equals(m_subsite.m_subsite, other.m_subsite.m_subsite)
+                && Objects.equals(m_webUrl, other.m_webUrl);
     }
 
     static final class SubsiteRef implements ParameterReference<Optional<String>> {

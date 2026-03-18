@@ -76,7 +76,7 @@ import com.microsoft.graph.models.TextColumn;
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  * @author Lars Schweikardt, KNIME GmbH, Konstanz, Germany
  */
-abstract class SharepointListColumn<T> {
+abstract sealed class SharepointListColumn<T> {
 
     private static final DataType TYPE_LIST_STRING = DataType.getType(ListCell.class, StringCell.TYPE);
 

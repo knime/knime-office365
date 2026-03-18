@@ -51,6 +51,7 @@ package org.knime.ext.sharepoint.parameters;
 import java.time.Duration;
 
 import org.knime.core.node.InvalidSettingsException;
+import org.knime.core.node.context.DeepCopy;
 import org.knime.core.node.util.CheckUtils;
 import org.knime.node.parameters.Advanced;
 import org.knime.node.parameters.NodeParameters;
@@ -68,7 +69,7 @@ import org.knime.node.parameters.widget.number.NumberInputWidgetValidation.MinVa
  *
  * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-public class TimeoutParameters implements NodeParameters {
+public class TimeoutParameters implements NodeParameters, DeepCopy<TimeoutParameters> {
 
     /**
      * Max timeout value to prevent overflow since the timeout needs to be set in
@@ -78,9 +79,14 @@ public class TimeoutParameters implements NodeParameters {
 
     private static final int DEFAULT_TIMEOUT = 20;
 
+    /**
+     * Section for the timeout parameters
+     *
+     * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
+     */
     @Advanced
     @Section(title = "Timeouts")
-    interface TimeoutsSection {
+    public interface TimeoutsSection {
     }
 
     @Widget(title = "Connection timeout in seconds", //
@@ -114,6 +120,14 @@ public class TimeoutParameters implements NodeParameters {
      */
     public int getReadTimeoutMillis() {
         return Math.toIntExact(Duration.ofSeconds(m_readTimeout).toMillis());
+    }
+
+    @Override
+    public TimeoutParameters copy() {
+        final var result = new TimeoutParameters();
+        result.m_connectionTimeout = m_connectionTimeout;
+        result.m_readTimeout = m_readTimeout;
+        return result;
     }
 
     @Override

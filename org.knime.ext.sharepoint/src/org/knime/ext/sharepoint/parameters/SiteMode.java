@@ -46,14 +46,12 @@
  * History
  *   2021-10-05 (lars.schweikardt): created
  */
-package org.knime.ext.sharepoint.settings;
+package org.knime.ext.sharepoint.parameters;
 
-import org.knime.ext.sharepoint.dialog.SiteSettingsPanel;
 import org.knime.node.parameters.widget.choices.Label;
 
 /**
- * {@link Enum} for the Site mode for Sharepoint nodes which make use of the
- * {@link SiteSettingsPanel}.
+ * {@link Enum} for the Site mode for Sharepoint nodes
  *
  * @author Alexander Bondaletov
  */

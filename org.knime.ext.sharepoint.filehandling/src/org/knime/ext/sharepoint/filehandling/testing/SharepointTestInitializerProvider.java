@@ -61,7 +61,7 @@ import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnection;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFSDescriptorProvider;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
-import org.knime.ext.sharepoint.settings.SiteMode;
+import org.knime.ext.sharepoint.parameters.SiteMode;
 import org.knime.filehandling.core.connections.FSLocationSpec;
 import org.knime.filehandling.core.connections.meta.FSType;
 import org.knime.filehandling.core.testing.DefaultFSTestInitializerProvider;
