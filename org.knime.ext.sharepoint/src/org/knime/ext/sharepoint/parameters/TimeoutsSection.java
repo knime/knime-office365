@@ -42,51 +42,21 @@
  *  may freely choose the license terms applicable to such Node, including
  *  when such Node is propagated with or for interoperation with KNIME.
  * ---------------------------------------------------------------------
- *
+ * 
  * History
- *   2021-10-05 (lars.schweikardt): created
+ *   2026-03-19 (loescher): created
  */
 package org.knime.ext.sharepoint.parameters;
 
-import org.knime.node.parameters.widget.choices.Label;
+import org.knime.node.parameters.Advanced;
+import org.knime.node.parameters.layout.Section;
 
 /**
- * {@link Enum} for the Site mode for Sharepoint nodes
+ * Section for the timeout parameters
  *
- * @author Alexander Bondaletov
+ * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
  */
-public enum SiteMode { //
-    /**
-     * Root site
-     */
-    @Label(value = "Root site", //
-            description = "Connect to the root site of the domain of the current user")
-    ROOT("Root site"), //
-
-    /**
-     * Web URL
-     */
-    @Label(value = "Web URL", //
-            description = "Specify the web URL of a SharePoint site.")
-    WEB_URL("Web URL"), //
-
-    /**
-     * Group site
-     */
-    @Label(value = "Group site", //
-            description = "Connect to the team site of a particular Office 365 group.")
-    GROUP("Group site");
-
-    private String m_selectorLabel;
-
-    SiteMode(final String selectorLable) {
-        m_selectorLabel = selectorLable;
-    }
-
-    /**
-     * @return the selectorLabel
-     */
-    public String getSelectorLabel() {
-        return m_selectorLabel;
-    }
+@Advanced
+@Section(title = "Timeouts")
+public interface TimeoutsSection {
 }

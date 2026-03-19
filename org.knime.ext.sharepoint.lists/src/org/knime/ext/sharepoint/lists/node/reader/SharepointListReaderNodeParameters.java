@@ -64,6 +64,7 @@ import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderNodeParame
 import org.knime.ext.sharepoint.lists.node.reader.SharepointListReaderNodeParameters.DataParameters.SkipRows.SkipRowsPersistor;
 import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
 import org.knime.ext.sharepoint.parameters.TimeoutParameters;
+import org.knime.ext.sharepoint.parameters.TimeoutsSection;
 import org.knime.filehandling.core.node.table.reader.config.DefaultTableReadConfig;
 import org.knime.filehandling.core.node.table.reader.config.ReaderSpecificConfig;
 import org.knime.node.parameters.Advanced;
@@ -97,12 +98,7 @@ public final class SharepointListReaderNodeParameters
 
     @Advanced
     @Section(title = "Data")
-    @Before(TimeoutParameters.TimeoutsSection.class)
-    // TODO This section is for some reason still displayed after the timeouts
-    // .... section even though it has this annotation and the timeout section
-    // .... is not placed via annotations itself… Why?
-    // .... Could it be because the Timeouts section is placed inside the parameters
-    // .... it is sectioning?
+    @Before(TimeoutsSection.class)
     interface DataSection {
     }
 

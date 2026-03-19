@@ -70,10 +70,12 @@ import org.knime.ext.sharepoint.filehandling.fs.SharepointFSConnectionConfig;
 import org.knime.ext.sharepoint.filehandling.fs.SharepointFileSystem;
 import org.knime.ext.sharepoint.parameters.SharepointSiteParameters;
 import org.knime.ext.sharepoint.parameters.TimeoutParameters;
+import org.knime.ext.sharepoint.parameters.TimeoutsSection;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
 import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.NodeParametersInput;
 import org.knime.node.parameters.Widget;
+import org.knime.node.parameters.layout.Before;
 import org.knime.node.parameters.layout.Layout;
 import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.persistence.Persist;
@@ -93,6 +95,7 @@ import com.microsoft.graph.authentication.IAuthenticationProvider;
 final class SharepointConnectionNodeParameters implements NodeParameters {
 
     @Section(title = "File System")
+    @Before(TimeoutsSection.class)
     interface FileSystemSection {
     }
 

@@ -176,6 +176,18 @@
         "providedOptions" : [ "possibleValues", "default" ]
       } ]
     }, {
+      "label" : "File System",
+      "type" : "Section",
+      "elements" : [ {
+        "type" : "Control",
+        "scope" : "#/properties/model/properties/workingDirectory",
+        "options" : {
+          "selectionMode" : "FOLDER",
+          "format" : "stringFileChooser"
+        },
+        "providedOptions" : [ "fileSystemId" ]
+      } ]
+    }, {
       "label" : "Timeouts",
       "type" : "Section",
       "options" : {
@@ -223,18 +235,6 @@
             }
           }
         }
-      } ]
-    }, {
-      "label" : "File System",
-      "type" : "Section",
-      "elements" : [ {
-        "type" : "Control",
-        "scope" : "#/properties/model/properties/workingDirectory",
-        "options" : {
-          "selectionMode" : "FOLDER",
-          "format" : "stringFileChooser"
-        },
-        "providedOptions" : [ "fileSystemId" ]
       } ]
     } ]
   },

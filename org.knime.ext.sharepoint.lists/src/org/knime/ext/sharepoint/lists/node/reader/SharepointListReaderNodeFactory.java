@@ -113,7 +113,8 @@ public class SharepointListReaderNodeFactory extends NodeFactory<SharepointListR
                         option is enabled for the column in SharePoint.</li>
                     <li><i>Calculated</i> columns are always Strings.</li>
                     <li><i>Currency</i> columns are always Doubles. Thus the currency information is not displayed.</li>
-                    <li><i>Person</i> columns return a row ID in the "User Information List" (for more details see below).</li>
+                    <li><i>Person</i> columns return a row ID in the "User Information List"
+                                      (for more details see below).</li>
                     <li><i>Lookup</i> columns return a row ID in linked list (for more details see below).</li>
                 </ul>
             </p>

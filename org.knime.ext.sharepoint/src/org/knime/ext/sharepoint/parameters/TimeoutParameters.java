@@ -53,11 +53,9 @@ import java.time.Duration;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.context.DeepCopy;
 import org.knime.core.node.util.CheckUtils;
-import org.knime.node.parameters.Advanced;
 import org.knime.node.parameters.NodeParameters;
 import org.knime.node.parameters.Widget;
 import org.knime.node.parameters.layout.Layout;
-import org.knime.node.parameters.layout.Section;
 import org.knime.node.parameters.migration.Migrate;
 import org.knime.node.parameters.updates.ParameterReference;
 import org.knime.node.parameters.widget.number.NumberInputWidget;
@@ -78,16 +76,6 @@ public class TimeoutParameters implements NodeParameters, DeepCopy<TimeoutParame
     private static final int MAX_TIMEOUT = Integer.MAX_VALUE / 1000;
 
     private static final int DEFAULT_TIMEOUT = 20;
-
-    /**
-     * Section for the timeout parameters
-     *
-     * @author Jannik Löscher, KNIME GmbH, Konstanz, Germany
-     */
-    @Advanced
-    @Section(title = "Timeouts")
-    public interface TimeoutsSection {
-    }
 
     @Widget(title = "Connection timeout in seconds", //
             description = "The timeout in seconds to establish a connection, or 0 for an infinite timeout.")

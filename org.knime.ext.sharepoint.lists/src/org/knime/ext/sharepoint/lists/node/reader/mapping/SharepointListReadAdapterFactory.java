@@ -108,8 +108,8 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
     /**
      * The type hierarchy of the SharePointList Reader.
      */
-    public static final TreeTypeHierarchy<DataType, DataType> TYPE_HIERARCHY = createHierarchy(
-            new SharepointListReaderNodeParameters()).createTypeFocusedHierarchy();
+    public static final TreeTypeHierarchy<DataType, DataType> TYPE_HIERARCHY = //
+            createHierarchy().createTypeFocusedHierarchy();
 
     private static ProducerRegistry<DataType, SharepointListReadAdapter> initializeProducerRegistry() {
         final ProducerRegistry<DataType, SharepointListReadAdapter> registry = MappingFramework
@@ -300,7 +300,7 @@ public enum SharepointListReadAdapterFactory implements ReadAdapterFactory<DataT
     }
 
     // TODO create an actual hierarchy
-    static TreeTypeHierarchy<DataType, Object> createHierarchy(final SharepointListReaderNodeParameters config) {
+    static TreeTypeHierarchy<DataType, Object> createHierarchy() {
         return TreeTypeHierarchy.builder(createTypeTester(StringCell.TYPE, t -> {
         })).addType(StringCell.TYPE, TypeTester.createTypeTester(DoubleCell.TYPE, Double.class::isInstance))
                 .addType(DoubleCell.TYPE, TypeTester.createTypeTester(LongCell.TYPE, Long.class::isInstance))
