@@ -54,8 +54,8 @@ import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
 import org.knime.core.node.Node;
-import org.knime.core.util.auth.OkHttpProxyAuthenticator;
 import org.knime.filehandling.core.defaultnodesettings.ExceptionUtil;
+import org.knime.okhttp3.OkHttpProxyAuthenticator;
 import org.osgi.framework.FrameworkUtil;
 
 import com.microsoft.graph.authentication.IAuthenticationProvider;
